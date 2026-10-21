@@ -1,0 +1,40 @@
+/*
+ * Little Ants design tokens (from the logo and brand guide).
+ * Apps import this after `@import 'tailwindcss';` and add `@source` for this package.
+ */
+@theme {
+  --color-leaf-50: #eef7ee;
+  --color-leaf-100: #d6ecd6;
+  --color-leaf-500: #3d9142;
+  --color-leaf-600: #2e7d32;
+  --color-leaf-700: #23632a;
+  --color-ant-50: #fbefe9;
+  --color-ant-100: #f5d6c8;
+  --color-ant-500: #c2532e;
+  --color-ant-600: #a64424;
+  --color-ant-700: #85361d;
+  --color-sun-100: #fff1c7;
+  --color-sun-400: #ffc93c;
+  --color-sun-500: #f2b400;
+  --color-cream-50: #fdfaf4;
+  --color-cream-100: #f7f1e6;
+  --color-cream-200: #f0e7d8;
+  --color-bark-500: #7a5a48;
+  --color-bark-700: #4e3628;
+  --color-bark-900: #3e2a20;
+
+  --font-sans: var(--font-nunito), ui-rounded, 'Segoe UI', system-ui, sans-serif;
+  /* Andika is the brand font for anything children read. */
+  --font-child: var(--font-andika), 'Andika', 'Century Gothic', var(--font-sans);
+
+  --radius-card: 0.875rem;
+}
+
+@layer base {
+  body {
+    @apply bg-cream-50 font-sans text-bark-900;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-leaf-600;
+  }
+}
