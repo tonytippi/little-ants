@@ -1,0 +1,18 @@
+@import 'tailwindcss';
+@import '@little-ants/ui/styles.css';
+
+@source '../../../../packages/ui/src';
+
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}

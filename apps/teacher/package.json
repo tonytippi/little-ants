@@ -1,0 +1,33 @@
+{
+  "name": "@little-ants/teacher",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/copy-pdf-worker.mjs && next dev --port 3002",
+    "build": "node scripts/copy-pdf-worker.mjs && next build",
+    "start": "next start --port 3002",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@little-ants/shared": "workspace:*",
+    "@little-ants/ui": "workspace:*",
+    "@tanstack/react-query": "5.104.5",
+    "better-auth": "1.7.12",
+    "idb": "8.0.4",
+    "next": "16.4.2",
+    "pdfjs-dist": "6.4.299",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "tailwindcss": "4.3.3",
+    "vitest": "5.0.5"
+  }
+}
