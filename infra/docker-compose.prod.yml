@@ -1,0 +1,96 @@
+# Production stack on one VPS. Public traffic arrives only through Cloudflare Tunnel;
+# no container publishes a port on the host.
+#
+#   docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production up -d
+#
+# See docs/operations/deploy-and-restore.md.
+
+x-app-env: &app-env
+  env_file: .env.production
+  restart: unless-stopped
+  networks: [internal]
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-little_ants}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-little_ants}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-little_ants}']
+      interval: 10s
+      retries: 10
+    networks: [internal]
+    deploy:
+      resources:
+        limits: { memory: 1g }
+
+  migrate:
+    <<: *app-env
+    build: &build
+      context: ..
+      dockerfile: infra/Dockerfile
+      target: migrate
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_TEACHER_APP_URL: ${NEXT_PUBLIC_TEACHER_APP_URL:?set NEXT_PUBLIC_TEACHER_APP_URL}
+        BUILD_ID: ${IMAGE_TAG:-local}
+    restart: 'no'
+    profiles: [tools]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    <<: *app-env
+    image: little-ants-api:${IMAGE_TAG:-latest}
+    build: { <<: *build, target: api }
+    depends_on:
+      postgres: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: { memory: 768m }
+
+  admin:
+    <<: *app-env
+    image: little-ants-admin:${IMAGE_TAG:-latest}
+    build: { <<: *build, target: admin }
+    deploy:
+      resources:
+        limits: { memory: 512m }
+
+  teacher:
+    <<: *app-env
+    image: little-ants-teacher:${IMAGE_TAG:-latest}
+    build: { <<: *build, target: teacher }
+    deploy:
+      resources:
+        limits: { memory: 512m }
+
+  # Remotely managed tunnel: hostnames → services are set in the Cloudflare dashboard
+  # (api.<domain> → http://api:3001, admin.<domain> → http://admin:3000, teacher.<domain> → http://teacher:3002).
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.2
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN}
+    restart: unless-stopped
+    depends_on: [api, admin, teacher]
+    networks: [internal]
+
+  # Nightly pg_dump to R2, kept for BACKUP_RETENTION_DAYS days.
+  backup:
+    <<: *app-env
+    build:
+      context: backup-job
+    depends_on:
+      postgres: { condition: service_healthy }
+
+volumes:
+  postgres-data:
+
+networks:
+  internal:
