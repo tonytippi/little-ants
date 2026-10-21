@@ -1,0 +1,29 @@
+{
+  "name": "@little-ants/importer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "la-import": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "la-import": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@little-ants/db": "workspace:*",
+    "@little-ants/shared": "workspace:*",
+    "@little-ants/storage": "workspace:*",
+    "dotenv": "18.0.8",
+    "exceljs": "4.4.0",
+    "mammoth": "1.13.0",
+    "node-html-parser": "9.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "vitest": "5.0.5"
+  }
+}
