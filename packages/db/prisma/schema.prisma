@@ -1,0 +1,647 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// Review workflow for every content entity and asset. Editing an APPROVED item moves it back to DRAFT.
+enum ContentStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  ARCHIVED
+}
+
+/// Material families, matching the code prefixes in the Master Sheets (RT, SG, CH, RH, ST, BB, MD, TS, SN, TT, HH).
+enum MaterialType {
+  ROUTINE
+  SONG
+  CHANT
+  RHYME
+  STORY
+  BOOK
+  MOVE_AND_DO
+  TALK_SCENE
+  SOUND_TRAIL
+  TINY_TRACKS
+  HOME_HILL
+  OTHER
+}
+
+enum WordKind {
+  CORE
+  EXTRA
+  REVIEW
+}
+
+enum LessonStage {
+  HEAR_IT
+  JOIN_IN
+  SAY_IT_MYSELF
+  PARTY
+  SHOW_AND_SHARE
+}
+
+enum StepKind {
+  HELLO_CIRCLE
+  SONG
+  CHANT
+  SOUND_TRAIL
+  RHYME
+  ANT_WIGGLE
+  STORY
+  BOOK
+  MOVE_AND_DO
+  TALK_SCENE
+  TINY_TRACKS
+  CHECKPOINT
+  SHOW_AND_SHARE
+  PARTY
+  GOODBYE
+  OTHER
+}
+
+enum AssetKind {
+  IMAGE
+  AUDIO
+  VIDEO
+  PDF
+}
+
+enum ProductionStage {
+  TEXT
+  ENGLISH_CHECK
+  ILLUSTRATION
+  LAYOUT
+  AUDIO_VIDEO
+  TEACHER_TEST
+  PRINT_READY
+}
+
+enum ProductionState {
+  NOT_STARTED
+  IN_PROGRESS
+  REVIEW
+  DONE
+  NOT_APPLICABLE
+}
+
+// ---------------------------------------------------------------------------
+// People (Better Auth compatible user table; auth tables are added with login)
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  AUTHOR
+  REVIEWER
+  TEACHER
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  roles         Role[]   @default([])
+  /// Deactivated staff keep their history but cannot sign in.
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions       Session[]
+  accounts       Account[]
+  revisions      Revision[]
+  uploadedAssets Asset[]
+  releases       UnitRelease[]
+  assignments    TeacherAssignment[]
+  invitesSent    StaffInvite[]       @relation("InvitedBy")
+  auditEntries   AuditLog[]
+  lessonRuns     LessonRun[]         @relation("LessonRuns")
+  observations   Observation[]       @relation("Observations")
+
+  @@map("user")
+}
+
+// Better Auth tables (field names follow the Better Auth core schema).
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+/// Staff can sign in only after an admin invites their email.
+model StaffInvite {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  roles       Role[]
+  invitedById String?
+  invitedBy   User?     @relation("InvitedBy", fields: [invitedById], references: [id])
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  /// "sign-in", "role-change", "invite", "deactivate" ...
+  action    String
+  target    String   @default("")
+  details   Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Schools and classes
+// ---------------------------------------------------------------------------
+
+model Campus {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  address   String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  classes   Class[]
+}
+
+model Class {
+  id            String              @id @default(cuid())
+  campusId      String
+  campus        Campus              @relation(fields: [campusId], references: [id])
+  name          String
+  levelId       String
+  level         Level               @relation(fields: [levelId], references: [id])
+  currentUnitId String?
+  currentUnit   Unit?               @relation(fields: [currentUnitId], references: [id])
+  /// Next lesson number in the current unit (1–40).
+  nextLesson    Int                 @default(1)
+  schoolYear    String
+  /// ISO weekdays with an English lesson (1 = Monday … 7 = Sunday).
+  lessonDays    Int[]               @default([1, 2, 3, 4])
+  active        Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  students      Student[]
+  teachers      TeacherAssignment[]
+  lessonRuns    LessonRun[]
+  observations  Observation[]
+
+  @@unique([campusId, name, schoolYear])
+}
+
+enum StudentStatus {
+  ACTIVE
+  LEFT
+}
+
+/// Minimal child record (Decree 13/2023): display name and birth year only, staff access only.
+model Student {
+  id           String        @id @default(cuid())
+  classId      String
+  class        Class         @relation(fields: [classId], references: [id])
+  displayName  String
+  birthYear    Int?
+  status       StudentStatus @default(ACTIVE)
+  /// Date the parent consent form was received.
+  consentAt    DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  observations Observation[]
+}
+
+model TeacherAssignment {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classId String
+  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classId])
+}
+
+// ---------------------------------------------------------------------------
+// Curriculum
+// ---------------------------------------------------------------------------
+
+/// LA = Little Ants 3–6. TA = Tiny Ants 0–3 (later).
+model Program {
+  id     String  @id @default(cuid())
+  code   String  @unique
+  name   String
+  levels Level[]
+}
+
+model Level {
+  id            String  @id @default(cuid())
+  programId     String
+  program       Program @relation(fields: [programId], references: [id])
+  number        Int
+  name          String
+  ageBand       String
+  lessonMinutes String
+  maxClassSize  Int?
+  /// Machine-checkable level rules (core word range, story limits, ...). See shared content rules.
+  rules         Json    @default("{}")
+  units         Unit[]
+  classes       Class[]
+
+  @@unique([programId, number])
+}
+
+model Character {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  description String  @default("")
+  artAssetId  String?
+  artAsset    Asset?  @relation("CharacterArt", fields: [artAssetId], references: [id])
+  leadUnits   Unit[]
+}
+
+model Unit {
+  id                String        @id @default(cuid())
+  levelId           String
+  level             Level         @relation(fields: [levelId], references: [id])
+  /// "U01" ... "U12"
+  code              String        @unique
+  number            Int
+  title             String
+  leadCharacterId   String?
+  leadCharacter     Character?    @relation(fields: [leadCharacterId], references: [id])
+  leadCharacterNote String        @default("")
+  circle            String        @default("")
+  vnLink            String        @default("")
+  bigQuestion       String        @default("")
+  value             String        @default("")
+  party             String        @default("")
+  sounds            String        @default("")
+  /// Sounds/literacy rows: { sound, words }[]
+  soundDetails      Json          @default("[]")
+  /// Key sentence patterns for the unit.
+  keyLanguage       String[]      @default([])
+  /// Message sent to parents at the start of the unit.
+  parentMessage     String        @default("")
+  levelRulesNote    String        @default("")
+  /// Look Back & Links tab rows: { what, fromUnit, how, where }[]
+  links             Json          @default("[]")
+  status            ContentStatus @default(DRAFT)
+  version           Int           @default(1)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  words      Word[]
+  materials  Material[]
+  lessons    Lesson[]
+  canDoGoals CanDoGoal[]
+  gateChecks GateCheck[]
+  releases   UnitRelease[]
+  classes    Class[]
+}
+
+model Word {
+  id           String        @id @default(cuid())
+  unitId       String
+  unit         Unit          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  /// "U01-01"
+  cardId       String        @unique
+  order        Int
+  text         String
+  partOfSpeech String        @default("")
+  kind         WordKind      @default(CORE)
+  group        String        @default("")
+  fromUnit     String        @default("")
+  pictureBrief String        @default("")
+  notes        String        @default("")
+  imageAssetId String?
+  imageAsset   Asset?        @relation("WordImage", fields: [imageAssetId], references: [id])
+  status       ContentStatus @default(DRAFT)
+  version      Int           @default(1)
+  updatedAt    DateTime      @updatedAt
+}
+
+model Material {
+  id             String        @id @default(cuid())
+  unitId         String
+  unit           Unit          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  /// "SG1", "ST2", "RT1", "SN" ...
+  code           String
+  type           MaterialType
+  title          String
+  format         String        @default("")
+  targetLanguage String        @default("")
+  fullText       String        @default("")
+  actions        String        @default("")
+  teacherNotes   String        @default("")
+  firstLesson    Int?
+  status         ContentStatus @default(DRAFT)
+  version        Int           @default(1)
+  updatedAt      DateTime      @updatedAt
+
+  pages      MaterialPage[]
+  steps      LessonStep[]
+  prepItems  PrepItem[]
+  production ProductionStatus[]
+  assets     MaterialAsset[]
+
+  @@unique([unitId, code])
+}
+
+/// Page-by-page content for stories, books, Talk Scenes and card sets.
+model MaterialPage {
+  id           String   @id @default(cuid())
+  materialId   String
+  material     Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  number       Int
+  text         String   @default("")
+  imageAssetId String?
+  imageAsset   Asset?   @relation("PageImage", fields: [imageAssetId], references: [id])
+  audioAssetId String?
+  audioAsset   Asset?   @relation("PageAudio", fields: [audioAssetId], references: [id])
+  updatedAt    DateTime @updatedAt
+
+  @@unique([materialId, number])
+}
+
+/// Material-level files: song poster, full-song audio, print PDF ...
+model MaterialAsset {
+  id         String   @id @default(cuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  assetId    String
+  asset      Asset    @relation(fields: [assetId], references: [id])
+  /// "poster", "audio", "print", "draft-layout" ...
+  role       String
+  order      Int      @default(0)
+
+  @@unique([materialId, assetId, role])
+}
+
+model Lesson {
+  id          String        @id @default(cuid())
+  unitId      String
+  unit        Unit          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  number      Int
+  week        Int
+  stage       LessonStage
+  minutes     Int
+  /// Material codes introduced in this lesson ("SG1", "RH1" ...)
+  newToday    String[]      @default([])
+  goals       String[]      @default([])
+  keyLanguage String        @default("")
+  support     String        @default("")
+  challenge   String        @default("")
+  lookFor     String        @default("")
+  homeLink    String        @default("")
+  prepMinutes Int?
+  notes       String        @default("")
+  status      ContentStatus @default(DRAFT)
+  version     Int           @default(1)
+  updatedAt   DateTime      @updatedAt
+
+  steps     LessonStep[]
+  prepItems PrepItem[]
+
+  @@unique([unitId, number])
+}
+
+model LessonStep {
+  id           String    @id @default(cuid())
+  lessonId     String
+  lesson       Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  order        Int
+  minutes      Int
+  kind         StepKind
+  title        String
+  materialId   String?
+  material     Material? @relation(fields: [materialId], references: [id])
+  teacherText  String    @default("")
+  childrenText String    @default("")
+
+  @@unique([lessonId, order])
+}
+
+model PrepItem {
+  id         String    @id @default(cuid())
+  lessonId   String
+  lesson     Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  order      Int
+  text       String
+  materialId String?
+  material   Material? @relation(fields: [materialId], references: [id])
+
+  @@unique([lessonId, order])
+}
+
+/// Show & Share can-do goals (Master Sheet tab 8 columns).
+model CanDoGoal {
+  id     String @id @default(cuid())
+  unitId String
+  unit   Unit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  order  Int
+  text   String
+
+  @@unique([unitId, order])
+}
+
+model GateCheck {
+  id     String    @id @default(cuid())
+  unitId String
+  unit   Unit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  gate   Int
+  order  Int
+  text   String
+  signer String    @default("")
+  done   Boolean   @default(false)
+  doneAt DateTime?
+  notes  String    @default("")
+
+  @@unique([unitId, gate, order])
+}
+
+// ---------------------------------------------------------------------------
+// Assets and production
+// ---------------------------------------------------------------------------
+
+/// A stored file in R2. Approved assets are immutable: a change uploads a new version with a new key.
+model Asset {
+  id                String        @id @default(cuid())
+  kind              AssetKind
+  /// Object key in the bucket, unique per version.
+  storageKey        String        @unique
+  fileName          String
+  mimeType          String
+  sizeBytes         Int
+  checksum          String        @default("")
+  status            ContentStatus @default(DRAFT)
+  version           Int           @default(1)
+  /// Earlier version this one replaces (same logical asset).
+  previousId        String?       @unique
+  previous          Asset?        @relation("AssetVersions", fields: [previousId], references: [id])
+  next              Asset?        @relation("AssetVersions")
+  /// False while a browser upload is in progress; such rows are hidden from the library.
+  uploaded          Boolean       @default(true)
+  /// Set during the upload of a new version; becomes previousId when the upload completes.
+  pendingReplacesId String?
+  source            String        @default("upload")
+  uploadedById      String?
+  uploadedBy        User?         @relation(fields: [uploadedById], references: [id])
+  createdAt         DateTime      @default(now())
+
+  characters     Character[]     @relation("CharacterArt")
+  words          Word[]          @relation("WordImage")
+  pageImages     MaterialPage[]  @relation("PageImage")
+  pageAudio      MaterialPage[]  @relation("PageAudio")
+  materialAssets MaterialAsset[]
+}
+
+/// One row per material × production stage (Master Sheet tab 9).
+model ProductionStatus {
+  id         String          @id @default(cuid())
+  materialId String
+  material   Material        @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  stage      ProductionStage
+  state      ProductionState @default(NOT_STARTED)
+  owner      String          @default("")
+  dueDate    DateTime?
+  notes      String          @default("")
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([materialId, stage])
+}
+
+// ---------------------------------------------------------------------------
+// History and releases
+// ---------------------------------------------------------------------------
+
+/// Snapshot of a content entity after each change. Replaces the Master Sheet Change Log tab.
+model Revision {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  version    Int
+  snapshot   Json
+  note       String   @default("")
+  authorId   String?
+  author     User?    @relation(fields: [authorId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+}
+
+/// Immutable, published bundle of a whole unit. The Teacher app reads only releases.
+model UnitRelease {
+  id            String   @id @default(cuid())
+  unitId        String
+  unit          Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  version       Int
+  payload       Json
+  note          String   @default("")
+  publishedById String?
+  publishedBy   User?    @relation(fields: [publishedById], references: [id])
+  publishedAt   DateTime @default(now())
+
+  @@unique([unitId, version])
+}
+
+// ---------------------------------------------------------------------------
+// Teaching records (written by the Teacher app, possibly offline)
+// ---------------------------------------------------------------------------
+
+enum ObservationLevel {
+  NOT_YET
+  WITH_HELP
+  ON_MY_OWN
+}
+
+/// One lesson taught to a class. clientId lets offline devices retry safely.
+model LessonRun {
+  id             String   @id @default(cuid())
+  clientId       String   @unique
+  classId        String
+  class          Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  unitCode       String
+  lessonNumber   Int
+  releaseVersion Int
+  teacherId      String
+  teacher        User     @relation("LessonRuns", fields: [teacherId], references: [id])
+  taughtAt       DateTime
+  notes          String   @default("")
+  createdAt      DateTime @default(now())
+
+  @@index([classId, taughtAt])
+}
+
+/// Show & Share / checkpoint result for one child and one can-do goal. The latest record per goal wins.
+model Observation {
+  id           String           @id @default(cuid())
+  clientId     String           @unique
+  studentId    String
+  student      Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId      String
+  class        Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  unitCode     String
+  goalOrder    Int
+  level        ObservationLevel
+  lessonNumber Int?
+  teacherId    String
+  teacher      User             @relation("Observations", fields: [teacherId], references: [id])
+  observedAt   DateTime
+  createdAt    DateTime         @default(now())
+
+  @@index([classId, unitCode])
+  @@index([studentId, unitCode, goalOrder, observedAt])
+}
