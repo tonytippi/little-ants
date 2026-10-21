@@ -1,0 +1,13 @@
+@import 'tailwindcss';
+@import '@little-ants/ui/styles.css';
+
+@source '../../../../packages/ui/src';
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}
