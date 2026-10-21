@@ -1,0 +1,17 @@
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+.git
+.env
+.env.*
+!.env.example
+docs
+plans
+infra/backup
+infra/storage
+.agentkit
+ak-engineer
+.claude

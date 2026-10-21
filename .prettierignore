@@ -1,0 +1,9 @@
+docs/
+plans/
+.claude/
+.agentkit/
+ak-engineer/
+pnpm-lock.yaml
+**/src/generated/
+**/.next/
+**/dist/

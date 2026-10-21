@@ -1,0 +1,27 @@
+packages:
+  - apps/*
+  - packages/*
+  - tools/*
+allowBuilds:
+  '@prisma/engines': true
+  '@swc/core': true
+  prisma: true
+minimumReleaseAgeExclude:
+  - '@turbo/darwin-64@2.11.10'
+  - '@turbo/darwin-arm64@2.11.10'
+  - '@turbo/linux-64@2.11.10'
+  - '@turbo/linux-arm64@2.11.10'
+  - '@turbo/windows-64@2.11.10'
+  - '@turbo/windows-arm64@2.11.10'
+  - turbo@2.11.10
+  - '@nestjs/cli@12.0.10'
+  - '@aws-sdk/client-s3@3.1154.0'
+  - '@aws-sdk/s3-request-presigner@3.1154.0'
+  - '@better-auth/core@1.7.12'
+  - '@better-auth/drizzle-adapter@1.7.12'
+  - '@better-auth/kysely-adapter@1.7.12'
+  - '@better-auth/memory-adapter@1.7.12'
+  - '@better-auth/mongo-adapter@1.7.12'
+  - '@better-auth/prisma-adapter@1.7.12'
+  - '@better-auth/telemetry@1.7.12'
+  - better-auth@1.7.12

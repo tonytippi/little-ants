@@ -1,0 +1,45 @@
+node_modules/
+dist/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+packages/db/src/generated/
+playwright-report/
+test-results/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Source curriculum files are migration input only (large binaries, kept out of git)
+docs/**/*.docx
+docs/**/*.xlsx
+docs/**/*.pdf
+docs/**/*.png
+docs/**/*.jpg
+docs/**/*.jpeg
+docs/**/*.svg
+~$*
+.DS_Store
+*.DS_Store
+
+# Local object storage (development driver)
+infra/storage/
+
+# Local database backups
+infra/backup/*.sql
+infra/backup/*.dump
+
+# Local agent tooling
+.agentkit/
+ak-engineer/
+
+# Per-package Vitest cache
+.vitest-cache/
+
+# Personal agent state
+.claude/agent-memory/
+.claude/settings.local.json
