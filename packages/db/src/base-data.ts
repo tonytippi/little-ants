@@ -65,3 +65,25 @@ export async function seedBaseData(prisma: PrismaClient): Promise<void> {
     await prisma.character.upsert({ where: { code }, update: { name }, create: { code, name } });
   }
 }
+
+/** The first admin, invited by the seed so a fresh database can be signed into. */
+export const DEFAULT_ADMIN_EMAIL = 'sonnh273@gmail.com';
+const ADMIN_ROLES = ['ADMIN', 'AUTHOR', 'REVIEWER', 'TEACHER'] as const;
+
+/**
+ * Invite the default admin, or give an existing account every staff role (keeping roles it already has).
+ * Returns what happened so the seed can report it.
+ */
+export async function seedDefaultAdmin(prisma: PrismaClient, email = DEFAULT_ADMIN_EMAIL): Promise<'invited' | 'updated'> {
+  const normalized = email.trim().toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email: normalized } });
+  if (user) {
+    const roles = [...new Set([...user.roles, ...ADMIN_ROLES])];
+    await prisma.user.update({ where: { id: user.id }, data: { roles, active: true } });
+    return 'updated';
+  }
+  const invite = await prisma.staffInvite.findUnique({ where: { email: normalized } });
+  const roles = [...new Set([...(invite?.roles ?? []), ...ADMIN_ROLES])];
+  await prisma.staffInvite.upsert({ where: { email: normalized }, update: { roles }, create: { email: normalized, roles } });
+  return 'invited';
+}

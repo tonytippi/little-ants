@@ -24,7 +24,7 @@ The Little Ants platform is a pnpm + Turborepo workspace in TypeScript.
 pnpm install
 pnpm db:generate
 pnpm db:migrate          # applies migrations
-pnpm --filter @little-ants/db build && pnpm db:seed   # program, levels, characters
+pnpm --filter @little-ants/db build && pnpm db:seed   # program, levels, characters, default admin invite
 ```
 
 5. Import the curriculum (the source files live in `docs/Little Ants English/`, which is not in git):
@@ -37,7 +37,7 @@ pnpm --filter @little-ants/importer run la-import --all --assets    # write + up
 
 Each run backs up the database first and writes a report to `plans/reports/import-*.md`. Units already edited in Admin are skipped unless you pass `--force`.
 
-6. Create the first admin, then run everything:
+6. The seed invites `sonnh273@gmail.com` as admin (all staff roles); set `SEED_ADMIN_EMAIL` to invite someone else. To add more staff, or a development password, use `invite-staff`, then run everything:
 
 ```bash
 pnpm turbo build --filter=@little-ants/api...
@@ -50,6 +50,7 @@ pnpm dev
 | Variable | Used by | Notes |
 |---|---|---|
 | `DATABASE_URL` | api, db, importer | PostgreSQL connection string |
+| `SEED_ADMIN_EMAIL` | db seed | Optional; email the seed invites as admin (default `sonnh273@gmail.com`) |
 | `API_PORT`, `API_PUBLIC_URL` | api | Defaults 3001 / `http://localhost:3001` |
 | `CORS_ORIGINS` | api | Comma-separated app origins |
 | `BETTER_AUTH_SECRET` | api | Required in production (32+ characters) |

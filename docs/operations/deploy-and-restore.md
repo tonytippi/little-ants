@@ -32,8 +32,9 @@ Files: [`infra/docker-compose.prod.yml`](../../infra/docker-compose.prod.yml), [
 ```bash
 COMPOSE="docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production"
 $COMPOSE --profile tools run --rm migrate pnpm --filter @little-ants/db run seed
-$COMPOSE exec api node apps/api/dist/cli/invite-staff.js --email you@example.com --roles ADMIN,AUTHOR,REVIEWER,TEACHER
 ```
+
+The seed invites `sonnh273@gmail.com` with every staff role (pass `-e SEED_ADMIN_EMAIL=...` to the seed run for another email). Invite more staff from Admin, or with `$COMPOSE exec api node apps/api/dist/cli/invite-staff.js --email someone@example.com --roles TEACHER`.
 
 8. **Import Level 1** from a machine that has the source files, pointing `DATABASE_URL` and the `S3_*` settings at production (or import locally and restore the dump on the VPS):
 
