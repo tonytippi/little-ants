@@ -9,6 +9,11 @@ describe('parseEnv', () => {
     expect(parseEnv(schema, { PORT: '3001', SECRET: 'long-enough' })).toEqual({ PORT: 3001, SECRET: 'long-enough' });
   });
 
+  it('treats empty values as not set', () => {
+    const withDefault = z.object({ PORT: z.coerce.number().default(3001), SECRET: z.string().min(8).optional() });
+    expect(parseEnv(withDefault, { PORT: '', SECRET: '' })).toEqual({ PORT: 3001 });
+  });
+
   it('names invalid variables without echoing their values', () => {
     let message = '';
     try {
