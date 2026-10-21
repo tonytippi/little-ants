@@ -33,13 +33,10 @@ infra/storage/
 infra/backup/*.sql
 infra/backup/*.dump
 
-# Local agent tooling
+# Agent tooling installed by AgentKit (reinstall instead of committing)
 .agentkit/
 ak-engineer/
+.claude/
 
 # Per-package Vitest cache
 .vitest-cache/
-
-# Personal agent state
-.claude/agent-memory/
-.claude/settings.local.json
