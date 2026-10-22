@@ -1,12 +1,12 @@
 [
   {
-    "AllowedOrigins": ["https://admin.littleants.vn"],
+    "AllowedOrigins": ["https://la-admin.passionedu.org"],
     "AllowedMethods": ["PUT"],
     "AllowedHeaders": ["Content-Type", "Content-Length"],
     "MaxAgeSeconds": 3600
   },
   {
-    "AllowedOrigins": ["https://admin.littleants.vn", "https://teacher.littleants.vn"],
+    "AllowedOrigins": ["https://la-admin.passionedu.org", "https://la-teacher.passionedu.org"],
     "AllowedMethods": ["GET", "HEAD"],
     "AllowedHeaders": ["*"],
     "MaxAgeSeconds": 86400

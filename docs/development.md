@@ -37,6 +37,8 @@ pnpm --filter @little-ants/importer run la-import --all --assets    # write + up
 
 Each run backs up the database first and writes a report to `plans/reports/import-*.md`. Units already edited in Admin are skipped unless you pass `--force`.
 
+To read the source files straight from the shared Google Drive folder instead, add `--drive`. It needs `GOOGLE_DRIVE_FOLDER_ID` and either `GOOGLE_DRIVE_API_KEY` or `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE`. The files are downloaded to a temporary folder. On a real (not dry) run, a copy is archived to storage under `sources/<time>/` together with a `manifest.json` and the report, and the report names the Drive version that was used.
+
 6. The seed invites `sonnh273@gmail.com` as admin (all staff roles); set `SEED_ADMIN_EMAIL` to invite someone else. To add more staff, or a development password, use `invite-staff`, then run everything:
 
 ```bash
@@ -50,12 +52,15 @@ pnpm dev
 | Variable | Used by | Notes |
 |---|---|---|
 | `DATABASE_URL` | api, db, importer | PostgreSQL connection string |
+| `GOOGLE_DRIVE_FOLDER_ID` | importer | Shared Drive folder for `la-import --drive` ("Little Ants English" or its "LA 3-6" folder) |
+| `GOOGLE_DRIVE_API_KEY` | importer | Google API key restricted to the Drive API; reads folders shared by link |
+| `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE` | importer | Path to a service account JSON key; used instead of the API key, for folders shared with that account |
 | `SEED_ADMIN_EMAIL` | db seed | Optional; email the seed invites as admin (default `sonnh273@gmail.com`) |
 | `API_PORT`, `API_PUBLIC_URL` | api | Defaults 3001 / `http://localhost:3001` |
 | `CORS_ORIGINS` | api | Comma-separated app origins |
 | `BETTER_AUTH_SECRET` | api | Required in production (32+ characters) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | api | Enables "Continue with Google"; redirect URI `<API_PUBLIC_URL>/api/auth/callback/google` |
-| `AUTH_COOKIE_DOMAIN` | api | e.g. `.littleants.vn` so admin/teacher/api share the session |
+| `AUTH_COOKIE_DOMAIN` | api | e.g. `.passionedu.org` so la-admin/la-teacher/la-api share the session |
 | `AUTH_DEV_PASSWORD_LOGIN` | api | `true` enables email + password sign-in for invited staff. Refused in production |
 | `STORAGE_DRIVER` | api, importer | `local` (default, files in `infra/storage/`) or `s3` |
 | `S3_*`, `MEDIA_PUBLIC_BASE_URL` | api, importer | R2 settings when `STORAGE_DRIVER=s3`: `S3_BUCKET` is private (all uploads), `S3_PUBLIC_BUCKET` holds approved copies behind the media domain. Production must use `s3` |

@@ -33,6 +33,11 @@ infra/storage/
 infra/backup/*.sql
 infra/backup/*.dump
 
+# Production import output and credentials on the VPS
+infra/import-reports/
+infra/drive-cache/
+infra/secrets/
+
 # Agent tooling installed by AgentKit (reinstall instead of committing)
 .agentkit/
 ak-engineer/

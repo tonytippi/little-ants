@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# One Dockerfile, one target per service: api, migrate, admin, teacher.
+# One Dockerfile, one target per service: api, migrate, importer, admin, teacher.
 # Build from the repository root:  docker build -f infra/Dockerfile --target api .
 
 FROM node:24-bookworm-slim AS base
@@ -33,6 +33,20 @@ RUN pnpm turbo run build --filter=@little-ants/api... --filter=@little-ants/admi
 # Database migrations (needs the Prisma CLI, a dev dependency).
 FROM build AS migrate
 CMD ["pnpm", "--filter", "@little-ants/db", "run", "migrate:deploy"]
+
+# One-off curriculum import: Google Drive → database + R2. It backs up the database first,
+# so it needs pg_dump matching the server (PostgreSQL 17).
+FROM build AS importer
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl \
+  && install -d /usr/share/postgresql-common/pgdg \
+  && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+  && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends postgresql-client-17 \
+  && rm -rf /var/lib/apt/lists/*
+RUN pnpm turbo run build --filter=@little-ants/importer...
+CMD ["pnpm", "--filter", "@little-ants/importer", "run", "la-import", "--drive", "--all", "--assets"]
 
 FROM build AS api-prune
 RUN pnpm prune --prod --ignore-scripts
