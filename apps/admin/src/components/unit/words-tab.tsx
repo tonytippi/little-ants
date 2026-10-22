@@ -12,7 +12,10 @@ import { AssetPicker } from '../assets/asset-picker';
 import { FormError } from '../form-error';
 import { HistoryButton } from '../history-panel';
 
-type Editable = Pick<Word, 'text' | 'partOfSpeech' | 'kind' | 'group' | 'fromUnit' | 'pictureBrief' | 'notes'>;
+type Editable = Pick<
+  Word,
+  'text' | 'partOfSpeech' | 'kind' | 'group' | 'fromUnit' | 'pictureBrief' | 'notes'
+>;
 const KINDS: Word['kind'][] = ['CORE', 'EXTRA', 'REVIEW'];
 
 function nextCardId(unit: UnitDetail): string {
@@ -23,15 +26,26 @@ function nextCardId(unit: UnitDetail): string {
 export function WordsTab({ unit }: { unit: UnitDetail }) {
   const { canEdit } = usePermissions();
   const [filter, setFilter] = useState<'ALL' | Word['kind']>('ALL');
-  const words = unit.words.filter((word) => word.status !== 'ARCHIVED' && (filter === 'ALL' || word.kind === filter));
-  const counts = Object.fromEntries(KINDS.map((kind) => [kind, unit.words.filter((word) => word.kind === kind && word.status !== 'ARCHIVED').length]));
+  const words = unit.words.filter(
+    (word) => word.status !== 'ARCHIVED' && (filter === 'ALL' || word.kind === filter),
+  );
+  const counts = Object.fromEntries(
+    KINDS.map((kind) => [
+      kind,
+      unit.words.filter((word) => word.kind === kind && word.status !== 'ARCHIVED').length,
+    ]),
+  );
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm font-semibold">
           Show
-          <Select value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)} className="w-40">
+          <Select
+            value={filter}
+            onChange={(event) => setFilter(event.target.value as typeof filter)}
+            className="w-40"
+          >
             <option value="ALL">All words</option>
             {KINDS.map((kind) => (
               <option key={kind} value={kind}>
@@ -82,19 +96,31 @@ function WordRow({ word, unitCode, canEdit }: { word: Word; unitCode: string; ca
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Editable>(word);
   const [picking, setPicking] = useState(false);
-  const save = useApiMutation((data: Partial<Word>) => api.patch(`/content/words/${word.id}`, data), invalidate);
+  const save = useApiMutation(
+    (data: Partial<Word>) => api.patch(`/content/words/${word.id}`, data),
+    invalidate,
+  );
   const archive = useApiMutation(() => api.del(`/content/words/${word.id}`), invalidate);
-  const set = (key: keyof Editable, value: string): void => setDraft((current) => ({ ...current, [key]: value }));
+  const set = (key: keyof Editable, value: string): void =>
+    setDraft((current) => ({ ...current, [key]: value }));
 
   if (editing) {
     return (
       <tr className="border-t border-cream-200 bg-sun-100/40 align-top">
         <td className="px-3 py-2 font-mono text-xs">{word.cardId}</td>
         <td className="px-2 py-2">
-          <TextInput aria-label="Word" value={draft.text} onChange={(event) => set('text', event.target.value)} />
+          <TextInput
+            aria-label="Word"
+            value={draft.text}
+            onChange={(event) => set('text', event.target.value)}
+          />
         </td>
         <td className="px-2 py-2">
-          <TextInput aria-label="Part of speech" value={draft.partOfSpeech} onChange={(event) => set('partOfSpeech', event.target.value)} />
+          <TextInput
+            aria-label="Part of speech"
+            value={draft.partOfSpeech}
+            onChange={(event) => set('partOfSpeech', event.target.value)}
+          />
         </td>
         <td className="px-2 py-2">
           <Select aria-label="Kind" value={draft.kind} onChange={(event) => set('kind', event.target.value)}>
@@ -106,18 +132,37 @@ function WordRow({ word, unitCode, canEdit }: { word: Word; unitCode: string; ca
           </Select>
         </td>
         <td className="px-2 py-2">
-          <TextInput aria-label="Group" value={draft.group} onChange={(event) => set('group', event.target.value)} />
+          <TextInput
+            aria-label="Group"
+            value={draft.group}
+            onChange={(event) => set('group', event.target.value)}
+          />
         </td>
         <td className="px-2 py-2" colSpan={2}>
-          <TextInput aria-label="Picture brief" value={draft.pictureBrief} onChange={(event) => set('pictureBrief', event.target.value)} />
+          <TextInput
+            aria-label="Picture brief"
+            value={draft.pictureBrief}
+            onChange={(event) => set('pictureBrief', event.target.value)}
+          />
           {save.error ? <FormError error={save.error} /> : null}
         </td>
         <td className="px-2 py-2" colSpan={2}>
           <div className="flex gap-1">
-            <Button size="sm" busy={save.isPending} onClick={() => save.mutate(draft, { onSuccess: () => setEditing(false) })}>
+            <Button
+              size="sm"
+              busy={save.isPending}
+              onClick={() => save.mutate(draft, { onSuccess: () => setEditing(false) })}
+            >
               Save
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setDraft(word); setEditing(false); }}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setDraft(word);
+                setEditing(false);
+              }}
+            >
               Cancel
             </Button>
           </div>
@@ -132,7 +177,9 @@ function WordRow({ word, unitCode, canEdit }: { word: Word; unitCode: string; ca
       <td className="px-3 py-2 font-semibold">{word.text}</td>
       <td className="px-3 py-2 text-bark-500">{word.partOfSpeech}</td>
       <td className="px-3 py-2">
-        <Badge tone={word.kind === 'CORE' ? 'leaf' : word.kind === 'REVIEW' ? 'sun' : 'neutral'}>{word.kind.toLowerCase()}</Badge>
+        <Badge tone={word.kind === 'CORE' ? 'leaf' : word.kind === 'REVIEW' ? 'sun' : 'neutral'}>
+          {word.kind.toLowerCase()}
+        </Badge>
       </td>
       <td className="px-3 py-2 text-bark-500">{word.group}</td>
       <td className="max-w-64 px-3 py-2 text-bark-500">{word.pictureBrief}</td>
@@ -146,7 +193,14 @@ function WordRow({ word, unitCode, canEdit }: { word: Word; unitCode: string; ca
         ) : (
           '—'
         )}
-        <AssetPicker open={picking} onClose={() => setPicking(false)} kind="IMAGE" unitCode={unitCode} title={`Picture for “${word.text}”`} onPick={([id]) => id && save.mutate({ imageAssetId: id })} />
+        <AssetPicker
+          open={picking}
+          onClose={() => setPicking(false)}
+          kind="IMAGE"
+          unitCode={unitCode}
+          title={`Picture for “${word.text}”`}
+          onPick={([id]) => id && save.mutate({ imageAssetId: id })}
+        />
       </td>
       <td className="px-3 py-2">
         <StatusBadge status={word.status} />
@@ -162,13 +216,21 @@ function WordRow({ word, unitCode, canEdit }: { word: Word; unitCode: string; ca
                 size="sm"
                 variant="ghost"
                 busy={archive.isPending}
-                onClick={() => window.confirm(`Archive “${word.text}”? It will be left out of releases.`) && archive.mutate(undefined)}
+                onClick={() =>
+                  window.confirm(`Archive “${word.text}”? It will be left out of releases.`) &&
+                  archive.mutate(undefined)
+                }
               >
                 Archive
               </Button>
             </>
           ) : null}
-          <HistoryButton entityType="word" entityId={word.id} current={word as unknown as Record<string, unknown>} invalidate={invalidate} />
+          <HistoryButton
+            entityType="word"
+            entityId={word.id}
+            current={word as unknown as Record<string, unknown>}
+            invalidate={invalidate}
+          />
         </div>
         {archive.error ? <FormError error={archive.error} /> : null}
       </td>
@@ -183,7 +245,14 @@ function AddWordForm({ unit }: { unit: UnitDetail }) {
   const [group, setGroup] = useState('');
   const [pictureBrief, setPictureBrief] = useState('');
   const add = useApiMutation(
-    () => api.post(`/content/units/${unit.code}/words`, { cardId: nextCardId(unit), text, kind, group, pictureBrief }),
+    () =>
+      api.post(`/content/units/${unit.code}/words`, {
+        cardId: nextCardId(unit),
+        text,
+        kind,
+        group,
+        pictureBrief,
+      }),
     [['unit', unit.code], ['units']],
   );
 
@@ -206,24 +275,55 @@ function AddWordForm({ unit }: { unit: UnitDetail }) {
     );
   }
   return (
-    <form onSubmit={submit} className="flex flex-wrap items-end gap-2 rounded-xl bg-white p-3 ring-1 ring-cream-200">
-      <TextInput aria-label="New word" placeholder="Word or phrase" required value={text} onChange={(event) => setText(event.target.value)} className="w-48" />
-      <Select aria-label="Kind" value={kind} onChange={(event) => setKind(event.target.value as Word['kind'])} className="w-32">
+    <form
+      onSubmit={submit}
+      className="flex flex-wrap items-end gap-2 rounded-xl bg-white p-3 ring-1 ring-cream-200"
+    >
+      <TextInput
+        aria-label="New word"
+        placeholder="Word or phrase"
+        required
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        className="w-48"
+      />
+      <Select
+        aria-label="Kind"
+        value={kind}
+        onChange={(event) => setKind(event.target.value as Word['kind'])}
+        className="w-32"
+      >
         {KINDS.map((item) => (
           <option key={item} value={item}>
             {item.toLowerCase()}
           </option>
         ))}
       </Select>
-      <TextInput aria-label="Group" placeholder="Group" value={group} onChange={(event) => setGroup(event.target.value)} className="w-40" />
-      <TextInput aria-label="Picture brief" placeholder="Picture brief for the designer" value={pictureBrief} onChange={(event) => setPictureBrief(event.target.value)} className="min-w-64 flex-1" />
+      <TextInput
+        aria-label="Group"
+        placeholder="Group"
+        value={group}
+        onChange={(event) => setGroup(event.target.value)}
+        className="w-40"
+      />
+      <TextInput
+        aria-label="Picture brief"
+        placeholder="Picture brief for the designer"
+        value={pictureBrief}
+        onChange={(event) => setPictureBrief(event.target.value)}
+        className="min-w-64 flex-1"
+      />
       <Button type="submit" size="md" busy={add.isPending}>
         Add as {nextCardId(unit)}
       </Button>
       <Button variant="ghost" onClick={() => setOpen(false)}>
         Close
       </Button>
-      {add.error ? <div className="w-full"><FormError error={add.error} /></div> : null}
+      {add.error ? (
+        <div className="w-full">
+          <FormError error={add.error} />
+        </div>
+      ) : null}
     </form>
   );
 }

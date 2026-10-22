@@ -37,9 +37,12 @@ async function main(): Promise<void> {
     await prisma.staffInvite.upsert({ where: { email }, update: { roles }, create: { email, roles } });
     console.log(`Invited ${email} as ${roles.join(', ')}.`);
     if (values.password) {
-      if (!env.AUTH_DEV_PASSWORD_LOGIN) throw new Error('--password needs AUTH_DEV_PASSWORD_LOGIN=true (development only)');
+      if (!env.AUTH_DEV_PASSWORD_LOGIN)
+        throw new Error('--password needs AUTH_DEV_PASSWORD_LOGIN=true (development only)');
       const auth = createAuth(prisma, env);
-      await auth.api.signUpEmail({ body: { email, password: values.password, name: values.name ?? email.split('@')[0]! } });
+      await auth.api.signUpEmail({
+        body: { email, password: values.password, name: values.name ?? email.split('@')[0]! },
+      });
       console.log('Development password account created.');
     }
   } finally {

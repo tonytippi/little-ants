@@ -8,7 +8,12 @@ const LA_LEVELS = [
     ageBand: '3–4 years',
     lessonMinutes: '25–30',
     maxClassSize: 10,
-    rules: { coreWordsPerUnit: [35, 40], storyPages: [6, 8], sentencesPerPage: [1, 1], soundsPerUnit: [2, 3] },
+    rules: {
+      coreWordsPerUnit: [35, 40],
+      storyPages: [6, 8],
+      sentencesPerPage: [1, 1],
+      soundsPerUnit: [2, 3],
+    },
   },
   {
     number: 2,
@@ -74,7 +79,10 @@ const ADMIN_ROLES = ['ADMIN', 'AUTHOR', 'REVIEWER', 'TEACHER'] as const;
  * Invite the default admin, or give an existing account every staff role (keeping roles it already has).
  * Returns what happened so the seed can report it.
  */
-export async function seedDefaultAdmin(prisma: PrismaClient, email = DEFAULT_ADMIN_EMAIL): Promise<'invited' | 'updated'> {
+export async function seedDefaultAdmin(
+  prisma: PrismaClient,
+  email = DEFAULT_ADMIN_EMAIL,
+): Promise<'invited' | 'updated'> {
   const normalized = email.trim().toLowerCase();
   const user = await prisma.user.findUnique({ where: { email: normalized } });
   if (user) {
@@ -84,6 +92,10 @@ export async function seedDefaultAdmin(prisma: PrismaClient, email = DEFAULT_ADM
   }
   const invite = await prisma.staffInvite.findUnique({ where: { email: normalized } });
   const roles = [...new Set([...(invite?.roles ?? []), ...ADMIN_ROLES])];
-  await prisma.staffInvite.upsert({ where: { email: normalized }, update: { roles }, create: { email: normalized, roles } });
+  await prisma.staffInvite.upsert({
+    where: { email: normalized },
+    update: { roles },
+    create: { email: normalized, roles },
+  });
   return 'invited';
 }

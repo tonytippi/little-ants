@@ -3,7 +3,8 @@ import { blockText, clean, elementsOf } from './docx.js';
 import { classifyStep, isMaterialCode, lessonStage, parseMinutes, splitList } from './mapping.js';
 import type { ImportIssue, LessonData, LessonPlanData, LessonStepData } from './types.js';
 
-type Section = 'goals' | 'key' | 'prepare' | 'flow' | 'support' | 'look' | 'home' | 'notes' | 'parents' | null;
+type Section =
+  'goals' | 'key' | 'prepare' | 'flow' | 'support' | 'look' | 'home' | 'notes' | 'parents' | null;
 
 const SECTION_HEADINGS: [RegExp, Section][] = [
   [/^BY THE END OF THE LESSON/, 'goals'],
@@ -58,14 +59,25 @@ function parseFlowTable(table: HTMLElement, lesson: LessonData, issues: ImportIs
     const time = clean(cells[0]?.text ?? '');
     if (time.toLowerCase() === 'time') continue;
     if (cells.length < 3) {
-      issues.push({ level: 'warning', where: `lesson ${lesson.number}`, message: `Flow row with ${cells.length} cells skipped` });
+      issues.push({
+        level: 'warning',
+        where: `lesson ${lesson.number}`,
+        message: `Flow row with ${cells.length} cells skipped`,
+      });
       continue;
     }
-    const lines = (cells[1] as HTMLElement).querySelectorAll('p').map((p) => clean(p.text)).filter(Boolean);
+    const lines = (cells[1] as HTMLElement)
+      .querySelectorAll('p')
+      .map((p) => clean(p.text))
+      .filter(Boolean);
     const title = lines[0] ?? '';
     const minutes = parseMinutes(time);
     if (minutes == null || !title) {
-      issues.push({ level: 'warning', where: `lesson ${lesson.number}`, message: `Flow row not understood: "${time} ${title}"` });
+      issues.push({
+        level: 'warning',
+        where: `lesson ${lesson.number}`,
+        message: `Flow row not understood: "${time} ${title}"`,
+      });
       continue;
     }
     const { kind, materialCode } = classifyStep(title);

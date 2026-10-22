@@ -30,7 +30,10 @@ function Classes() {
   const campuses = useQuery({ queryKey: ['campuses'], queryFn: () => api.get<Campus[]>('/campuses') });
   const levels = useQuery({ queryKey: ['levels'], queryFn: () => api.get<LevelOption[]>('/levels') });
   const classes = useQuery({ queryKey: ['classes'], queryFn: () => api.get<ClassSummary[]>('/classes') });
-  const create = useApiMutation((values: object) => api.post<{ id: string }>('/classes', values), [['classes']]);
+  const create = useApiMutation(
+    (values: object) => api.post<{ id: string }>('/classes', values),
+    [['classes']],
+  );
 
   if (campuses.isPending || levels.isPending || classes.isPending) return <Spinner label="Loading classes" />;
   const error = campuses.error ?? levels.error ?? classes.error;
@@ -43,7 +46,10 @@ function Classes() {
         title="Classes"
         actions={
           campuses.data!.length ? (
-            <Button onClick={() => setCreating((value) => !value)} variant={creating ? 'secondary' : 'primary'}>
+            <Button
+              onClick={() => setCreating((value) => !value)}
+              variant={creating ? 'secondary' : 'primary'}
+            >
               {creating ? 'Close' : '+ New class'}
             </Button>
           ) : null
@@ -68,7 +74,9 @@ function Classes() {
             submitLabel="Create class"
             busy={create.isPending}
             error={create.error}
-            onSubmit={(values) => create.mutate(values, { onSuccess: (created) => router.push(`/classes/${created.id}`) })}
+            onSubmit={(values) =>
+              create.mutate(values, { onSuccess: (created) => router.push(`/classes/${created.id}`) })
+            }
           />
         </Card>
       ) : null}
@@ -92,7 +100,10 @@ function Classes() {
               {classes.data!.map((item) => (
                 <tr key={item.id} className="border-t border-cream-200">
                   <td className="px-4 py-3">
-                    <Link href={`/classes/${item.id}`} className="font-semibold text-leaf-700 hover:underline">
+                    <Link
+                      href={`/classes/${item.id}`}
+                      className="font-semibold text-leaf-700 hover:underline"
+                    >
                       {item.name}
                     </Link>
                     <span className="block text-xs text-bark-500">
@@ -103,8 +114,12 @@ function Classes() {
                   <td className="px-4 py-3">
                     {item.level.number} · {item.level.name}
                   </td>
-                  <td className="px-4 py-3">{item.currentUnit ? `${item.currentUnit.code} · lesson ${item.nextLesson}` : '—'}</td>
-                  <td className="px-4 py-3 text-bark-500">{item.teachers.map((teacher) => teacher.user.name).join(', ') || '—'}</td>
+                  <td className="px-4 py-3">
+                    {item.currentUnit ? `${item.currentUnit.code} · lesson ${item.nextLesson}` : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-bark-500">
+                    {item.teachers.map((teacher) => teacher.user.name).join(', ') || '—'}
+                  </td>
                   <td className="px-4 py-3">{item._count?.students ?? 0}</td>
                 </tr>
               ))}
@@ -115,7 +130,9 @@ function Classes() {
 
       {campuses.data!.length ? (
         <details className="mt-6">
-          <summary className="cursor-pointer text-sm font-semibold text-bark-700">Campuses ({campuses.data!.length})</summary>
+          <summary className="cursor-pointer text-sm font-semibold text-bark-700">
+            Campuses ({campuses.data!.length})
+          </summary>
           <Card className="mt-3">
             <ul className="mb-4 text-sm">
               {campuses.data!.map((campus) => (
@@ -148,8 +165,21 @@ function CampusForm() {
   }
   return (
     <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
-      <TextInput aria-label="Campus name" placeholder="Campus name" required value={name} onChange={(event) => setName(event.target.value)} className="w-56" />
-      <TextInput aria-label="Address" placeholder="Address (optional)" value={address} onChange={(event) => setAddress(event.target.value)} className="w-72" />
+      <TextInput
+        aria-label="Campus name"
+        placeholder="Campus name"
+        required
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        className="w-56"
+      />
+      <TextInput
+        aria-label="Address"
+        placeholder="Address (optional)"
+        value={address}
+        onChange={(event) => setAddress(event.target.value)}
+        className="w-72"
+      />
       <Button type="submit" variant="secondary" busy={create.isPending}>
         Add campus
       </Button>

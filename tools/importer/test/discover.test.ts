@@ -16,8 +16,13 @@ describe('unit folders', () => {
   });
 
   it('lists unit folders in number order and ignores files and other folders', () => {
-    for (const name of ['Unit10_PeopleWhoHelp', 'Unit02_ThisIsMe', 'Unit 3_My Ant Hill', '01_BRAND']) mkdirSync(path.join(root, name));
+    for (const name of ['Unit10_PeopleWhoHelp', 'Unit02_ThisIsMe', 'Unit 3_My Ant Hill', '01_BRAND'])
+      mkdirSync(path.join(root, name));
     writeFileSync(path.join(root, 'Unit99_notes.docx'), '');
-    expect(discoverUnitFolders(root).map((folder) => path.basename(folder))).toEqual(['Unit02_ThisIsMe', 'Unit 3_My Ant Hill', 'Unit10_PeopleWhoHelp']);
+    expect(discoverUnitFolders(root).map((folder) => path.basename(folder))).toEqual([
+      'Unit02_ThisIsMe',
+      'Unit 3_My Ant Hill',
+      'Unit10_PeopleWhoHelp',
+    ]);
   });
 });

@@ -8,10 +8,18 @@ import type { TeacherNote } from '../../lib/types';
 
 /** Notes teachers wrote after teaching each lesson, to improve the next version of the lesson plans. */
 export function TeacherNotesTab({ code }: { code: string }) {
-  const query = useQuery({ queryKey: ['teacher-notes', code], queryFn: () => api.get<TeacherNote[]>(`/content/units/${code}/teacher-notes`) });
+  const query = useQuery({
+    queryKey: ['teacher-notes', code],
+    queryFn: () => api.get<TeacherNote[]>(`/content/units/${code}/teacher-notes`),
+  });
   if (query.isPending) return <Spinner label="Loading notes" />;
   if (query.error) return <ErrorNotice error={query.error} />;
-  if (query.data.length === 0) return <EmptyState title="No teacher notes yet">Notes appear here after teachers teach this unit with the Teacher app.</EmptyState>;
+  if (query.data.length === 0)
+    return (
+      <EmptyState title="No teacher notes yet">
+        Notes appear here after teachers teach this unit with the Teacher app.
+      </EmptyState>
+    );
   const lessons = [...new Set(query.data.map((note) => note.lessonNumber))];
   return (
     <div className="flex flex-col gap-4">

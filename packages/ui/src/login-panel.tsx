@@ -34,13 +34,19 @@ export function LoginPanel({ appName, api, auth, callbackUrl, onSignedIn }: Logi
   const [password, setPassword] = useState('');
 
   useEffect(() => {
-    api.get<{ google: boolean; devPassword: boolean }>('/auth-config').then(setMethods, () => setError('Cannot reach the server.'));
+    api
+      .get<{ google: boolean; devPassword: boolean }>('/auth-config')
+      .then(setMethods, () => setError('Cannot reach the server.'));
   }, [api]);
 
   async function google(): Promise<void> {
     setBusy(true);
     setError(null);
-    await auth.signIn.social({ provider: 'google', callbackURL: callbackUrl, errorCallbackURL: `${callbackUrl}login` });
+    await auth.signIn.social({
+      provider: 'google',
+      callbackURL: callbackUrl,
+      errorCallbackURL: `${callbackUrl}login`,
+    });
   }
 
   async function withPassword(event: FormEvent): Promise<void> {
@@ -49,7 +55,8 @@ export function LoginPanel({ appName, api, auth, callbackUrl, onSignedIn }: Logi
     setError(null);
     const result = await auth.signIn.email({ email, password });
     setBusy(false);
-    if (result.error) setError(ERRORS[result.error.message ?? ''] ?? result.error.message ?? 'Sign-in failed');
+    if (result.error)
+      setError(ERRORS[result.error.message ?? ''] ?? result.error.message ?? 'Sign-in failed');
     else onSignedIn();
   }
 
@@ -80,9 +87,29 @@ export function LoginPanel({ appName, api, auth, callbackUrl, onSignedIn }: Logi
         {methods?.devPassword ? (
           <form onSubmit={withPassword} className="mt-6 flex flex-col gap-3 border-t border-cream-200 pt-6">
             <p className="text-xs font-semibold uppercase tracking-wide text-bark-500">Development sign-in</p>
-            <Field label="Email">{(id) => <TextInput id={id} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />}</Field>
+            <Field label="Email">
+              {(id) => (
+                <TextInput
+                  id={id}
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                />
+              )}
+            </Field>
             <Field label="Password">
-              {(id) => <TextInput id={id} type="password" required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />}
+              {(id) => (
+                <TextInput
+                  id={id}
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+              )}
             </Field>
             <Button type="submit" variant="secondary" busy={busy}>
               Sign in

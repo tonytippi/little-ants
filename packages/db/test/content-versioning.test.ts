@@ -39,7 +39,9 @@ describe('editContent and changeContentStatus', () => {
     const level = await prisma.level.create({
       data: { programId: program.id, number: 1, name: 'Level', ageBand: '3–4', lessonMinutes: '25' },
     });
-    const unit = await prisma.unit.create({ data: { levelId: level.id, code: 'T01', number: 1, title: 'Test unit' } });
+    const unit = await prisma.unit.create({
+      data: { levelId: level.id, code: 'T01', number: 1, title: 'Test unit' },
+    });
     const material = await prisma.material.create({
       data: { unitId: unit.id, code: 'SG1', type: 'SONG', title: 'Hello song', fullText: 'Hello!' },
     });
@@ -56,7 +58,9 @@ describe('editContent and changeContentStatus', () => {
     expect(approved.status).toBe('APPROVED');
     expect(approved.version).toBe(1);
 
-    const edited = await editContent<Material>(prisma, 'material', materialId, { fullText: 'Hello, friends!' });
+    const edited = await editContent<Material>(prisma, 'material', materialId, {
+      fullText: 'Hello, friends!',
+    });
     expect(edited.status).toBe('DRAFT');
     expect(edited.version).toBe(2);
     expect(edited.fullText).toBe('Hello, friends!');
@@ -71,12 +75,17 @@ describe('editContent and changeContentStatus', () => {
   });
 
   it('ignores status and version passed as edit data', async () => {
-    const edited = await editContent<Material>(prisma, 'material', materialId, { status: 'APPROVED', version: 99 });
+    const edited = await editContent<Material>(prisma, 'material', materialId, {
+      status: 'APPROVED',
+      version: 99,
+    });
     expect(edited.status).toBe('DRAFT');
     expect(edited.version).toBe(2);
   });
 
   it('rejects skipping review', async () => {
-    await expect(changeContentStatus(prisma, 'material', materialId, 'APPROVED')).rejects.toThrow(/Cannot change/);
+    await expect(changeContentStatus(prisma, 'material', materialId, 'APPROVED')).rejects.toThrow(
+      /Cannot change/,
+    );
   });
 });

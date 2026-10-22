@@ -15,18 +15,27 @@ const GROUPS: { severity: RuleFinding['severity']; title: string; tone: 'ant' | 
 
 /** Checks from the Content Writing Rules that a machine can do. */
 export function ValidationTab({ code }: { code: string }) {
-  const query = useQuery({ queryKey: ['validation', code], queryFn: () => api.get<RuleFinding[]>(`/content/units/${code}/validation`) });
+  const query = useQuery({
+    queryKey: ['validation', code],
+    queryFn: () => api.get<RuleFinding[]>(`/content/units/${code}/validation`),
+  });
   if (query.isPending) return <Spinner label="Checking the unit" />;
   if (query.error) return <ErrorNotice error={query.error} />;
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-3">
-        <p className="text-sm text-bark-500">Word counts, review share, story length, lesson steps and materials.</p>
+        <p className="text-sm text-bark-500">
+          Word counts, review share, story length, lesson steps and materials.
+        </p>
         <Button size="sm" variant="ghost" busy={query.isFetching} onClick={() => void query.refetch()}>
           Check again
         </Button>
       </div>
-      {query.data.length === 0 ? <EmptyState title="No problems found">This unit follows every rule that can be checked automatically.</EmptyState> : null}
+      {query.data.length === 0 ? (
+        <EmptyState title="No problems found">
+          This unit follows every rule that can be checked automatically.
+        </EmptyState>
+      ) : null}
       {GROUPS.map((group) => {
         const findings = query.data.filter((finding) => finding.severity === group.severity);
         if (findings.length === 0) return null;

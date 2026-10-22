@@ -1,10 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Asset, Prisma } from '@little-ants/db';
-import {
-  RELEASE_FORMAT,
-  type ReleaseMedia,
-  type UnitReleasePayload,
-} from '@little-ants/shared';
+import { RELEASE_FORMAT, type ReleaseMedia, type UnitReleasePayload } from '@little-ants/shared';
 import type { ObjectStorage } from '@little-ants/storage';
 import { ContentService, type Db } from '../content/content.service.js';
 import { OBJECT_STORAGE } from '../storage/storage.tokens.js';
@@ -31,7 +27,11 @@ export class ReleaseBuilder {
         leadCharacter: { include: { artAsset: true } },
         canDoGoals: { orderBy: { order: 'asc' } },
         pictures: { orderBy: [{ role: 'asc' }, { order: 'asc' }], include: { asset: true } },
-        words: { where: { status: NOT_ARCHIVED }, orderBy: [{ kind: 'asc' }, { order: 'asc' }], include: { imageAsset: true } },
+        words: {
+          where: { status: NOT_ARCHIVED },
+          orderBy: [{ kind: 'asc' }, { order: 'asc' }],
+          include: { imageAsset: true },
+        },
         materials: {
           where: { status: NOT_ARCHIVED },
           orderBy: { code: 'asc' },
@@ -68,7 +68,8 @@ export class ReleaseBuilder {
     if (unit.lessons.length === 0) blockers.push('The unit has no lessons');
 
     const findings = await this.content.validateUnit(unitId, db);
-    for (const finding of findings.filter((f) => f.severity === 'error')) blockers.push(`${finding.where}: ${finding.message}`);
+    for (const finding of findings.filter((f) => f.severity === 'error'))
+      blockers.push(`${finding.where}: ${finding.message}`);
     const ruleWarnings = findings.filter((f) => f.severity === 'warning').length;
     if (ruleWarnings) warnings.push(`${ruleWarnings} content rule warnings (see the validation tab)`);
 
@@ -105,16 +106,27 @@ export class ReleaseBuilder {
     const urls = new Map<string, string>();
     if (options.preview) {
       const draftAssets = await this.content.db.asset.findMany({
-        where: { id: { in: await this.content.unitAssetIds(this.content.db, unitId) }, status: { not: 'APPROVED' } },
+        where: {
+          id: { in: await this.content.unitAssetIds(this.content.db, unitId) },
+          status: { not: 'APPROVED' },
+        },
         select: { id: true, storageKey: true },
       });
-      for (const asset of draftAssets) urls.set(asset.id, await this.storage.signedReadUrl(asset.storageKey, 4 * 3600));
+      for (const asset of draftAssets)
+        urls.set(asset.id, await this.storage.signedReadUrl(asset.storageKey, 4 * 3600));
     }
     const media = (asset: Asset | null): ReleaseMedia | null => {
       if (!asset || asset.status === 'ARCHIVED') return null;
       const url = asset.status === 'APPROVED' ? this.storage.publicUrl(asset.storageKey) : urls.get(asset.id);
       if (!url) return null;
-      return { id: asset.id, kind: asset.kind, mimeType: asset.mimeType, url, sizeBytes: asset.sizeBytes, fileName: asset.fileName };
+      return {
+        id: asset.id,
+        kind: asset.kind,
+        mimeType: asset.mimeType,
+        url,
+        sizeBytes: asset.sizeBytes,
+        fileName: asset.fileName,
+      };
     };
 
     return {
@@ -125,9 +137,18 @@ export class ReleaseBuilder {
         code: unit.code,
         number: unit.number,
         title: unit.title,
-        level: { number: unit.level.number, name: unit.level.name, ageBand: unit.level.ageBand, lessonMinutes: unit.level.lessonMinutes },
+        level: {
+          number: unit.level.number,
+          name: unit.level.name,
+          ageBand: unit.level.ageBand,
+          lessonMinutes: unit.level.lessonMinutes,
+        },
         leadCharacter: unit.leadCharacter
-          ? { code: unit.leadCharacter.code, name: unit.leadCharacter.name, image: media(unit.leadCharacter.artAsset) }
+          ? {
+              code: unit.leadCharacter.code,
+              name: unit.leadCharacter.name,
+              image: media(unit.leadCharacter.artAsset),
+            }
           : null,
         bigQuestion: unit.bigQuestion,
         value: unit.value,
@@ -144,7 +165,13 @@ export class ReleaseBuilder {
           }),
       },
       canDoGoals: unit.canDoGoals.map((goal) => ({ order: goal.order, text: goal.text })),
-      words: unit.words.map((word) => ({ cardId: word.cardId, text: word.text, kind: word.kind, group: word.group, image: media(word.imageAsset) })),
+      words: unit.words.map((word) => ({
+        cardId: word.cardId,
+        text: word.text,
+        kind: word.kind,
+        group: word.group,
+        image: media(word.imageAsset),
+      })),
       materials: unit.materials.map((material) => ({
         code: material.code,
         type: material.type,
@@ -176,7 +203,10 @@ export class ReleaseBuilder {
         goals: lesson.goals,
         keyLanguage: lesson.keyLanguage,
         prepMinutes: lesson.prepMinutes,
-        prep: lesson.prepItems.map((item) => ({ text: item.text, materialCode: item.material?.code ?? null })),
+        prep: lesson.prepItems.map((item) => ({
+          text: item.text,
+          materialCode: item.material?.code ?? null,
+        })),
         steps: lesson.steps.map((step) => ({
           order: step.order,
           minutes: step.minutes,
@@ -199,7 +229,11 @@ export class ReleaseBuilder {
    * An advisory lock serialises publishes of the same unit; FOR SHARE row locks make any edit
    * of the unit's content wait until the release is stored, so a release never mixes in draft text.
    */
-  async publish(unitId: string, publishedById: string, note: string): Promise<{ version: number } | ReleaseCheck> {
+  async publish(
+    unitId: string,
+    publishedById: string,
+    note: string,
+  ): Promise<{ version: number } | ReleaseCheck> {
     return this.content.db.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'publish:' + unitId}))`;
@@ -209,12 +243,23 @@ export class ReleaseBuilder {
         await tx.$queryRaw`SELECT id FROM "Lesson" WHERE "unitId" = ${unitId} FOR SHARE`;
         const check = await this.check(unitId, tx);
         if (check.blockers.length) return check;
-        const last = await tx.unitRelease.findFirst({ where: { unitId }, orderBy: { version: 'desc' }, select: { version: true } });
+        const last = await tx.unitRelease.findFirst({
+          where: { unitId },
+          orderBy: { version: 'desc' },
+          select: { version: true },
+        });
         const version = (last?.version ?? 0) + 1;
         const publishedAt = new Date();
         const payload = await this.build(unitId, version, publishedAt, {}, tx);
         await tx.unitRelease.create({
-          data: { unitId, version, payload: payload as unknown as Prisma.InputJsonValue, note, publishedById, publishedAt },
+          data: {
+            unitId,
+            version,
+            payload: payload as unknown as Prisma.InputJsonValue,
+            note,
+            publishedById,
+            publishedAt,
+          },
         });
         return { version };
       },

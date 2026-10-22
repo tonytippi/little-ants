@@ -45,8 +45,14 @@ export default function UnitPage() {
   const key = ['unit', code];
   const query = useQuery({ queryKey: key, queryFn: () => api.get<UnitDetail>(`/content/units/${code}`) });
   const invalidate = [key, ['units']];
-  const submitAll = useApiMutation(() => api.post<Record<string, number>>(`/content/units/${code}/submit-all`), invalidate);
-  const approveAll = useApiMutation(() => api.post<Record<string, number>>(`/content/units/${code}/approve-all`), invalidate);
+  const submitAll = useApiMutation(
+    () => api.post<Record<string, number>>(`/content/units/${code}/submit-all`),
+    invalidate,
+  );
+  const approveAll = useApiMutation(
+    () => api.post<Record<string, number>>(`/content/units/${code}/approve-all`),
+    invalidate,
+  );
 
   if (query.isPending) return <Spinner label="Loading unit" />;
   if (query.error) return <ErrorNotice error={query.error} />;
@@ -61,7 +67,12 @@ export default function UnitPage() {
         title={unit.title}
         actions={
           <>
-            <a href={`${TEACHER_APP_URL}/preview/${unit.code}`} target="_blank" rel="noreferrer" className={buttonClass('secondary', 'sm')}>
+            <a
+              href={`${TEACHER_APP_URL}/preview/${unit.code}`}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonClass('secondary', 'sm')}
+            >
               Preview in Teacher app
             </a>
             <Link href={`/print/units/${unit.code}/words`} className={buttonClass('ghost', 'sm')}>
@@ -72,7 +83,10 @@ export default function UnitPage() {
                 size="sm"
                 variant="secondary"
                 busy={submitAll.isPending}
-                onClick={() => window.confirm('Send every draft item in this unit for review?') && submitAll.mutate(undefined)}
+                onClick={() =>
+                  window.confirm('Send every draft item in this unit for review?') &&
+                  submitAll.mutate(undefined)
+                }
               >
                 Submit all for review
               </Button>
@@ -81,7 +95,10 @@ export default function UnitPage() {
               <Button
                 size="sm"
                 busy={approveAll.isPending}
-                onClick={() => window.confirm('Approve every item in review in this unit, including its files?') && approveAll.mutate(undefined)}
+                onClick={() =>
+                  window.confirm('Approve every item in review in this unit, including its files?') &&
+                  approveAll.mutate(undefined)
+                }
               >
                 Approve all
               </Button>
@@ -93,18 +110,37 @@ export default function UnitPage() {
       </PageHeader>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <StatusActions status={unit.status} version={unit.version} statusPath={`/content/units/${unit.code}/status`} invalidate={invalidate} />
-        <HistoryButton entityType="unit" entityId={unit.id} current={unit as unknown as Record<string, unknown>} invalidate={invalidate} />
+        <StatusActions
+          status={unit.status}
+          version={unit.version}
+          statusPath={`/content/units/${unit.code}/status`}
+          invalidate={invalidate}
+        />
+        <HistoryButton
+          entityType="unit"
+          entityId={unit.id}
+          current={unit as unknown as Record<string, unknown>}
+          invalidate={invalidate}
+        />
       </div>
       {submitAll.error ? <FormError error={submitAll.error} /> : null}
       {approveAll.error ? <FormError error={approveAll.error} /> : null}
       {bulkResult ? (
         <p role="status" className="mb-4 rounded-lg bg-leaf-50 px-3 py-2 text-sm text-leaf-700">
-          Updated {Object.entries(bulkResult).map(([entity, count]) => `${count} ${entity}${count === 1 ? '' : 's'}`).join(', ')}.
+          Updated{' '}
+          {Object.entries(bulkResult)
+            .map(([entity, count]) => `${count} ${entity}${count === 1 ? '' : 's'}`)
+            .join(', ')}
+          .
         </p>
       ) : null}
 
-      <Tabs tabs={[...TABS]} active={tab} label="Unit sections" onChange={(id) => router.replace(`/units/${code}?tab=${id}`, { scroll: false })} />
+      <Tabs
+        tabs={[...TABS]}
+        active={tab}
+        label="Unit sections"
+        onChange={(id) => router.replace(`/units/${code}?tab=${id}`, { scroll: false })}
+      />
       <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="pt-5">
         {tab === 'overview' ? <OverviewTab unit={unit} /> : null}
         {tab === 'words' ? <WordsTab unit={unit} /> : null}

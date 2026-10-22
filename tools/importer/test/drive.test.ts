@@ -41,7 +41,10 @@ function fakeDrive(nodes: Node[], options: { failFirst?: number } = {}) {
       const children = nodes.filter((node) => node.parent === parent);
       const start = Number(url.searchParams.get('pageToken') ?? 0);
       const page = children.slice(start, start + 2).map(({ parent: _parent, body: _body, ...file }) => file);
-      return json({ files: page, nextPageToken: start + 2 < children.length ? String(start + 2) : undefined });
+      return json({
+        files: page,
+        nextPageToken: start + 2 < children.length ? String(start + 2) : undefined,
+      });
     }
     const [, id, action] = /^\/drive\/v3\/files\/([^/]+)(\/export)?$/.exec(url.pathname) ?? [];
     const node = nodes.find((candidate) => candidate.id === id);
@@ -59,8 +62,21 @@ const TREE: Node[] = [
   { id: 'tn', name: 'TN 0-3', mimeType: FOLDER, parent: 'root' },
   { id: 'la', name: 'LA 3-6', mimeType: FOLDER, parent: 'root' },
   { id: 'u1', name: 'Unit01_Hello', mimeType: FOLDER, parent: 'la' },
-  { id: 'sheet', name: 'U01_MASTER-SHEET', mimeType: SHEET, parent: 'u1', modifiedTime: '2026-10-01T00:00:00Z' },
-  { id: 'pdf', name: 'U01_ST1_DRAFT.pdf', mimeType: 'application/pdf', parent: 'u1', body: 'pdf-1', modifiedTime: '2026-10-05T00:00:00Z' },
+  {
+    id: 'sheet',
+    name: 'U01_MASTER-SHEET',
+    mimeType: SHEET,
+    parent: 'u1',
+    modifiedTime: '2026-10-01T00:00:00Z',
+  },
+  {
+    id: 'pdf',
+    name: 'U01_ST1_DRAFT.pdf',
+    mimeType: 'application/pdf',
+    parent: 'u1',
+    body: 'pdf-1',
+    modifiedTime: '2026-10-05T00:00:00Z',
+  },
   { id: 'pdf2', name: 'U01_ST1_DRAFT.pdf', mimeType: 'application/pdf', parent: 'u1', body: 'pdf-2' },
   { id: 'form', name: 'Feedback', mimeType: 'application/vnd.google-apps.form', parent: 'u1' },
   {
@@ -77,7 +93,9 @@ const TREE: Node[] = [
 function blockedFetch(inner: typeof fetch): typeof fetch {
   return (async (input: URL | string, init?: RequestInit) => {
     const response = await inner(input, init);
-    return response.status === 429 ? new Response('<html>Sorry... automated queries</html>', { status: 403 }) : response;
+    return response.status === 429
+      ? new Response('<html>Sorry... automated queries</html>', { status: 403 })
+      : response;
   }) as typeof fetch;
 }
 
@@ -117,17 +135,25 @@ describe('Google Drive download', () => {
     expect(readFileSync(path.join(unit, 'U01_MASTER-SHEET.xlsx'), 'utf8')).toContain('spreadsheetml.sheet');
     expect(readFileSync(path.join(unit, 'U01_ST1_DRAFT.pdf'), 'utf8')).toBe('pdf-1');
     expect(readFileSync(path.join(unit, 'Shared poster.png'), 'utf8')).toBe('png');
-    expect(result.files.find((file) => file.id === 'sheet')).toMatchObject({ exportedAs: '.xlsx', modifiedTime: '2026-10-01T00:00:00Z' });
+    expect(result.files.find((file) => file.id === 'sheet')).toMatchObject({
+      exportedAs: '.xlsx',
+      modifiedTime: '2026-10-01T00:00:00Z',
+    });
   });
 
   it('reuses cached files whose Drive version has not changed', async () => {
     const cacheDir = tempDir();
     const first = fakeDrive(TREE);
-    await downloadFolder(new DriveClient(apiKeyAuth('test-key'), first.fetchImpl, 0), 'la', tempDir(), { cacheDir });
-    const downloads = (requests: string[]): number => requests.filter((url) => /alt=media|\/export/.test(url)).length;
+    await downloadFolder(new DriveClient(apiKeyAuth('test-key'), first.fetchImpl, 0), 'la', tempDir(), {
+      cacheDir,
+    });
+    const downloads = (requests: string[]): number =>
+      requests.filter((url) => /alt=media|\/export/.test(url)).length;
     expect(downloads(first.requests)).toBe(4);
 
-    const edited = TREE.map((node) => (node.id === 'pdf' ? { ...node, modifiedTime: '2026-10-06T00:00:00Z', body: 'pdf-new' } : node));
+    const edited = TREE.map((node) =>
+      node.id === 'pdf' ? { ...node, modifiedTime: '2026-10-06T00:00:00Z', body: 'pdf-new' } : node,
+    );
     const second = fakeDrive(edited);
     const target = tempDir();
     const cached: string[] = [];
@@ -146,11 +172,15 @@ describe('Google Drive download', () => {
     expect(flaky.requests[0]).toContain('key=test-key');
 
     const sorry = fakeDrive(TREE, { failFirst: 99 });
-    const blocked = await new DriveClient(apiKeyAuth('test-key'), blockedFetch(sorry.fetchImpl), 0).list('root').catch((caught: Error) => caught);
+    const blocked = await new DriveClient(apiKeyAuth('test-key'), blockedFetch(sorry.fetchImpl), 0)
+      .list('root')
+      .catch((caught: Error) => caught);
     expect(String(blocked)).toContain('service account');
 
     const { fetchImpl } = fakeDrive(TREE);
-    const error = await new DriveClient(apiKeyAuth('test-key'), fetchImpl, 0).get('missing').catch((caught: Error) => caught);
+    const error = await new DriveClient(apiKeyAuth('test-key'), fetchImpl, 0)
+      .get('missing')
+      .catch((caught: Error) => caught);
     expect(String(error)).toContain('HTTP 404');
     expect(String(error)).toContain('File not found');
     expect(String(error)).not.toContain('test-key');
@@ -173,7 +203,9 @@ describe('Drive credentials', () => {
       iat: 1000,
       exp: 4600,
     });
-    const valid = createVerify('RSA-SHA256').update(`${header}.${claims}`).verify(publicKey, Buffer.from(signature!, 'base64url'));
+    const valid = createVerify('RSA-SHA256')
+      .update(`${header}.${claims}`)
+      .verify(publicKey, Buffer.from(signature!, 'base64url'));
     expect(valid).toBe(true);
   });
 
@@ -205,19 +237,31 @@ describe('source archive', () => {
   it('copies the downloaded files and a manifest to private storage, and summarises them for the report', async () => {
     const { fetchImpl } = fakeDrive(TREE);
     const downloaded = tempDir();
-    const result = await downloadFolder(new DriveClient(apiKeyAuth('test-key'), fetchImpl, 0), 'la', downloaded);
+    const result = await downloadFolder(
+      new DriveClient(apiKeyAuth('test-key'), fetchImpl, 0),
+      'la',
+      downloaded,
+    );
     const storageDir = tempDir();
     const prefix = archivePrefix(new Date('2026-10-22T04:10:05.123Z'));
     expect(prefix).toBe('sources/2026-10-22T04-10-05Z');
 
-    await archiveSources(new LocalStorage({ rootDir: storageDir, baseUrl: 'http://localhost/storage', signingSecret: 'secret' }), prefix, downloaded, {
-      folderId: 'la',
-      ...result,
-    });
+    await archiveSources(
+      new LocalStorage({ rootDir: storageDir, baseUrl: 'http://localhost/storage', signingSecret: 'secret' }),
+      prefix,
+      downloaded,
+      {
+        folderId: 'la',
+        ...result,
+      },
+    );
 
     const archived = path.join(storageDir, prefix);
     expect(readdirSync(path.join(archived, 'files', 'Unit01_Hello')).sort()).toHaveLength(4);
-    const manifest = JSON.parse(readFileSync(path.join(archived, 'manifest.json'), 'utf8')) as { files: unknown[]; folderId: string };
+    const manifest = JSON.parse(readFileSync(path.join(archived, 'manifest.json'), 'utf8')) as {
+      files: unknown[];
+      folderId: string;
+    };
     expect(manifest.folderId).toBe('la');
     expect(manifest.files).toHaveLength(4);
 

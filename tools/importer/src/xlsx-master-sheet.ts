@@ -101,7 +101,8 @@ function parseOverview(rows: Row[], issues: ImportIssue[]): UnitOverview {
     }
     if (section.startsWith('can-do') && /^goal \d+/.test(key)) canDoGoals.push(value);
     else if (section.startsWith('key language') && /^pattern \d+/.test(key)) keyLanguage.push(value);
-    else if (section.startsWith('sounds') && value) sounds.push({ sound: label.replaceAll(/\s+/g, ' '), words: value });
+    else if (section.startsWith('sounds') && value)
+      sounds.push({ sound: label.replaceAll(/\s+/g, ' '), words: value });
     else if (!section) values.set(key, value);
   }
   const get = (prefix: string): string => {
@@ -139,7 +140,9 @@ function parseWords(rows: Row[], unitCode: string): WordRow[] {
     .map((row, index) => {
       const given = col(table, row, 'card id');
       // Extra words have no card ("—"); give them a stable ID so re-imports update the same row.
-      const cardId = /^U\d{2}-\d+/.test(given) ? given : `${unitCode}-X${String((extra += 1)).padStart(2, '0')}`;
+      const cardId = /^U\d{2}-\d+/.test(given)
+        ? given
+        : `${unitCode}-X${String((extra += 1)).padStart(2, '0')}`;
       return {
         cardId,
         order: index + 1,
@@ -172,7 +175,11 @@ function parseMaterials(planRows: Row[], textRows: Row[], issues: ImportIssue[])
     const code = col(plan!, row, 'id');
     if (!code) continue;
     if (!isMaterialCode(code)) {
-      issues.push({ level: 'warning', where: 'tab 4 Materials Plan', message: `Unknown material code "${code}"` });
+      issues.push({
+        level: 'warning',
+        where: 'tab 4 Materials Plan',
+        message: `Unknown material code "${code}"`,
+      });
     }
     byCode.set(code, {
       code,
@@ -219,7 +226,11 @@ export function tabFivePages(textRows: Row[]): Map<string, { number: number; tex
   const texts = tableOf(textRows, 'ID');
   for (const row of texts?.rows ?? []) {
     const rawCode = col(texts!, row, 'id');
-    const parts = [col(texts!, row, 'title'), col(texts!, row, 'full text'), col(texts!, row, 'target language')]
+    const parts = [
+      col(texts!, row, 'title'),
+      col(texts!, row, 'full text'),
+      col(texts!, row, 'target language'),
+    ]
       .filter(Boolean)
       .join(' — ');
     if (rawCode === 'SN' || /^TT\d+$/.test(rawCode)) {
@@ -285,7 +296,10 @@ const PRODUCTION_COLUMNS: [string, ProductionStage][] = [
   ['print-ready', 'PRINT_READY'],
 ];
 
-function parseProduction(rows: Row[], issues: ImportIssue[]): { rows: ProductionRow[]; labels: Map<string, string> } {
+function parseProduction(
+  rows: Row[],
+  issues: ImportIssue[],
+): { rows: ProductionRow[]; labels: Map<string, string> } {
   const table = tableOf(rows, 'ID');
   const result: ProductionRow[] = [];
   const labels = new Map<string, string>();
@@ -294,7 +308,11 @@ function parseProduction(rows: Row[], issues: ImportIssue[]): { rows: Production
     const code = col(table!, row, 'id');
     if (!code) continue;
     if (seen.has(code)) {
-      issues.push({ level: 'warning', where: 'tab 9 Production', message: `Deliverable "${code}" is listed twice; the first row is kept` });
+      issues.push({
+        level: 'warning',
+        where: 'tab 9 Production',
+        message: `Deliverable "${code}" is listed twice; the first row is kept`,
+      });
       continue;
     }
     seen.add(code);
@@ -305,7 +323,11 @@ function parseProduction(rows: Row[], issues: ImportIssue[]): { rows: Production
       const state = productionState(raw);
       if (state) states[stage] = state;
       else if (raw) {
-        issues.push({ level: 'warning', where: 'tab 9 Production', message: `${code}: unknown status "${raw}" in ${name}` });
+        issues.push({
+          level: 'warning',
+          where: 'tab 9 Production',
+          message: `${code}: unknown status "${raw}" in ${name}`,
+        });
       }
     }
     result.push({

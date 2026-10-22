@@ -16,7 +16,9 @@ export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => {
     startOutbox();
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
-      navigator.serviceWorker.register(`/sw.js?v=${process.env.NEXT_PUBLIC_BUILD_ID ?? 'dev'}`).catch(() => undefined);
+      navigator.serviceWorker
+        .register(`/sw.js?v=${process.env.NEXT_PUBLIC_BUILD_ID ?? 'dev'}`)
+        .catch(() => undefined);
     }
   }, []);
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;

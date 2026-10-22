@@ -85,14 +85,24 @@ export function checkUnitRules(input: RuleInput): RuleFinding[] {
   const core = input.words.filter((word) => word.kind === 'CORE');
   const range = input.rules.coreWordsPerUnit;
   if (range && (core.length < range[0] || core.length > range[1])) {
-    add('warning', 'core-word-count', 'words', `${core.length} core words; the level rule is ${range[0]}–${range[1]}`);
+    add(
+      'warning',
+      'core-word-count',
+      'words',
+      `${core.length} core words; the level rule is ${range[0]}–${range[1]}`,
+    );
   }
   if (!input.isFirstUnit) {
     const review = input.words.filter((word) => word.kind === 'REVIEW').length;
     const taught = core.length + review;
     const share = taught === 0 ? 0 : review / taught;
     if (share < 0.25) {
-      add('warning', 'review-share', 'words', `Review words are ${Math.round(share * 100)}% of taught words; the target is 25% or more`);
+      add(
+        'warning',
+        'review-share',
+        'words',
+        `Review words are ${Math.round(share * 100)}% of taught words; the target is 25% or more`,
+      );
     }
   }
   const noBrief = core.filter((word) => !word.pictureBrief.trim());
@@ -107,14 +117,29 @@ export function checkUnitRules(input: RuleInput): RuleFinding[] {
     }
     if (material.type === 'STORY') {
       const pages = input.rules.storyPages;
-      if (pages && material.pageTexts.length > 0 && (material.pageTexts.length < pages[0] || material.pageTexts.length > pages[1])) {
-        add('warning', 'story-pages', material.code, `${material.pageTexts.length} pages; the level rule is ${pages[0]}–${pages[1]}`);
+      if (
+        pages &&
+        material.pageTexts.length > 0 &&
+        (material.pageTexts.length < pages[0] || material.pageTexts.length > pages[1])
+      ) {
+        add(
+          'warning',
+          'story-pages',
+          material.code,
+          `${material.pageTexts.length} pages; the level rule is ${pages[0]}–${pages[1]}`,
+        );
       }
       const max = input.rules.maxWordsPerPage;
       if (max) {
         material.pageTexts.forEach((text, index) => {
           const count = wordCount(text);
-          if (count > max) add('warning', 'words-per-page', material.code, `Page ${index + 1} has ${count} words; the limit is ${max}`);
+          if (count > max)
+            add(
+              'warning',
+              'words-per-page',
+              material.code,
+              `Page ${index + 1} has ${count} words; the limit is ${max}`,
+            );
         });
       }
     }
@@ -137,15 +162,31 @@ export function checkUnitRules(input: RuleInput): RuleFinding[] {
         add('warning', 'repeated-sound', where, `Sound Trail lists ${sound} twice ("${step.title}")`);
       }
       if (step.materialCode && !materialCodes.has(step.materialCode)) {
-        add('warning', 'missing-material', where, `Step "${step.title}" uses ${step.materialCode}, which is not in the unit materials`);
+        add(
+          'warning',
+          'missing-material',
+          where,
+          `Step "${step.title}" uses ${step.materialCode}, which is not in the unit materials`,
+        );
       }
     }
     for (const code of lesson.newToday) {
-      if (!materialCodes.has(code)) add('warning', 'missing-material', where, `NEW today lists ${code}, which is not in the unit materials`);
+      if (!materialCodes.has(code))
+        add(
+          'warning',
+          'missing-material',
+          where,
+          `NEW today lists ${code}, which is not in the unit materials`,
+        );
     }
     const total = lesson.steps.reduce((sum, step) => sum + step.minutes, 0);
     if (lesson.minutes > 0 && total > 0 && (total > lesson.minutes + 2 || total < lesson.minutes - 5)) {
-      add('info', 'lesson-time', where, `Steps add up to ${total} minutes; the lesson is ${lesson.minutes} minutes`);
+      add(
+        'info',
+        'lesson-time',
+        where,
+        `Steps add up to ${total} minutes; the lesson is ${lesson.minutes} minutes`,
+      );
     }
   }
   return findings;

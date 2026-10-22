@@ -9,7 +9,8 @@ export const REQUIRED_ROLES = 'requiredRoles';
 export const Public = (): MethodDecorator & ClassDecorator => SetMetadata(IS_PUBLIC, true);
 
 /** Route needs one of these roles (ADMIN always passes). */
-export const Roles = (...roles: Role[]): MethodDecorator & ClassDecorator => SetMetadata(REQUIRED_ROLES, roles);
+export const Roles = (...roles: Role[]): MethodDecorator & ClassDecorator =>
+  SetMetadata(REQUIRED_ROLES, roles);
 
 export interface AuthedRequest {
   user?: StaffUser;

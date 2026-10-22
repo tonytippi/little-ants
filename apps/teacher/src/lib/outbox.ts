@@ -1,7 +1,15 @@
 import { ApiError } from '@little-ants/ui/lib/api-client';
 import { api } from './api';
 import { kvGet, localDb, type OutboxItem } from './local-db';
-import { applySyncResponse, inBatches, isDue, outcomeFor, ownedBy, retryDelay, type SyncResponse } from './sync-policy';
+import {
+  applySyncResponse,
+  inBatches,
+  isDue,
+  outcomeFor,
+  ownedBy,
+  retryDelay,
+  type SyncResponse,
+} from './sync-policy';
 import type { LessonRunRecord, ObservationRecord } from './types';
 
 type Listener = (state: OutboxState) => void;
@@ -123,7 +131,8 @@ export async function flushOutbox(options: { force?: boolean } = {}): Promise<vo
   if (due.length === 0) {
     await refreshCounts();
     const waiting = mine.filter((item) => !item.failed);
-    if (waiting.length) schedule(Math.max(1000, Math.min(...waiting.map((item) => item.nextAttemptAt)) - now));
+    if (waiting.length)
+      schedule(Math.max(1000, Math.min(...waiting.map((item) => item.nextAttemptAt)) - now));
     return;
   }
   publish({ syncing: true });
@@ -159,12 +168,22 @@ export async function flushOutbox(options: { force?: boolean } = {}): Promise<vo
       }
       for (const clientId of result.retry) {
         const item = batch.find((entry) => entry.clientId === clientId)!;
-        await tx.store.put({ ...item, attempts: item.attempts + 1, nextAttemptAt: Date.now() + retryDelay(item.attempts + 1) });
+        await tx.store.put({
+          ...item,
+          attempts: item.attempts + 1,
+          nextAttemptAt: Date.now() + retryDelay(item.attempts + 1),
+        });
       }
     } else {
       for (const item of batch) {
-        if (outcome === 'rejected') await tx.store.put({ ...item, failed: message ?? 'Rejected by the server' });
-        else await tx.store.put({ ...item, attempts: item.attempts + 1, nextAttemptAt: Date.now() + retryDelay(item.attempts + 1) });
+        if (outcome === 'rejected')
+          await tx.store.put({ ...item, failed: message ?? 'Rejected by the server' });
+        else
+          await tx.store.put({
+            ...item,
+            attempts: item.attempts + 1,
+            nextAttemptAt: Date.now() + retryDelay(item.attempts + 1),
+          });
       }
     }
     await tx.done;

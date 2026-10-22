@@ -17,7 +17,15 @@ export function parseContentTexts(root: HTMLElement): Map<string, ContentTextEnt
     if (/^h[1-4]$/.test(tag)) {
       const match = /^([A-Z]{2}\d*)\s*[–-]\s*(.+)$/.exec(text);
       if (match && isMaterialCode(match[1]!)) {
-        current = { code: match[1]!, title: match[2]!.trim(), format: '', pages: [], lines: [], targetLanguage: '', actions: '' };
+        current = {
+          code: match[1]!,
+          title: match[2]!.trim(),
+          format: '',
+          pages: [],
+          lines: [],
+          targetLanguage: '',
+          actions: '',
+        };
         entries.set(current.code, current);
       } else {
         current = null;

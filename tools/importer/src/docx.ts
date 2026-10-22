@@ -21,7 +21,10 @@ export function blockText(element: HTMLElement): string {
 }
 
 export function clean(text: string): string {
-  return text.replaceAll(/\u00a0/g, ' ').replaceAll(/[ \t]+/g, ' ').trim();
+  return text
+    .replaceAll(/\u00a0/g, ' ')
+    .replaceAll(/[ \t]+/g, ' ')
+    .trim();
 }
 
 /** Top-level element children (skips text nodes). */

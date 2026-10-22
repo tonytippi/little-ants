@@ -1,4 +1,17 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { editContent, stateAfterEdit, writeRevision, type ContentEntity, type Prisma } from '@little-ants/db';
 import {
   lessonInput,
@@ -36,11 +49,17 @@ export class ItemsController {
 
   @Roles('AUTHOR', 'REVIEWER')
   @Post('units/:code/words')
-  async addWord(@CurrentUser() user: StaffUser, @Param('code') code: string, @Body(new ZodBody(wordInput)) body: z.infer<typeof wordInput>) {
+  async addWord(
+    @CurrentUser() user: StaffUser,
+    @Param('code') code: string,
+    @Body(new ZodBody(wordInput)) body: z.infer<typeof wordInput>,
+  ) {
     const unit = await this.content.unitByCode(code);
     const last = await this.db.word.aggregate({ where: { unitId: unit.id }, _max: { order: true } });
     return this.db.$transaction(async (tx) => {
-      const word = await tx.word.create({ data: { ...body, unitId: unit.id, order: (last._max.order ?? 0) + 1 } });
+      const word = await tx.word.create({
+        data: { ...body, unitId: unit.id, order: (last._max.order ?? 0) + 1 },
+      });
       await writeRevision(tx, 'word', word, { authorId: user.id, note: 'add word' });
       return word;
     });
@@ -48,14 +67,22 @@ export class ItemsController {
 
   @Roles('AUTHOR', 'REVIEWER')
   @Patch('words/:id')
-  updateWord(@CurrentUser() user: StaffUser, @Param('id') id: string, @Body(new ZodBody(wordUpdate)) body: z.infer<typeof wordUpdate>) {
+  updateWord(
+    @CurrentUser() user: StaffUser,
+    @Param('id') id: string,
+    @Body(new ZodBody(wordUpdate)) body: z.infer<typeof wordUpdate>,
+  ) {
     const { note, ...data } = body;
     return editContent(this.db, 'word', id, data, { authorId: user.id, note: note ?? 'edit word' });
   }
 
   @Roles('AUTHOR', 'REVIEWER')
   @Post('words/:id/status')
-  wordStatus(@CurrentUser() user: StaffUser, @Param('id') id: string, @Body(new ZodBody(statusChange)) body: z.infer<typeof statusChange>) {
+  wordStatus(
+    @CurrentUser() user: StaffUser,
+    @Param('id') id: string,
+    @Body(new ZodBody(statusChange)) body: z.infer<typeof statusChange>,
+  ) {
     return this.content.setStatus(user, 'word', id, body.status, body.note);
   }
 
@@ -70,7 +97,10 @@ export class ItemsController {
         pages: { orderBy: { number: 'asc' }, include: { imageAsset: true, audioAsset: true } },
         assets: { orderBy: [{ role: 'asc' }, { order: 'asc' }], include: { asset: true } },
         production: true,
-        steps: { select: { lesson: { select: { id: true, number: true } } }, orderBy: { lesson: { number: 'asc' } } },
+        steps: {
+          select: { lesson: { select: { id: true, number: true } } },
+          orderBy: { lesson: { number: 'asc' } },
+        },
       },
     });
     if (!material) throw new NotFoundException();
@@ -84,13 +114,19 @@ export class ItemsController {
         audioAsset: await this.urls.withUrl(page.audioAsset),
       })),
     );
-    const assets = await Promise.all(material.assets.map(async (link) => ({ ...link, asset: await this.urls.withUrl(link.asset) })));
+    const assets = await Promise.all(
+      material.assets.map(async (link) => ({ ...link, asset: await this.urls.withUrl(link.asset) })),
+    );
     return { ...rest, pages, assets, usedInLessons: lessons };
   }
 
   @Roles('AUTHOR', 'REVIEWER')
   @Post('units/:code/materials')
-  async addMaterial(@CurrentUser() user: StaffUser, @Param('code') code: string, @Body(new ZodBody(materialInput)) body: z.infer<typeof materialInput>) {
+  async addMaterial(
+    @CurrentUser() user: StaffUser,
+    @Param('code') code: string,
+    @Body(new ZodBody(materialInput)) body: z.infer<typeof materialInput>,
+  ) {
     const unit = await this.content.unitByCode(code);
     return this.db.$transaction(async (tx) => {
       const material = await tx.material.create({ data: { ...body, unitId: unit.id } });
@@ -101,21 +137,33 @@ export class ItemsController {
 
   @Roles('AUTHOR', 'REVIEWER')
   @Patch('materials/:id')
-  updateMaterial(@CurrentUser() user: StaffUser, @Param('id') id: string, @Body(new ZodBody(materialUpdate)) body: z.infer<typeof materialUpdate>) {
+  updateMaterial(
+    @CurrentUser() user: StaffUser,
+    @Param('id') id: string,
+    @Body(new ZodBody(materialUpdate)) body: z.infer<typeof materialUpdate>,
+  ) {
     const { note, ...data } = body;
     return editContent(this.db, 'material', id, data, { authorId: user.id, note: note ?? 'edit material' });
   }
 
   @Roles('AUTHOR', 'REVIEWER')
   @Post('materials/:id/status')
-  materialStatus(@CurrentUser() user: StaffUser, @Param('id') id: string, @Body(new ZodBody(statusChange)) body: z.infer<typeof statusChange>) {
+  materialStatus(
+    @CurrentUser() user: StaffUser,
+    @Param('id') id: string,
+    @Body(new ZodBody(statusChange)) body: z.infer<typeof statusChange>,
+  ) {
     return this.content.setStatus(user, 'material', id, body.status, body.note);
   }
 
   /** Replace all pages of a material (stories, books, cards). Recorded as one material revision. */
   @Roles('AUTHOR', 'REVIEWER')
   @Put('materials/:id/pages')
-  async setPages(@CurrentUser() user: StaffUser, @Param('id') id: string, @Body(new ZodBody(pagesInput)) body: z.infer<typeof pagesInput>) {
+  async setPages(
+    @CurrentUser() user: StaffUser,
+    @Param('id') id: string,
+    @Body(new ZodBody(pagesInput)) body: z.infer<typeof pagesInput>,
+  ) {
     return this.db.$transaction(async (tx) => {
       const current = await tx.material.findUnique({ where: { id } });
       if (!current) throw new NotFoundException();
@@ -128,14 +176,21 @@ export class ItemsController {
         authorId: user.id,
         note: body.note ?? 'edit pages',
       });
-      return tx.material.findUniqueOrThrow({ where: { id }, include: { pages: { orderBy: { number: 'asc' } } } });
+      return tx.material.findUniqueOrThrow({
+        where: { id },
+        include: { pages: { orderBy: { number: 'asc' } } },
+      });
     });
   }
 
   /** Set the files for one role of a material, e.g. the poster images or the song audio. */
   @Roles('AUTHOR', 'REVIEWER')
   @Put('materials/:id/assets')
-  async setMaterialAssets(@CurrentUser() user: StaffUser, @Param('id') id: string, @Body(new ZodBody(materialAssetsInput)) body: z.infer<typeof materialAssetsInput>) {
+  async setMaterialAssets(
+    @CurrentUser() user: StaffUser,
+    @Param('id') id: string,
+    @Body(new ZodBody(materialAssetsInput)) body: z.infer<typeof materialAssetsInput>,
+  ) {
     return this.db.$transaction(async (tx) => {
       const current = await tx.material.findUnique({ where: { id } });
       if (!current) throw new NotFoundException();
@@ -145,7 +200,11 @@ export class ItemsController {
       });
       const updated = await tx.material.update({ where: { id }, data: stateAfterEdit(current) });
       await writeRevision(tx, 'material', updated, { authorId: user.id, note: `set ${body.role} files` });
-      return tx.materialAsset.findMany({ where: { materialId: id }, include: { asset: true }, orderBy: [{ role: 'asc' }, { order: 'asc' }] });
+      return tx.materialAsset.findMany({
+        where: { materialId: id },
+        include: { asset: true },
+        orderBy: [{ role: 'asc' }, { order: 'asc' }],
+      });
     });
   }
 
@@ -156,15 +215,26 @@ export class ItemsController {
     const lesson = await this.db.lesson.findUnique({
       where: { id },
       include: {
-        unit: { select: { id: true, code: true, title: true, level: { select: { number: true, name: true } } } },
-        steps: { orderBy: { order: 'asc' }, include: { material: { select: { id: true, code: true, title: true, type: true } } } },
+        unit: {
+          select: { id: true, code: true, title: true, level: { select: { number: true, name: true } } },
+        },
+        steps: {
+          orderBy: { order: 'asc' },
+          include: { material: { select: { id: true, code: true, title: true, type: true } } },
+        },
         prepItems: { orderBy: { order: 'asc' }, include: { material: { select: { id: true, code: true } } } },
       },
     });
     if (!lesson) throw new NotFoundException();
     const [previous, next] = await Promise.all([
-      this.db.lesson.findUnique({ where: { unitId_number: { unitId: lesson.unitId, number: lesson.number - 1 } }, select: { id: true } }),
-      this.db.lesson.findUnique({ where: { unitId_number: { unitId: lesson.unitId, number: lesson.number + 1 } }, select: { id: true } }),
+      this.db.lesson.findUnique({
+        where: { unitId_number: { unitId: lesson.unitId, number: lesson.number - 1 } },
+        select: { id: true },
+      }),
+      this.db.lesson.findUnique({
+        where: { unitId_number: { unitId: lesson.unitId, number: lesson.number + 1 } },
+        select: { id: true },
+      }),
     ]);
     return { ...lesson, previousId: previous?.id ?? null, nextId: next?.id ?? null };
   }
@@ -172,7 +242,10 @@ export class ItemsController {
   @Get('units/:code/lessons/:number')
   async lessonByNumber(@Param('code') code: string, @Param('number') number: string) {
     const unit = await this.content.unitByCode(code);
-    const lesson = await this.db.lesson.findUnique({ where: { unitId_number: { unitId: unit.id, number: Number(number) } }, select: { id: true } });
+    const lesson = await this.db.lesson.findUnique({
+      where: { unitId_number: { unitId: unit.id, number: Number(number) } },
+      select: { id: true },
+    });
     if (!lesson) throw new NotFoundException();
     return this.lesson(lesson.id);
   }
@@ -180,29 +253,50 @@ export class ItemsController {
   /** Save a whole lesson (fields, steps and prep list) as one revision. */
   @Roles('AUTHOR', 'REVIEWER')
   @Put('lessons/:id')
-  async saveLesson(@CurrentUser() user: StaffUser, @Param('id') id: string, @Body(new ZodBody(lessonInput)) body: z.infer<typeof lessonInput>) {
+  async saveLesson(
+    @CurrentUser() user: StaffUser,
+    @Param('id') id: string,
+    @Body(new ZodBody(lessonInput)) body: z.infer<typeof lessonInput>,
+  ) {
     const { steps, prep, note, ...fields } = body;
     await this.db.$transaction(async (tx) => {
       const current = await tx.lesson.findUnique({ where: { id } });
       if (!current) throw new NotFoundException();
-      const materialIds = [...steps.map((s) => s.materialId), ...prep.map((p) => p.materialId)].filter((v): v is string => !!v);
+      const materialIds = [...steps.map((s) => s.materialId), ...prep.map((p) => p.materialId)].filter(
+        (v): v is string => !!v,
+      );
       if (materialIds.length) {
         const found = await tx.material.count({ where: { id: { in: materialIds }, unitId: current.unitId } });
-        if (found !== new Set(materialIds).size) throw new BadRequestException('Steps may only use materials from this unit');
+        if (found !== new Set(materialIds).size)
+          throw new BadRequestException('Steps may only use materials from this unit');
       }
       await tx.lessonStep.deleteMany({ where: { lessonId: id } });
-      await tx.lessonStep.createMany({ data: steps.map((step, index) => ({ ...step, lessonId: id, order: index + 1 })) });
+      await tx.lessonStep.createMany({
+        data: steps.map((step, index) => ({ ...step, lessonId: id, order: index + 1 })),
+      });
       await tx.prepItem.deleteMany({ where: { lessonId: id } });
-      await tx.prepItem.createMany({ data: prep.map((item, index) => ({ ...item, lessonId: id, order: index + 1 })) });
-      const updated = await tx.lesson.update({ where: { id }, data: { ...fields, ...stateAfterEdit(current) } });
-      await writeRevision(tx, 'lesson', { ...updated, steps, prep } as typeof updated, { authorId: user.id, note: note ?? 'edit lesson' });
+      await tx.prepItem.createMany({
+        data: prep.map((item, index) => ({ ...item, lessonId: id, order: index + 1 })),
+      });
+      const updated = await tx.lesson.update({
+        where: { id },
+        data: { ...fields, ...stateAfterEdit(current) },
+      });
+      await writeRevision(tx, 'lesson', { ...updated, steps, prep } as typeof updated, {
+        authorId: user.id,
+        note: note ?? 'edit lesson',
+      });
     });
     return this.lesson(id);
   }
 
   @Roles('AUTHOR', 'REVIEWER')
   @Post('lessons/:id/status')
-  lessonStatus(@CurrentUser() user: StaffUser, @Param('id') id: string, @Body(new ZodBody(statusChange)) body: z.infer<typeof statusChange>) {
+  lessonStatus(
+    @CurrentUser() user: StaffUser,
+    @Param('id') id: string,
+    @Body(new ZodBody(statusChange)) body: z.infer<typeof statusChange>,
+  ) {
     return this.content.setStatus(user, 'lesson', id, body.status, body.note);
   }
 
@@ -220,7 +314,10 @@ export class ItemsController {
 
   @Roles('AUTHOR', 'REVIEWER')
   @Patch('production/:id')
-  async updateProduction(@Param('id') id: string, @Body(new ZodBody(productionUpdate)) body: z.infer<typeof productionUpdate>) {
+  async updateProduction(
+    @Param('id') id: string,
+    @Body(new ZodBody(productionUpdate)) body: z.infer<typeof productionUpdate>,
+  ) {
     return this.db.productionStatus.update({ where: { id }, data: body });
   }
 
@@ -228,7 +325,8 @@ export class ItemsController {
 
   @Get('revisions')
   async revisions(@Query('entityType') entityType: string, @Query('entityId') entityId: string) {
-    if (!ENTITIES.has(entityType as ContentEntity) || !entityId) throw new BadRequestException('entityType and entityId are required');
+    if (!ENTITIES.has(entityType as ContentEntity) || !entityId)
+      throw new BadRequestException('entityType and entityId are required');
     return this.db.revision.findMany({
       where: { entityType, entityId },
       orderBy: { createdAt: 'desc' },
@@ -249,7 +347,10 @@ export class ItemsController {
     const data = Object.fromEntries(Object.entries(snapshot).filter(([key]) => restorable.includes(key)));
     if (entity === 'lesson' && Array.isArray(snapshot.steps)) {
       const lesson = await this.lesson(revision.entityId);
-      const materials = await this.db.material.findMany({ where: { unitId: lesson.unitId }, select: { id: true, code: true } });
+      const materials = await this.db.material.findMany({
+        where: { unitId: lesson.unitId },
+        select: { id: true, code: true },
+      });
       const idForCode = new Map(materials.map((material) => [material.code, material.id]));
       type SnapshotStep = z.infer<typeof lessonInput>['steps'][number] & { materialCode?: string | null };
       // Import snapshots name materials by code; Admin snapshots store the id.
@@ -260,7 +361,13 @@ export class ItemsController {
       const prep = Array.isArray(snapshot.prep)
         ? (snapshot.prep as z.infer<typeof lessonInput>['prep'])
         : lesson.prepItems.map((item) => ({ text: item.text, materialId: item.materialId }));
-      const merged = lessonInput.parse({ ...lesson, ...data, steps, prep, note: `restore version ${revision.version}` });
+      const merged = lessonInput.parse({
+        ...lesson,
+        ...data,
+        steps,
+        prep,
+        note: `restore version ${revision.version}`,
+      });
       return this.saveLesson(user, revision.entityId, merged);
     }
     return editContent(this.db, entity, revision.entityId, data as Prisma.InputJsonObject, {
@@ -278,8 +385,55 @@ export class ItemsController {
 }
 
 const RESTORABLE_FIELDS: Record<ContentEntity, string[]> = {
-  unit: ['title', 'leadCharacterId', 'leadCharacterNote', 'circle', 'vnLink', 'bigQuestion', 'value', 'party', 'sounds', 'soundDetails', 'keyLanguage', 'parentMessage', 'levelRulesNote', 'links'],
-  word: ['text', 'partOfSpeech', 'kind', 'group', 'fromUnit', 'pictureBrief', 'notes', 'imageAssetId', 'order'],
-  material: ['type', 'title', 'format', 'targetLanguage', 'fullText', 'actions', 'teacherNotes', 'firstLesson'],
-  lesson: ['week', 'stage', 'minutes', 'newToday', 'goals', 'keyLanguage', 'support', 'challenge', 'lookFor', 'homeLink', 'prepMinutes', 'notes'],
+  unit: [
+    'title',
+    'leadCharacterId',
+    'leadCharacterNote',
+    'circle',
+    'vnLink',
+    'bigQuestion',
+    'value',
+    'party',
+    'sounds',
+    'soundDetails',
+    'keyLanguage',
+    'parentMessage',
+    'levelRulesNote',
+    'links',
+  ],
+  word: [
+    'text',
+    'partOfSpeech',
+    'kind',
+    'group',
+    'fromUnit',
+    'pictureBrief',
+    'notes',
+    'imageAssetId',
+    'order',
+  ],
+  material: [
+    'type',
+    'title',
+    'format',
+    'targetLanguage',
+    'fullText',
+    'actions',
+    'teacherNotes',
+    'firstLesson',
+  ],
+  lesson: [
+    'week',
+    'stage',
+    'minutes',
+    'newToday',
+    'goals',
+    'keyLanguage',
+    'support',
+    'challenge',
+    'lookFor',
+    'homeLink',
+    'prepMinutes',
+    'notes',
+  ],
 };

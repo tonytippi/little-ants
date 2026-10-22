@@ -95,8 +95,23 @@ export interface UnitDetail {
   lessons: LessonSummary[];
   canDoGoals: { id: string; order: number; text: string }[];
   pictures: UnitPicture[];
-  gateChecks: { id: string; gate: number; order: number; text: string; signer: string; done: boolean; doneAt: string | null; notes: string }[];
-  releases: { id: string; version: number; note: string; publishedAt: string; publishedBy: { name: string } | null }[];
+  gateChecks: {
+    id: string;
+    gate: number;
+    order: number;
+    text: string;
+    signer: string;
+    done: boolean;
+    doneAt: string | null;
+    notes: string;
+  }[];
+  releases: {
+    id: string;
+    version: number;
+    note: string;
+    publishedAt: string;
+    publishedBy: { name: string } | null;
+  }[];
 }
 
 export interface Asset {
@@ -187,7 +202,13 @@ export interface LessonDetail {
   version: number;
   unit: { id: string; code: string; title: string; level: { number: number; name: string } };
   steps: LessonStep[];
-  prepItems: { id: string; order: number; text: string; materialId: string | null; material: { id: string; code: string } | null }[];
+  prepItems: {
+    id: string;
+    order: number;
+    text: string;
+    materialId: string | null;
+    material: { id: string; code: string } | null;
+  }[];
   previousId: string | null;
   nextId: string | null;
 }

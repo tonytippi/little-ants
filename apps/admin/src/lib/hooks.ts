@@ -16,7 +16,10 @@ export function usePermissions() {
 }
 
 /** A mutation that refreshes the given queries when it succeeds. */
-export function useApiMutation<TVars, TResult>(fn: (vars: TVars) => Promise<TResult>, invalidate: QueryKey[] = []) {
+export function useApiMutation<TVars, TResult>(
+  fn: (vars: TVars) => Promise<TResult>,
+  invalidate: QueryKey[] = [],
+) {
   const queryClient = useQueryClient();
   return useMutation<TResult, Error, TVars>({
     mutationFn: fn,
@@ -36,7 +39,13 @@ export function formatDate(value: string | null | undefined, withTime = false): 
   if (!value) return '—';
   const date = new Date(value);
   return withTime
-    ? date.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    ? date.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
     : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 

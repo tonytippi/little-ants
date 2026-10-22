@@ -3,7 +3,10 @@ import type { ReactNode } from 'react';
 export function Spinner({ label = 'Loading' }: { label?: string }) {
   return (
     <div role="status" className="flex items-center gap-3 p-6 text-bark-500">
-      <span className="size-5 animate-spin rounded-full border-2 border-leaf-600 border-t-transparent" aria-hidden />
+      <span
+        className="size-5 animate-spin rounded-full border-2 border-leaf-600 border-t-transparent"
+        aria-hidden
+      />
       <span className="text-sm">{label}…</span>
     </div>
   );
@@ -28,5 +31,11 @@ export function ErrorNotice({ error }: { error: unknown }) {
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-[var(--radius-card)] border border-cream-200 bg-white p-5 shadow-xs ${className}`}>{children}</section>;
+  return (
+    <section
+      className={`rounded-[var(--radius-card)] border border-cream-200 bg-white p-5 shadow-xs ${className}`}
+    >
+      {children}
+    </section>
+  );
 }

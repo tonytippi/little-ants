@@ -47,7 +47,11 @@ export function hasRole(user: Pick<StaffUser, 'roles'>, ...roles: Role[]): boole
 }
 
 /** Admins see every class; teachers see the classes they are assigned to. */
-export async function canAccessClass(prisma: PrismaClient, user: StaffUser, classId: string): Promise<boolean> {
+export async function canAccessClass(
+  prisma: PrismaClient,
+  user: StaffUser,
+  classId: string,
+): Promise<boolean> {
   if (hasRole(user, 'ADMIN')) return true;
   if (!hasRole(user, 'TEACHER')) return false;
   const assignment = await prisma.teacherAssignment.findUnique({

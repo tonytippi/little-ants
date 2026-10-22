@@ -1,4 +1,13 @@
-import { Body, Controller, ForbiddenException, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { syncInput } from '@little-ants/shared';
 import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators.js';
@@ -29,14 +38,24 @@ export class TeachController {
         campus: { select: { name: true } },
         level: { select: { number: true, name: true } },
         currentUnit: {
-          select: { code: true, title: true, releases: { orderBy: { version: 'desc' }, take: 1, select: { version: true, publishedAt: true } } },
+          select: {
+            code: true,
+            title: true,
+            releases: { orderBy: { version: 'desc' }, take: 1, select: { version: true, publishedAt: true } },
+          },
         },
-        students: { where: { status: 'ACTIVE' }, orderBy: { displayName: 'asc' }, select: { id: true, displayName: true } },
+        students: {
+          where: { status: 'ACTIVE' },
+          orderBy: { displayName: 'asc' },
+          select: { id: true, displayName: true },
+        },
       },
     });
     return classes.map(({ currentUnit, ...rest }) => ({
       ...rest,
-      currentUnit: currentUnit ? { code: currentUnit.code, title: currentUnit.title, release: currentUnit.releases[0] ?? null } : null,
+      currentUnit: currentUnit
+        ? { code: currentUnit.code, title: currentUnit.title, release: currentUnit.releases[0] ?? null }
+        : null,
     }));
   }
 
@@ -70,7 +89,11 @@ export class TeachController {
 
   /** Latest result per child and goal for a unit. */
   @Get('classes/:id/observations')
-  async observations(@CurrentUser() user: StaffUser, @Param('id') classId: string, @Query('unit') unitCode: string) {
+  async observations(
+    @CurrentUser() user: StaffUser,
+    @Param('id') classId: string,
+    @Query('unit') unitCode: string,
+  ) {
     await this.assertClass(user, classId);
     const rows = await this.db.observation.findMany({
       where: { classId, unitCode: unitCode?.toUpperCase() },
@@ -102,9 +125,17 @@ export class TeachController {
    * Recording a lesson of the class's current unit moves the class on to the next lesson.
    */
   @Post('sync')
-  async sync(@CurrentUser() user: StaffUser, @Body(new ZodBody(syncInput)) body: z.infer<typeof syncInput>): Promise<SyncResult> {
+  async sync(
+    @CurrentUser() user: StaffUser,
+    @Body(new ZodBody(syncInput)) body: z.infer<typeof syncInput>,
+  ): Promise<SyncResult> {
     const rejected: SyncResult['rejected'] = [];
-    const classIds = [...new Set([...body.lessonRuns.map((run) => run.classId), ...body.observations.map((obs) => obs.classId)])];
+    const classIds = [
+      ...new Set([
+        ...body.lessonRuns.map((run) => run.classId),
+        ...body.observations.map((obs) => obs.classId),
+      ]),
+    ];
     const allowed = new Set<string>();
     for (const classId of classIds) if (await canAccessClass(this.db, user, classId)) allowed.add(classId);
 
@@ -120,23 +151,37 @@ export class TeachController {
     const studentClass = new Map(students.map((student) => [student.id, student.classId]));
     const observations = body.observations.filter((obs) => {
       if (!allowed.has(obs.classId)) rejected.push({ clientId: obs.clientId, reason: 'Not your class' });
-      else if (studentClass.get(obs.studentId) !== obs.classId) rejected.push({ clientId: obs.clientId, reason: 'The child is not in this class' });
+      else if (studentClass.get(obs.studentId) !== obs.classId)
+        rejected.push({ clientId: obs.clientId, reason: 'The child is not in this class' });
       else return true;
       return false;
     });
 
     await this.db.$transaction(async (tx) => {
       const existing = new Set(
-        (await tx.lessonRun.findMany({ where: { clientId: { in: runs.map((run) => run.clientId) } }, select: { clientId: true } })).map(
-          (row) => row.clientId,
-        ),
+        (
+          await tx.lessonRun.findMany({
+            where: { clientId: { in: runs.map((run) => run.clientId) } },
+            select: { clientId: true },
+          })
+        ).map((row) => row.clientId),
       );
-      await tx.lessonRun.createMany({ data: runs.map((run) => ({ ...run, teacherId: user.id })), skipDuplicates: true });
-      await tx.observation.createMany({ data: observations.map((item) => ({ ...item, teacherId: user.id })), skipDuplicates: true });
+      await tx.lessonRun.createMany({
+        data: runs.map((run) => ({ ...run, teacherId: user.id })),
+        skipDuplicates: true,
+      });
+      await tx.observation.createMany({
+        data: observations.map((item) => ({ ...item, teacherId: user.id })),
+        skipDuplicates: true,
+      });
       // Only newly recorded lessons move the class on, and never backwards (one atomic conditional update).
       for (const run of runs.filter((item) => !existing.has(item.clientId))) {
         await tx.class.updateMany({
-          where: { id: run.classId, nextLesson: { lte: run.lessonNumber }, currentUnit: { code: run.unitCode } },
+          where: {
+            id: run.classId,
+            nextLesson: { lte: run.lessonNumber },
+            currentUnit: { code: run.unitCode },
+          },
           data: { nextLesson: Math.min(run.lessonNumber + 1, 40) },
         });
       }

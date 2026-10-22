@@ -19,7 +19,9 @@ export class MeController {
   @Get('me')
   async me(@CurrentUser() user: StaffUser) {
     const classes = await this.prisma.client.class.findMany({
-      where: hasRole(user, 'ADMIN') ? { active: true } : { active: true, teachers: { some: { userId: user.id } } },
+      where: hasRole(user, 'ADMIN')
+        ? { active: true }
+        : { active: true, teachers: { some: { userId: user.id } } },
       select: { id: true, name: true, schoolYear: true, campus: { select: { name: true } } },
       orderBy: { name: 'asc' },
     });

@@ -40,7 +40,10 @@ const STAGE_LABEL: Record<string, string> = {
 /** Material × production stage board (replaces Master Sheet tab 9). */
 export function ProductionTab({ code }: { code: string }) {
   const key = ['production', code];
-  const query = useQuery({ queryKey: key, queryFn: () => api.get<ProductionMaterial[]>(`/content/units/${code}/production`) });
+  const query = useQuery({
+    queryKey: key,
+    queryFn: () => api.get<ProductionMaterial[]>(`/content/units/${code}/production`),
+  });
   if (query.isPending) return <Spinner label="Loading production" />;
   if (query.error) return <ErrorNotice error={query.error} />;
   const rows = query.data.filter((material) => material.production.length > 0);
@@ -69,10 +72,22 @@ export function ProductionTab({ code }: { code: string }) {
   );
 }
 
-function ProductionLine({ material, invalidateKey, unitCode }: { material: ProductionMaterial; invalidateKey: string[]; unitCode: string }) {
+function ProductionLine({
+  material,
+  invalidateKey,
+  unitCode,
+}: {
+  material: ProductionMaterial;
+  invalidateKey: string[];
+  unitCode: string;
+}) {
   const { canEdit } = usePermissions();
   const invalidate = [invalidateKey, ['unit', unitCode], ['units']];
-  const update = useApiMutation(({ id, data }: { id: string; data: Partial<ProductionRow> }) => api.patch(`/content/production/${id}`, data), invalidate);
+  const update = useApiMutation(
+    ({ id, data }: { id: string; data: Partial<ProductionRow> }) =>
+      api.patch(`/content/production/${id}`, data),
+    invalidate,
+  );
   const first = material.production[0];
   const [editing, setEditing] = useState(false);
   const [owner, setOwner] = useState(first?.owner ?? '');
@@ -80,7 +95,10 @@ function ProductionLine({ material, invalidateKey, unitCode }: { material: Produ
 
   async function saveOwner(): Promise<void> {
     for (const row of material.production) {
-      await update.mutateAsync({ id: row.id, data: { owner, dueDate: due ? new Date(due).toISOString() : null } });
+      await update.mutateAsync({
+        id: row.id,
+        data: { owner, dueDate: due ? new Date(due).toISOString() : null },
+      });
     }
     setEditing(false);
   }
@@ -88,11 +106,17 @@ function ProductionLine({ material, invalidateKey, unitCode }: { material: Produ
   return (
     <tr className="border-t border-cream-200">
       <th scope="row" className="px-3 py-2 text-left font-normal">
-        <span className="font-bold text-ant-500">{material.code}</span> <span className="font-semibold">{material.title}</span>
+        <span className="font-bold text-ant-500">{material.code}</span>{' '}
+        <span className="font-semibold">{material.title}</span>
       </th>
       {PRODUCTION_STAGES.map((stage) => {
         const row = material.production.find((item) => item.stage === stage);
-        if (!row) return <td key={stage} className="px-2 py-2 text-bark-500">—</td>;
+        if (!row)
+          return (
+            <td key={stage} className="px-2 py-2 text-bark-500">
+              —
+            </td>
+          );
         return (
           <td key={stage} className="px-1 py-1">
             <Select
@@ -114,8 +138,18 @@ function ProductionLine({ material, invalidateKey, unitCode }: { material: Produ
       <td className="px-3 py-2 text-xs">
         {editing ? (
           <div className="flex flex-col gap-1">
-            <TextInput aria-label="Owner" placeholder="Owner" value={owner} onChange={(event) => setOwner(event.target.value)} />
-            <TextInput aria-label="Due date" type="date" value={due} onChange={(event) => setDue(event.target.value)} />
+            <TextInput
+              aria-label="Owner"
+              placeholder="Owner"
+              value={owner}
+              onChange={(event) => setOwner(event.target.value)}
+            />
+            <TextInput
+              aria-label="Due date"
+              type="date"
+              value={due}
+              onChange={(event) => setDue(event.target.value)}
+            />
             <div className="flex gap-1">
               <Button size="sm" busy={update.isPending} onClick={() => void saveOwner()}>
                 Save
@@ -126,7 +160,12 @@ function ProductionLine({ material, invalidateKey, unitCode }: { material: Produ
             </div>
           </div>
         ) : (
-          <button type="button" disabled={!canEdit} onClick={() => setEditing(true)} className="text-left hover:underline disabled:no-underline">
+          <button
+            type="button"
+            disabled={!canEdit}
+            onClick={() => setEditing(true)}
+            className="text-left hover:underline disabled:no-underline"
+          >
             {first?.owner || 'No owner'} · {first?.dueDate ? first.dueDate.slice(0, 10) : 'no date'}
           </button>
         )}

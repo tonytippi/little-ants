@@ -9,7 +9,14 @@ import { ItemsController } from './items.controller.js';
 import { UnitsController } from './units.controller.js';
 
 @Module({
-  controllers: [UnitsController, ItemsController, AssetsController, ReleasesController, TeachController, TeacherNotesController],
+  controllers: [
+    UnitsController,
+    ItemsController,
+    AssetsController,
+    ReleasesController,
+    TeachController,
+    TeacherNotesController,
+  ],
   providers: [ContentService, ReleaseBuilder, AssetUrls],
 })
 export class ContentModule {}

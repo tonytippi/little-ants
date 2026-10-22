@@ -11,7 +11,11 @@ import { AUTH, BetterAuthSessionResolver, SessionResolver } from './session-reso
 @Module({
   controllers: [MeController],
   providers: [
-    { provide: AUTH, inject: [PrismaService], useFactory: (prisma: PrismaService) => createAuth(prisma.client, loadEnv()) },
+    {
+      provide: AUTH,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => createAuth(prisma.client, loadEnv()),
+    },
     { provide: SessionResolver, useClass: BetterAuthSessionResolver },
     { provide: APP_GUARD, useClass: AuthGuard },
   ],

@@ -6,7 +6,15 @@ function item(clientId: string, ownerId?: string): OutboxItem {
   return {
     clientId,
     kind: 'run',
-    record: { clientId, classId: 'c', unitCode: 'U01', lessonNumber: 1, releaseVersion: 1, taughtAt: '', notes: '' },
+    record: {
+      clientId,
+      classId: 'c',
+      unitCode: 'U01',
+      lessonNumber: 1,
+      releaseVersion: 1,
+      taughtAt: '',
+      notes: '',
+    },
     attempts: 0,
     nextAttemptAt: 0,
     ownerId,
@@ -23,7 +31,9 @@ describe('inBatches', () => {
 describe('applySyncResponse', () => {
   it('removes accepted records, sets rejected ones aside and retries the rest', () => {
     const batch = [item('a'), item('b'), item('c')];
-    expect(applySyncResponse(batch, { accepted: ['a'], rejected: [{ clientId: 'b', reason: 'Not your class' }] })).toEqual({
+    expect(
+      applySyncResponse(batch, { accepted: ['a'], rejected: [{ clientId: 'b', reason: 'Not your class' }] }),
+    ).toEqual({
       done: ['a'],
       failed: [{ clientId: 'b', reason: 'Not your class' }],
       retry: ['c'],

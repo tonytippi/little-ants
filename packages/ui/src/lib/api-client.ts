@@ -2,9 +2,15 @@
 export class ApiError extends Error {
   constructor(
     readonly status: number,
-    readonly body: { message?: string | string[]; issues?: { path: string; message: string }[]; [key: string]: unknown },
+    readonly body: {
+      message?: string | string[];
+      issues?: { path: string; message: string }[];
+      [key: string]: unknown;
+    },
   ) {
-    super(Array.isArray(body.message) ? body.message.join(', ') : (body.message ?? `Request failed (${status})`));
+    super(
+      Array.isArray(body.message) ? body.message.join(', ') : (body.message ?? `Request failed (${status})`),
+    );
   }
 
   /** True when the request failed because the user is not signed in. */
@@ -54,12 +60,15 @@ export async function uploadAsset(
   file: File,
   options: { replacesId?: string; onProgress?: (fraction: number) => void } = {},
 ): Promise<{ id: string }> {
-  const start = await api.post<{ assetId: string; uploadUrl: string; headers: Record<string, string> }>('/assets/upload-url', {
-    fileName: file.name,
-    mimeType: file.type,
-    sizeBytes: file.size,
-    replacesId: options.replacesId,
-  });
+  const start = await api.post<{ assetId: string; uploadUrl: string; headers: Record<string, string> }>(
+    '/assets/upload-url',
+    {
+      fileName: file.name,
+      mimeType: file.type,
+      sizeBytes: file.size,
+      replacesId: options.replacesId,
+    },
+  );
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', start.uploadUrl);
@@ -67,7 +76,8 @@ export async function uploadAsset(
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) options.onProgress?.(event.loaded / event.total);
     };
-    xhr.onload = () => (xhr.status < 300 ? resolve() : reject(new ApiError(xhr.status, { message: 'Upload failed' })));
+    xhr.onload = () =>
+      xhr.status < 300 ? resolve() : reject(new ApiError(xhr.status, { message: 'Upload failed' }));
     xhr.onerror = () => reject(new ApiError(0, { message: 'Upload failed (network)' }));
     xhr.send(file);
   });

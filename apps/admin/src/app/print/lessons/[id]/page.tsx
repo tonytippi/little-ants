@@ -10,7 +10,10 @@ import type { LessonDetail } from '../../../../lib/types';
 
 export default function PrintLessonPage() {
   const { id } = useParams<{ id: string }>();
-  const query = useQuery({ queryKey: ['lesson', id], queryFn: () => api.get<LessonDetail>(`/content/lessons/${id}`) });
+  const query = useQuery({
+    queryKey: ['lesson', id],
+    queryFn: () => api.get<LessonDetail>(`/content/lessons/${id}`),
+  });
   if (query.isPending) return <Spinner label="Loading lesson" />;
   if (query.error) return <ErrorNotice error={query.error} />;
   return (

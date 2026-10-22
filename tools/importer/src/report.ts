@@ -15,15 +15,22 @@ function escapeCell(value: string): string {
   return value.replaceAll('|', '\\|').replaceAll('\n', ' ');
 }
 
-export function renderReport(reports: UnitReport[], options: { dryRun: boolean; startedAt: Date; source?: string[] }): string {
+export function renderReport(
+  reports: UnitReport[],
+  options: { dryRun: boolean; startedAt: Date; source?: string[] },
+): string {
   const lines: string[] = [];
   lines.push('# Master Sheet import report', '');
-  lines.push(`Run: ${options.startedAt.toISOString()} · Mode: ${options.dryRun ? 'dry run (nothing written)' : 'write'}`, '');
+  lines.push(
+    `Run: ${options.startedAt.toISOString()} · Mode: ${options.dryRun ? 'dry run (nothing written)' : 'write'}`,
+    '',
+  );
   if (options.source?.length) lines.push(...options.source, '');
   lines.push('| Unit | Title | Lessons | Words | Materials | Errors | Warnings | Notes |');
   lines.push('|---|---|---|---|---|---|---|---|');
   for (const report of reports) {
-    const count = (level: IssueLevel): number => report.issues.filter((issue) => issue.level === level).length;
+    const count = (level: IssueLevel): number =>
+      report.issues.filter((issue) => issue.level === level).length;
     lines.push(
       `| ${report.unit} | ${escapeCell(report.title)} | ${report.counts.lessons ?? 0} | ${report.counts.words ?? 0} | ${report.counts.materials ?? 0} | ${count('error')} | ${count('warning')} | ${count('info')} |`,
     );

@@ -44,12 +44,19 @@ export interface ImportResult {
 export async function runImport(options: ImportOptions): Promise<ImportResult> {
   const log = options.log ?? ((message: string) => console.log(message));
   const startedAt = new Date();
-  const storage = !options.dryRun && (options.assets || options.drive) ? createStorageFromEnv(process.env, repoRoot) : null;
+  const storage =
+    !options.dryRun && (options.assets || options.drive) ? createStorageFromEnv(process.env, repoRoot) : null;
   const download = options.drive ? await downloadFromDrive(startedAt, storage, log) : null;
   try {
-    const sourceFolder = download?.folder ?? path.resolve(options.source ?? path.join(repoRoot, 'docs', 'Little Ants English', 'LA 3-6'));
+    const sourceFolder =
+      download?.folder ??
+      path.resolve(options.source ?? path.join(repoRoot, 'docs', 'Little Ants English', 'LA 3-6'));
     const reports = await importUnits(options, sourceFolder, options.assets ? storage : null, log);
-    const report = renderReport(reports, { dryRun: options.dryRun, startedAt, source: download?.summary ?? [] });
+    const report = renderReport(reports, {
+      dryRun: options.dryRun,
+      startedAt,
+      source: download?.summary ?? [],
+    });
     if (download?.archive && storage) {
       await storage.put(`${download.archive}/report.md`, new TextEncoder().encode(report), 'text/markdown');
     }
@@ -61,7 +68,9 @@ export async function runImport(options: ImportOptions): Promise<ImportResult> {
 
 /** Earlier downloads, so repeated runs only fetch files that changed on Drive (Google limits bursts of downloads). */
 function driveCacheDir(): string {
-  return path.resolve(process.env.GOOGLE_DRIVE_CACHE_DIR?.trim() || path.join(repoRoot, 'infra', 'drive-cache'));
+  return path.resolve(
+    process.env.GOOGLE_DRIVE_CACHE_DIR?.trim() || path.join(repoRoot, 'infra', 'drive-cache'),
+  );
 }
 
 /** Download the Drive folder to a temporary folder and archive a copy (not on dry runs). */
@@ -88,7 +97,9 @@ async function downloadFromDrive(
         if (count % 50 === 0) log(`Downloading from Google Drive: ${count} files`);
       },
     });
-    log(`Got ${result.files.length} files (${result.files.length - reused} downloaded, ${reused} unchanged since the last run).`);
+    log(
+      `Got ${result.files.length} files (${result.files.length - reused} downloaded, ${reused} unchanged since the last run).`,
+    );
     let archive: string | null = null;
     if (storage) {
       archive = archivePrefix(startedAt);
@@ -119,7 +130,8 @@ async function importUnits(
   try {
     const levels = await prisma.level.findMany({ where: { program: { code: 'LA' } } });
     if (levels.length === 0) throw new Error('Levels are missing. Run the database seed first.');
-    const rulesForLevel = (number: number): LevelRules => (levels.find((level) => level.number === number)?.rules ?? {}) as LevelRules;
+    const rulesForLevel = (number: number): LevelRules =>
+      (levels.find((level) => level.number === number)?.rules ?? {}) as LevelRules;
 
     const programAudio = discoverProgramAudio(sourceFolder);
 
@@ -144,7 +156,9 @@ async function importUnits(
       };
       reports.push(report);
       const errors = parsed.issues.filter((issue) => issue.level === 'error').length;
-      log(`${report.unit}: ${parsed.plans.lessons.length} lessons, ${parsed.issues.length} findings (${errors} errors)`);
+      log(
+        `${report.unit}: ${parsed.plans.lessons.length} lessons, ${parsed.issues.length} findings (${errors} errors)`,
+      );
       const plan = planUnitMedia({
         unitCode: code,
         draftDesigns: parsed.files.draftDesigns,
@@ -176,7 +190,9 @@ async function importUnits(
 
     if (storage) {
       const artFolder = path.join(sourceFolder, '01_BRAND', 'Characters', 'FINAL');
-      const files = readdirSync(artFolder).filter((name) => /^CHAR_.*\.png$/i.test(name)).map((name) => path.join(artFolder, name));
+      const files = readdirSync(artFolder)
+        .filter((name) => /^CHAR_.*\.png$/i.test(name))
+        .map((name) => path.join(artFolder, name));
       log(`Character art linked: ${await importCharacterArt(prisma, storage, files)}`);
     }
   } finally {
@@ -203,7 +219,9 @@ function mediaNotes(media: UnitMediaResult, plan: MediaPlan, unitFolder: string,
   const lighter = plan.ignored.filter((item) => /lighter copy/.test(item.reason)).length;
   if (lighter) notes.push(`4K copies not used (a lighter copy of the same picture is linked): ${lighter}.`);
   for (const item of plan.ignored.filter((entry) => !/lighter copy/.test(entry.reason))) {
-    notes.push(`Not used: ${path.relative(unitFolder, item.file).split(path.sep).join('/')} (${item.reason}).`);
+    notes.push(
+      `Not used: ${path.relative(unitFolder, item.file).split(path.sep).join('/')} (${item.reason}).`,
+    );
   }
   return notes;
 }
@@ -212,7 +230,9 @@ function mediaNotes(media: UnitMediaResult, plan: MediaPlan, unitFolder: string,
 function plannedCounts(plan: MediaPlan): UnitMediaResult {
   const files = new Map<string, Set<string>>();
   for (const link of plan.links) files.set(link.role, (files.get(link.role) ?? new Set()).add(link.file));
-  const linked: Record<string, number> = Object.fromEntries([...files].map(([role, set]) => [role, set.size]));
+  const linked: Record<string, number> = Object.fromEntries(
+    [...files].map(([role, set]) => [role, set.size]),
+  );
   if (plan.words.length) linked.word = plan.words.length;
   for (const picture of plan.pictures) linked[picture.role] = (linked[picture.role] ?? 0) + 1;
   return { linked, removed: 0 };

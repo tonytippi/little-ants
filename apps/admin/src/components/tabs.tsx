@@ -23,7 +23,12 @@ export function Tabs<T extends string>({ tabs, active, onChange, label }: TabsPr
   }
 
   return (
-    <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className="flex gap-1 overflow-x-auto border-b border-cream-200">
+    <div
+      role="tablist"
+      aria-label={label}
+      onKeyDown={onKeyDown}
+      className="flex gap-1 overflow-x-auto border-b border-cream-200"
+    >
       {tabs.map((tab) => {
         const selected = tab.id === active;
         return (
@@ -37,7 +42,9 @@ export function Tabs<T extends string>({ tabs, active, onChange, label }: TabsPr
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(tab.id)}
             className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold ${
-              selected ? 'border-leaf-600 text-leaf-700' : 'border-transparent text-bark-500 hover:text-bark-900'
+              selected
+                ? 'border-leaf-600 text-leaf-700'
+                : 'border-transparent text-bark-500 hover:text-bark-900'
             }`}
           >
             {tab.label}

@@ -113,7 +113,8 @@ export function applySyncResponse(
   const retry: string[] = [];
   for (const item of batch) {
     if (accepted.has(item.clientId)) done.push(item.clientId);
-    else if (rejected.has(item.clientId)) failed.push({ clientId: item.clientId, reason: rejected.get(item.clientId)! });
+    else if (rejected.has(item.clientId))
+      failed.push({ clientId: item.clientId, reason: rejected.get(item.clientId)! });
     else retry.push(item.clientId);
   }
   return { done, failed, retry };

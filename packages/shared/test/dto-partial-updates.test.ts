@@ -29,11 +29,24 @@ describe('update schemas change only the fields that were sent', () => {
 describe('create schemas still fill in defaults', () => {
   it('class', () => {
     const parsed = classInput.parse({ campusId: 'c', name: 'Bees', levelId: 'l', schoolYear: '2026-2027' });
-    expect(parsed).toMatchObject({ currentUnitId: null, nextLesson: 1, lessonDays: [1, 2, 3, 4], active: true });
+    expect(parsed).toMatchObject({
+      currentUnitId: null,
+      nextLesson: 1,
+      lessonDays: [1, 2, 3, 4],
+      active: true,
+    });
   });
 
   it('student and word', () => {
-    expect(studentInput.parse({ displayName: 'Bé Na' })).toEqual({ displayName: 'Bé Na', birthYear: null, consentAt: null });
-    expect(wordInput.parse({ cardId: 'U01-41', text: 'sun' })).toMatchObject({ kind: 'CORE', pictureBrief: '', imageAssetId: null });
+    expect(studentInput.parse({ displayName: 'Bé Na' })).toEqual({
+      displayName: 'Bé Na',
+      birthYear: null,
+      consentAt: null,
+    });
+    expect(wordInput.parse({ cardId: 'U01-41', text: 'sun' })).toMatchObject({
+      kind: 'CORE',
+      pictureBrief: '',
+      imageAssetId: null,
+    });
   });
 });

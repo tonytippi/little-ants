@@ -24,7 +24,11 @@ export function MaterialsTab({ unit }: { unit: UnitDetail }) {
       <div className="flex flex-wrap items-center gap-4">
         {canEdit ? <AddMaterialForm unit={unit} /> : null}
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(event) => setShowArchived(event.target.checked)}
+          />
           Show archived
         </label>
       </div>
@@ -50,9 +54,14 @@ export function MaterialsTab({ unit }: { unit: UnitDetail }) {
 }
 
 function MaterialCard({ material }: { material: MaterialSummary }) {
-  const done = material.production.filter((row) => row.state === 'DONE' || row.state === 'NOT_APPLICABLE').length;
+  const done = material.production.filter(
+    (row) => row.state === 'DONE' || row.state === 'NOT_APPLICABLE',
+  ).length;
   return (
-    <Link href={`/materials/${material.id}`} className="flex h-full flex-col gap-2 rounded-xl border border-cream-200 bg-white p-3 hover:border-leaf-500">
+    <Link
+      href={`/materials/${material.id}`}
+      className="flex h-full flex-col gap-2 rounded-xl border border-cream-200 bg-white p-3 hover:border-leaf-500"
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs font-bold text-ant-500">{material.code}</p>
@@ -60,7 +69,9 @@ function MaterialCard({ material }: { material: MaterialSummary }) {
         </div>
         <StatusBadge status={material.status} />
       </div>
-      {material.targetLanguage ? <p className="line-clamp-2 text-xs text-bark-500">{material.targetLanguage}</p> : null}
+      {material.targetLanguage ? (
+        <p className="line-clamp-2 text-xs text-bark-500">{material.targetLanguage}</p>
+      ) : null}
       <p className="mt-auto text-xs text-bark-500">
         {material._count.pages} pages · {material._count.assets} files
         {material.firstLesson ? ` · first in L${material.firstLesson}` : ''}
@@ -76,7 +87,15 @@ function AddMaterialForm({ unit }: { unit: UnitDetail }) {
   const [code, setCode] = useState('');
   const [type, setType] = useState<string>('SONG');
   const [title, setTitle] = useState('');
-  const add = useApiMutation(() => api.post<{ id: string }>(`/content/units/${unit.code}/materials`, { code: code.toUpperCase(), type, title }), [['unit', unit.code]]);
+  const add = useApiMutation(
+    () =>
+      api.post<{ id: string }>(`/content/units/${unit.code}/materials`, {
+        code: code.toUpperCase(),
+        type,
+        title,
+      }),
+    [['unit', unit.code]],
+  );
 
   function submit(event: FormEvent): void {
     event.preventDefault();
@@ -91,23 +110,49 @@ function AddMaterialForm({ unit }: { unit: UnitDetail }) {
     );
   }
   return (
-    <form onSubmit={submit} className="flex flex-wrap items-end gap-2 rounded-xl bg-white p-3 ring-1 ring-cream-200">
-      <TextInput aria-label="Code" placeholder="Code, e.g. SG4" required value={code} onChange={(event) => setCode(event.target.value)} className="w-32" />
-      <Select aria-label="Type" value={type} onChange={(event) => setType(event.target.value)} className="w-44">
+    <form
+      onSubmit={submit}
+      className="flex flex-wrap items-end gap-2 rounded-xl bg-white p-3 ring-1 ring-cream-200"
+    >
+      <TextInput
+        aria-label="Code"
+        placeholder="Code, e.g. SG4"
+        required
+        value={code}
+        onChange={(event) => setCode(event.target.value)}
+        className="w-32"
+      />
+      <Select
+        aria-label="Type"
+        value={type}
+        onChange={(event) => setType(event.target.value)}
+        className="w-44"
+      >
         {MATERIAL_TYPES.map((item) => (
           <option key={item} value={item}>
             {humanize(item)}
           </option>
         ))}
       </Select>
-      <TextInput aria-label="Title" placeholder="Title" required value={title} onChange={(event) => setTitle(event.target.value)} className="w-64" />
+      <TextInput
+        aria-label="Title"
+        placeholder="Title"
+        required
+        value={title}
+        onChange={(event) => setTitle(event.target.value)}
+        className="w-64"
+      />
       <Button type="submit" busy={add.isPending}>
         Create
       </Button>
       <Button variant="ghost" onClick={() => setOpen(false)}>
         Close
       </Button>
-      {add.error ? <div className="w-full"><FormError error={add.error} /></div> : null}
+      {add.error ? (
+        <div className="w-full">
+          <FormError error={add.error} />
+        </div>
+      ) : null}
     </form>
   );
 }

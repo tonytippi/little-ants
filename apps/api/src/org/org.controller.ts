@@ -51,7 +51,10 @@ export class OrgController {
 
   @Roles('ADMIN')
   @Post('campuses')
-  async createCampus(@CurrentUser() user: StaffUser, @Body(new ZodBody(campusInput)) body: z.infer<typeof campusInput>) {
+  async createCampus(
+    @CurrentUser() user: StaffUser,
+    @Body(new ZodBody(campusInput)) body: z.infer<typeof campusInput>,
+  ) {
     const campus = await this.db.campus.create({ data: body });
     await audit(this.db, user.id, 'campus-create', campus.id, body);
     return campus;
@@ -69,7 +72,13 @@ export class OrgController {
   listLevels() {
     return this.db.level.findMany({
       orderBy: { number: 'asc' },
-      select: { id: true, number: true, name: true, ageBand: true, units: { select: { id: true, code: true, title: true }, orderBy: { number: 'asc' } } },
+      select: {
+        id: true,
+        number: true,
+        name: true,
+        ageBand: true,
+        units: { select: { id: true, code: true, title: true }, orderBy: { number: 'asc' } },
+      },
     });
   }
 
@@ -110,7 +119,10 @@ export class OrgController {
 
   @Roles('ADMIN')
   @Post('classes')
-  async createClass(@CurrentUser() user: StaffUser, @Body(new ZodBody(classInput)) body: z.infer<typeof classInput>) {
+  async createClass(
+    @CurrentUser() user: StaffUser,
+    @Body(new ZodBody(classInput)) body: z.infer<typeof classInput>,
+  ) {
     const created = await this.db.class.create({ data: body });
     await audit(this.db, user.id, 'class-create', created.id, { name: body.name });
     return created;

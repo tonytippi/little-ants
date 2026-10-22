@@ -14,12 +14,20 @@ export class AssetUrls {
   }
 
   viewUrl(asset: { storageKey: string; status: ContentStatus }): Promise<string> {
-    return asset.status === 'APPROVED' ? Promise.resolve(this.storage.publicUrl(asset.storageKey)) : this.storage.signedReadUrl(asset.storageKey);
+    return asset.status === 'APPROVED'
+      ? Promise.resolve(this.storage.publicUrl(asset.storageKey))
+      : this.storage.signedReadUrl(asset.storageKey);
   }
 
-  async withUrl<T extends { storageKey: string; status: ContentStatus }>(asset: T): Promise<T & { url: string }>;
-  async withUrl<T extends { storageKey: string; status: ContentStatus }>(asset: T | null): Promise<(T & { url: string }) | null>;
-  async withUrl<T extends { storageKey: string; status: ContentStatus }>(asset: T | null): Promise<(T & { url: string }) | null> {
+  async withUrl<T extends { storageKey: string; status: ContentStatus }>(
+    asset: T,
+  ): Promise<T & { url: string }>;
+  async withUrl<T extends { storageKey: string; status: ContentStatus }>(
+    asset: T | null,
+  ): Promise<(T & { url: string }) | null>;
+  async withUrl<T extends { storageKey: string; status: ContentStatus }>(
+    asset: T | null,
+  ): Promise<(T & { url: string }) | null> {
     return asset ? { ...asset, url: await this.viewUrl(asset) } : null;
   }
 }

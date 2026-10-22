@@ -27,7 +27,10 @@ const classBase = z.object({
   levelId: id,
   currentUnitId: id.nullable(),
   nextLesson: z.number().int().min(1).max(40),
-  schoolYear: z.string().trim().regex(/^\d{4}[–-]\d{4}$/, 'Use the form 2026-2027'),
+  schoolYear: z
+    .string()
+    .trim()
+    .regex(/^\d{4}[–-]\d{4}$/, 'Use the form 2026-2027'),
   lessonDays: z.array(z.number().int().min(1).max(7)).max(7),
   active: z.boolean(),
 });
@@ -42,7 +45,12 @@ export const classUpdate = classBase.partial();
 const currentYear = new Date().getFullYear();
 const studentBase = z.object({
   displayName: name,
-  birthYear: z.number().int().min(currentYear - 8).max(currentYear).nullable(),
+  birthYear: z
+    .number()
+    .int()
+    .min(currentYear - 8)
+    .max(currentYear)
+    .nullable(),
   consentAt: z.coerce.date().nullable(),
 });
 export const studentInput = studentBase.extend({

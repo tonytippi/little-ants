@@ -18,7 +18,7 @@ export function backupDatabase(label = 'manual', connectionString = process.env.
   mkdirSync(dir, { recursive: true });
   const stamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
   const file = path.join(dir, `${stamp}-${label.replaceAll(/[^a-z0-9-]/gi, '-')}.dump`);
-  execFileSync('pg_dump', ['--format=custom', '--no-owner', "--exclude-schema=test*", '--file', file], {
+  execFileSync('pg_dump', ['--format=custom', '--no-owner', '--exclude-schema=test*', '--file', file], {
     env: { ...process.env, ...libpqEnv(connectionString) },
     stdio: ['ignore', 'ignore', 'inherit'],
   });

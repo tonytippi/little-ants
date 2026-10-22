@@ -7,12 +7,19 @@ import { PrintToolbar } from '../../../../../components/print/print-toolbar';
 import { api } from '../../../../../lib/api';
 import type { UnitDetail, Word } from '../../../../../lib/types';
 
-const KIND_TITLE: Record<Word['kind'], string> = { CORE: 'Core words', REVIEW: 'Review words', EXTRA: 'Extra words (heard only)' };
+const KIND_TITLE: Record<Word['kind'], string> = {
+  CORE: 'Core words',
+  REVIEW: 'Review words',
+  EXTRA: 'Extra words (heard only)',
+};
 
 /** Unit word list with picture briefs, for teachers and designers. */
 export default function PrintWordsPage() {
   const { code } = useParams<{ code: string }>();
-  const query = useQuery({ queryKey: ['unit', code], queryFn: () => api.get<UnitDetail>(`/content/units/${code}`) });
+  const query = useQuery({
+    queryKey: ['unit', code],
+    queryFn: () => api.get<UnitDetail>(`/content/units/${code}`),
+  });
   if (query.isPending) return <Spinner label="Loading words" />;
   if (query.error) return <ErrorNotice error={query.error} />;
   const unit = query.data;
@@ -27,7 +34,9 @@ export default function PrintWordsPage() {
             {unit.code} · Level {unit.level.number} {unit.level.name}
           </p>
           <h1 className="text-2xl font-extrabold">{unit.title} — word list</h1>
-          {unit.keyLanguage.length ? <p className="mt-1 text-[10pt] italic">{unit.keyLanguage.join(' · ')}</p> : null}
+          {unit.keyLanguage.length ? (
+            <p className="mt-1 text-[10pt] italic">{unit.keyLanguage.join(' · ')}</p>
+          ) : null}
         </header>
         {(['CORE', 'REVIEW', 'EXTRA'] as const).map((kind) => {
           const list = words.filter((word) => word.kind === kind);
@@ -49,8 +58,12 @@ export default function PrintWordsPage() {
                 <tbody>
                   {list.map((word) => (
                     <tr key={word.id} className="break-inside-avoid">
-                      <td className="border border-cream-200 px-2 py-1 font-mono text-[9pt]">{word.cardId}</td>
-                      <td className="border border-cream-200 px-2 py-1 font-child text-[12pt] font-bold">{word.text}</td>
+                      <td className="border border-cream-200 px-2 py-1 font-mono text-[9pt]">
+                        {word.cardId}
+                      </td>
+                      <td className="border border-cream-200 px-2 py-1 font-child text-[12pt] font-bold">
+                        {word.text}
+                      </td>
                       <td className="border border-cream-200 px-2 py-1">{word.group}</td>
                       <td className="border border-cream-200 px-2 py-1">{word.pictureBrief}</td>
                     </tr>

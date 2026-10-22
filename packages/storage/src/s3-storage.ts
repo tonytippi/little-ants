@@ -68,12 +68,25 @@ export class S3Storage implements ObjectStorage {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.options.bucket, Key: key }));
   }
 
-  signedUploadUrl(key: string, contentType: string, expiresInSeconds = 900, sizeBytes?: number): Promise<string> {
+  signedUploadUrl(
+    key: string,
+    contentType: string,
+    expiresInSeconds = 900,
+    sizeBytes?: number,
+  ): Promise<string> {
     // Signing ContentLength makes R2 reject an upload of any other size.
     return getSignedUrl(
       this.client,
-      new PutObjectCommand({ Bucket: this.options.bucket, Key: key, ContentType: contentType, ContentLength: sizeBytes }),
-      { expiresIn: expiresInSeconds, signableHeaders: sizeBytes ? new Set(['content-length', 'content-type']) : undefined },
+      new PutObjectCommand({
+        Bucket: this.options.bucket,
+        Key: key,
+        ContentType: contentType,
+        ContentLength: sizeBytes,
+      }),
+      {
+        expiresIn: expiresInSeconds,
+        signableHeaders: sizeBytes ? new Set(['content-length', 'content-type']) : undefined,
+      },
     );
   }
 

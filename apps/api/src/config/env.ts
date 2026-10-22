@@ -47,16 +47,32 @@ const envSchema = z
       ctx.addIssue({ code: 'custom', path: ['BETTER_AUTH_SECRET'], message: 'Required in production' });
     }
     if (env.AUTH_DEV_PASSWORD_LOGIN) {
-      ctx.addIssue({ code: 'custom', path: ['AUTH_DEV_PASSWORD_LOGIN'], message: 'Must be false in production' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['AUTH_DEV_PASSWORD_LOGIN'],
+        message: 'Must be false in production',
+      });
     }
     if (!env.API_PUBLIC_URL.startsWith('https://')) {
-      ctx.addIssue({ code: 'custom', path: ['API_PUBLIC_URL'], message: 'Must be an https URL in production' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['API_PUBLIC_URL'],
+        message: 'Must be an https URL in production',
+      });
     }
     if (env.CORS_ORIGINS.some((origin) => !origin.startsWith('https://'))) {
-      ctx.addIssue({ code: 'custom', path: ['CORS_ORIGINS'], message: 'Must list the https app origins in production' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['CORS_ORIGINS'],
+        message: 'Must list the https app origins in production',
+      });
     }
     if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-      ctx.addIssue({ code: 'custom', path: ['GOOGLE_CLIENT_ID'], message: 'Google sign-in is required in production' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['GOOGLE_CLIENT_ID'],
+        message: 'Google sign-in is required in production',
+      });
     }
     // Local storage serves uploaded files from the API's own origin; production uses R2.
     if (env.STORAGE_DRIVER !== 's3') {

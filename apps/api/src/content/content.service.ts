@@ -35,7 +35,9 @@ export class ContentService {
   }
 
   async setStatus(user: StaffUser, entity: ContentEntity, id: string, to: ContentStatus, note?: string) {
-    const delegate = this.db[entity] as unknown as { findUnique(args: object): Promise<{ status: ContentStatus } | null> };
+    const delegate = this.db[entity] as unknown as {
+      findUnique(args: object): Promise<{ status: ContentStatus } | null>;
+    };
     const current = await delegate.findUnique({ where: { id }, select: { status: true } });
     if (!current) throw new NotFoundException();
     assertCanSetStatus(user, current.status, to);
@@ -46,12 +48,22 @@ export class ContentService {
    * Move every item of a unit (unit, words, materials, lessons and their linked assets) from one status to the next.
    * Used for "submit unit for review" and "approve unit".
    */
-  async setUnitStatus(user: StaffUser, unitId: string, from: ContentStatus, to: ContentStatus): Promise<Record<string, number>> {
+  async setUnitStatus(
+    user: StaffUser,
+    unitId: string,
+    from: ContentStatus,
+    to: ContentStatus,
+  ): Promise<Record<string, number>> {
     assertCanSetStatus(user, from, to);
     if (to === 'APPROVED') {
       // Files become public before they count as approved.
       const ids = await this.unitAssetIds(this.db, unitId);
-      await this.urls.publish(await this.db.asset.findMany({ where: { id: { in: ids }, status: from }, select: { storageKey: true } }));
+      await this.urls.publish(
+        await this.db.asset.findMany({
+          where: { id: { in: ids }, status: from },
+          select: { storageKey: true },
+        }),
+      );
     }
     return this.db.$transaction(
       async (tx) => {
@@ -59,9 +71,24 @@ export class ContentService {
         const unit = await tx.unit.findUniqueOrThrow({ where: { id: unitId } });
         const rows: { entity: ContentEntity; ids: string[] }[] = [
           { entity: 'unit', ids: unit.status === from ? [unit.id] : [] },
-          { entity: 'word', ids: (await tx.word.findMany({ where: { unitId, status: from }, select: { id: true } })).map((r) => r.id) },
-          { entity: 'material', ids: (await tx.material.findMany({ where: { unitId, status: from }, select: { id: true } })).map((r) => r.id) },
-          { entity: 'lesson', ids: (await tx.lesson.findMany({ where: { unitId, status: from }, select: { id: true } })).map((r) => r.id) },
+          {
+            entity: 'word',
+            ids: (await tx.word.findMany({ where: { unitId, status: from }, select: { id: true } })).map(
+              (r) => r.id,
+            ),
+          },
+          {
+            entity: 'material',
+            ids: (await tx.material.findMany({ where: { unitId, status: from }, select: { id: true } })).map(
+              (r) => r.id,
+            ),
+          },
+          {
+            entity: 'lesson',
+            ids: (await tx.lesson.findMany({ where: { unitId, status: from }, select: { id: true } })).map(
+              (r) => r.id,
+            ),
+          },
         ];
         for (const { entity, ids } of rows) {
           counts[entity] = ids.length;
@@ -85,13 +112,22 @@ export class ContentService {
   }
 
   /** Assets used anywhere in a unit (unit pictures, material files, page images and audio, word pictures, lead character art). */
-  async unitAssetIds(tx: Prisma.TransactionClient | PrismaService['client'], unitId: string): Promise<string[]> {
+  async unitAssetIds(
+    tx: Prisma.TransactionClient | PrismaService['client'],
+    unitId: string,
+  ): Promise<string[]> {
     const [unitPictures, materialAssets, pages, words, unit] = await Promise.all([
       tx.unitAsset.findMany({ where: { unitId }, select: { assetId: true } }),
       tx.materialAsset.findMany({ where: { material: { unitId } }, select: { assetId: true } }),
-      tx.materialPage.findMany({ where: { material: { unitId } }, select: { imageAssetId: true, audioAssetId: true } }),
+      tx.materialPage.findMany({
+        where: { material: { unitId } },
+        select: { imageAssetId: true, audioAssetId: true },
+      }),
       tx.word.findMany({ where: { unitId }, select: { imageAssetId: true } }),
-      tx.unit.findUniqueOrThrow({ where: { id: unitId }, select: { leadCharacter: { select: { artAssetId: true } } } }),
+      tx.unit.findUniqueOrThrow({
+        where: { id: unitId },
+        select: { leadCharacter: { select: { artAssetId: true } } },
+      }),
     ]);
     const ids = new Set<string>();
     unitPictures.forEach((row) => ids.add(row.assetId));
@@ -115,7 +151,9 @@ export class ContentService {
         materials: { where: { status: ACTIVE }, include: { pages: { orderBy: { number: 'asc' } } } },
         lessons: {
           where: { status: ACTIVE },
-          include: { steps: { orderBy: { order: 'asc' }, include: { material: { select: { code: true } } } } },
+          include: {
+            steps: { orderBy: { order: 'asc' }, include: { material: { select: { code: true } } } },
+          },
         },
       },
     });
@@ -135,7 +173,11 @@ export class ContentService {
         number: lesson.number,
         minutes: lesson.minutes,
         newToday: lesson.newToday,
-        steps: lesson.steps.map((step) => ({ title: step.title, minutes: step.minutes, materialCode: step.material?.code ?? null })),
+        steps: lesson.steps.map((step) => ({
+          title: step.title,
+          minutes: step.minutes,
+          materialCode: step.material?.code ?? null,
+        })),
       })),
     });
   }

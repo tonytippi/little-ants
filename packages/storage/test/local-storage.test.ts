@@ -6,7 +6,9 @@ import { LocalStorage, S3Storage, assetStorageKey } from '../src/index.js';
 
 describe('assetStorageKey', () => {
   it('builds a versioned, URL-safe key', () => {
-    expect(assetStorageKey('abc', 2, 'U01 SG1 Hello, Friends!.png')).toBe('assets/abc/v2/u01-sg1-hello-friends-.png');
+    expect(assetStorageKey('abc', 2, 'U01 SG1 Hello, Friends!.png')).toBe(
+      'assets/abc/v2/u01-sg1-hello-friends-.png',
+    );
   });
 });
 
@@ -16,7 +18,11 @@ describe('LocalStorage', () => {
 
   beforeAll(async () => {
     dir = await mkdtemp(path.join(os.tmpdir(), 'la-storage-'));
-    storage = new LocalStorage({ rootDir: dir, baseUrl: 'http://api.test/storage', signingSecret: 'x'.repeat(32) });
+    storage = new LocalStorage({
+      rootDir: dir,
+      baseUrl: 'http://api.test/storage',
+      signingSecret: 'x'.repeat(32),
+    });
   });
 
   afterAll(async () => {

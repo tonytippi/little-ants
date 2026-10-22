@@ -33,7 +33,10 @@ const sources: MediaSources = {
     '/drive/00_ROUTINES-AUDIO/LA2_RT1_Hello-Little-Ants_audio_v1.0.mp3',
     '/drive/00_ROUTINES-AUDIO/LA2_RT9_Not-In-This-Unit_audio_v1.0.mp3',
   ],
-  materials: ['SG1', 'SG2', 'SG3', 'CH1', 'TS1', 'RT1'].map((code) => ({ code, type: code.startsWith('SG') ? 'SONG' : 'OTHER' })),
+  materials: ['SG1', 'SG2', 'SG3', 'CH1', 'TS1', 'RT1'].map((code) => ({
+    code,
+    type: code.startsWith('SG') ? 'SONG' : 'OTHER',
+  })),
   words: [
     { cardId: 'U05-02', text: 'banana' },
     { cardId: 'U05-03', text: 'orange' },
@@ -56,7 +59,9 @@ describe('planUnitMedia', () => {
   });
 
   it('links pictures in panel order, recordings (newest version) and print files', () => {
-    const links = plan.links.map((link) => `${link.materialCode} ${link.role} ${link.order} ${name(link.file)}`).sort();
+    const links = plan.links
+      .map((link) => `${link.materialCode} ${link.role} ${link.order} ${name(link.file)}`)
+      .sort();
     expect(links).toEqual([
       'CH1 audio 0 05_Audio-Video/U05_CH1_Crunch-Munch-Yum_audio_v1.0.mp3',
       'RT1 audio 0 00_ROUTINES-AUDIO/LA2_RT1_Hello-Little-Ants_audio_v1.0.mp3',
@@ -68,11 +73,17 @@ describe('planUnitMedia', () => {
       'SG3 print 0 U05_3_Canva-Final/U05-SG-LA (42 x 29.7 cm).pdf',
       'TS1 poster 0 04_Talk-Scene-Cover/U05_TS1_At-the-Market.jpg',
     ]);
-    expect(plan.links.find((link) => link.materialCode === 'SG1' && link.order === 1)?.file).not.toContain('4K');
+    expect(plan.links.find((link) => link.materialCode === 'SG1' && link.order === 1)?.file).not.toContain(
+      '4K',
+    );
   });
 
   it('takes the unit cover and the places, ordered by name', () => {
-    expect(plan.pictures.map((picture) => `${picture.role} ${picture.order} "${picture.label}" ${name(picture.file)}`)).toEqual(
+    expect(
+      plan.pictures.map(
+        (picture) => `${picture.role} ${picture.order} "${picture.label}" ${name(picture.file)}`,
+      ),
+    ).toEqual(
       expect.arrayContaining([
         'cover 0 "" 04_Talk-Scene-Cover/U05_UC_Cover.jpg',
         'place 0 "fruit shop" 02_Places/U05_PLACE_fruit-shop.jpg',

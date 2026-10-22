@@ -1,4 +1,15 @@
-import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  ConflictException,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { staffInviteInput, staffUpdate } from '@little-ants/shared';
 import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators.js';
@@ -38,7 +49,10 @@ export class StaffController {
   }
 
   @Post('invites')
-  async invite(@CurrentUser() user: StaffUser, @Body(new ZodBody(staffInviteInput)) body: z.infer<typeof staffInviteInput>) {
+  async invite(
+    @CurrentUser() user: StaffUser,
+    @Body(new ZodBody(staffInviteInput)) body: z.infer<typeof staffInviteInput>,
+  ) {
     if (await this.db.user.findUnique({ where: { email: body.email } })) {
       throw new ConflictException('This person already has an account');
     }

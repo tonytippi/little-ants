@@ -14,7 +14,10 @@ const CONTENT_TYPES: Record<string, string> = {
 
 /** Storage prefix for one import's source files, e.g. "sources/2026-10-22T04-10-00Z". */
 export function archivePrefix(date: Date): string {
-  return `sources/${date.toISOString().replace(/\.\d+Z$/, 'Z').replaceAll(':', '-')}`;
+  return `sources/${date
+    .toISOString()
+    .replace(/\.\d+Z$/, 'Z')
+    .replaceAll(':', '-')}`;
 }
 
 /**
@@ -39,14 +42,25 @@ export async function archiveSources(
 }
 
 /** Lines for the import report: where the files came from and the newest change among them. */
-export function sourceSummary(info: { folderId: string; files: ManifestEntry[]; skipped: string[]; archive: string | null }): string[] {
-  const newest = info.files.map((file) => file.modifiedTime ?? '').sort().at(-1);
+export function sourceSummary(info: {
+  folderId: string;
+  files: ManifestEntry[];
+  skipped: string[];
+  archive: string | null;
+}): string[] {
+  const newest = info.files
+    .map((file) => file.modifiedTime ?? '')
+    .sort()
+    .at(-1);
   const exported = info.files.filter((file) => file.exportedAs).length;
   const lines = [
     `Source: Google Drive folder \`${info.folderId}\`, ${info.files.length} files${exported ? ` (${exported} exported from Google Sheets/Docs)` : ''}.`,
   ];
   if (newest) lines.push(`Newest change in the folder: ${newest}.`);
-  if (info.archive) lines.push(`Archived copy: \`${info.archive}/\` in the private bucket (manifest.json lists every file and its Drive version).`);
+  if (info.archive)
+    lines.push(
+      `Archived copy: \`${info.archive}/\` in the private bucket (manifest.json lists every file and its Drive version).`,
+    );
   if (info.skipped.length) lines.push(`Skipped (no file to download): ${info.skipped.join(', ')}.`);
   return lines;
 }

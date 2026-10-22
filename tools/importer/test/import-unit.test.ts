@@ -10,7 +10,10 @@ import { parseUnit, type ParsedUnit } from '../src/parse-unit.js';
 import { hasManualEdits, writeUnit } from '../src/write-unit.js';
 
 // The curriculum source files are local-only (not in git), so this suite runs where they exist.
-const unitFolder = path.resolve(import.meta.dirname, '../../../docs/Little Ants English/LA 3-6/Unit 1_Hello Little Ants_');
+const unitFolder = path.resolve(
+  import.meta.dirname,
+  '../../../docs/Little Ants English/LA 3-6/Unit 1_Hello Little Ants_',
+);
 const hasSource = existsSync(unitFolder);
 
 describe('materialsForDesignFile', () => {
@@ -23,9 +26,16 @@ describe('materialsForDesignFile', () => {
   ];
 
   it('links single, family and poster files', () => {
-    expect(materialsForDesignFile('U01_ST1_Who-Is-This_DRAFT (1).pdf', materials).map((m) => m.code)).toEqual(['ST1']);
-    expect(materialsForDesignFile('U01_MD_Move-and-Do-Cards_DRAFT.pdf', materials).map((m) => m.code)).toEqual(['MD1', 'MD2']);
-    expect(materialsForDesignFile('U01_POSTERS_Songs_DRAFT.pdf', materials).map((m) => m.code)).toEqual(['SG1', 'RH1']);
+    expect(materialsForDesignFile('U01_ST1_Who-Is-This_DRAFT (1).pdf', materials).map((m) => m.code)).toEqual(
+      ['ST1'],
+    );
+    expect(
+      materialsForDesignFile('U01_MD_Move-and-Do-Cards_DRAFT.pdf', materials).map((m) => m.code),
+    ).toEqual(['MD1', 'MD2']);
+    expect(materialsForDesignFile('U01_POSTERS_Songs_DRAFT.pdf', materials).map((m) => m.code)).toEqual([
+      'SG1',
+      'RH1',
+    ]);
     expect(materialsForDesignFile('U01_XX_Unknown.pdf', materials)).toEqual([]);
   });
 });
@@ -38,7 +48,8 @@ describe.skipIf(!hasSource)('Unit 1 import', () => {
     prisma = createPrismaClient(await resetTestDatabase('test_importer'));
     await seedBaseData(prisma);
     const levels = await prisma.level.findMany();
-    const rulesFor = (n: number): LevelRules => (levels.find((level) => level.number === n)?.rules ?? {}) as LevelRules;
+    const rulesFor = (n: number): LevelRules =>
+      (levels.find((level) => level.number === n)?.rules ?? {}) as LevelRules;
     parsed = await parseUnit(discoverUnit(unitFolder), rulesFor);
   });
 
@@ -48,7 +59,11 @@ describe.skipIf(!hasSource)('Unit 1 import', () => {
 
   it('parses the whole unit without errors', () => {
     expect(parsed.issues.filter((issue) => issue.level === 'error')).toEqual([]);
-    expect(parsed.sheet.overview).toMatchObject({ code: 'U01', levelNumber: 1, title: 'Hello, Little Ants!' });
+    expect(parsed.sheet.overview).toMatchObject({
+      code: 'U01',
+      levelNumber: 1,
+      title: 'Hello, Little Ants!',
+    });
     expect(parsed.sheet.words.filter((word) => word.kind === 'CORE')).toHaveLength(40);
     expect(parsed.plans.lessons).toHaveLength(40);
     expect(parsed.pages.get('ST1')).toHaveLength(8);
@@ -83,15 +98,26 @@ describe.skipIf(!hasSource)('Unit 1 import', () => {
     expect(await count()).toEqual(first);
     expect(first[4]).toBe(40);
 
-    const unit = await prisma.unit.findUniqueOrThrow({ where: { code: 'U01' }, include: { leadCharacter: true } });
+    const unit = await prisma.unit.findUniqueOrThrow({
+      where: { code: 'U01' },
+      include: { leadCharacter: true },
+    });
     expect(unit.leadCharacter?.name).toBe('Annie Ant');
     expect(unit.parentMessage).toContain('Dear parents');
   });
 
   it('notices edits made in Admin so a re-import does not overwrite them', async () => {
     expect(await hasManualEdits(prisma, 'U01')).toBe(false);
-    const material = await prisma.material.findFirstOrThrow({ where: { code: 'SG1', unit: { code: 'U01' } } });
-    await editContent(prisma, 'material', material.id, { teacherNotes: 'Sing slowly.' }, { note: 'admin edit' });
+    const material = await prisma.material.findFirstOrThrow({
+      where: { code: 'SG1', unit: { code: 'U01' } },
+    });
+    await editContent(
+      prisma,
+      'material',
+      material.id,
+      { teacherNotes: 'Sing slowly.' },
+      { note: 'admin edit' },
+    );
     expect(await hasManualEdits(prisma, 'U01')).toBe(true);
   });
 });
@@ -104,7 +130,10 @@ describe.skipIf(!hasSource)('re-importing after review', () => {
     prisma = createPrismaClient(await resetTestDatabase('test_importer'));
     await seedBaseData(prisma);
     const levels = await prisma.level.findMany();
-    parsed = await parseUnit(discoverUnit(unitFolder), (n) => (levels.find((level) => level.number === n)?.rules ?? {}) as LevelRules);
+    parsed = await parseUnit(
+      discoverUnit(unitFolder),
+      (n) => (levels.find((level) => level.number === n)?.rules ?? {}) as LevelRules,
+    );
     await writeUnit(prisma, parsed);
   });
 
@@ -115,14 +144,22 @@ describe.skipIf(!hasSource)('re-importing after review', () => {
   it('turns approved content into a new draft and keeps gate sign-offs', async () => {
     const unit = await prisma.unit.findUniqueOrThrow({ where: { code: 'U01' } });
     await prisma.material.updateMany({ where: { unitId: unit.id }, data: { status: 'APPROVED' } });
-    const gate = await prisma.gateCheck.findFirstOrThrow({ where: { unitId: unit.id }, orderBy: [{ gate: 'asc' }, { order: 'asc' }] });
-    await prisma.gateCheck.update({ where: { id: gate.id }, data: { done: true, signer: 'Program lead', doneAt: new Date('2026-10-20') } });
+    const gate = await prisma.gateCheck.findFirstOrThrow({
+      where: { unitId: unit.id },
+      orderBy: [{ gate: 'asc' }, { order: 'asc' }],
+    });
+    await prisma.gateCheck.update({
+      where: { id: gate.id },
+      data: { done: true, signer: 'Program lead', doneAt: new Date('2026-10-20') },
+    });
 
     await writeUnit(prisma, parsed);
 
     const sg1 = await prisma.material.findFirstOrThrow({ where: { unitId: unit.id, code: 'SG1' } });
     expect(sg1).toMatchObject({ status: 'DRAFT', version: 2 });
-    const again = await prisma.gateCheck.findFirstOrThrow({ where: { unitId: unit.id, gate: gate.gate, text: gate.text } });
+    const again = await prisma.gateCheck.findFirstOrThrow({
+      where: { unitId: unit.id, gate: gate.gate, text: gate.text },
+    });
     expect(again).toMatchObject({ done: true, signer: 'Program lead' });
   });
 });

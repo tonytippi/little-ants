@@ -15,8 +15,14 @@ export function ReleasesTab({ unit }: { unit: UnitDetail }) {
   const { canReview } = usePermissions();
   const [note, setNote] = useState('');
   const checkKey = ['release-check', unit.code];
-  const check = useQuery({ queryKey: checkKey, queryFn: () => api.get<ReleaseCheck>(`/content/units/${unit.code}/release-check`) });
-  const publish = useApiMutation(() => api.post<{ version: number }>(`/content/units/${unit.code}/releases`, { note }), [checkKey, ['unit', unit.code], ['units']]);
+  const check = useQuery({
+    queryKey: checkKey,
+    queryFn: () => api.get<ReleaseCheck>(`/content/units/${unit.code}/release-check`),
+  });
+  const publish = useApiMutation(
+    () => api.post<{ version: number }>(`/content/units/${unit.code}/releases`, { note }),
+    [checkKey, ['unit', unit.code], ['units']],
+  );
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
@@ -27,7 +33,9 @@ export function ReleasesTab({ unit }: { unit: UnitDetail }) {
         {check.data ? (
           <div className="flex flex-col gap-4">
             {check.data.blockers.length === 0 ? (
-              <p className="rounded-lg bg-leaf-50 px-3 py-2 text-sm font-semibold text-leaf-700">Everything is approved. The unit can be published.</p>
+              <p className="rounded-lg bg-leaf-50 px-3 py-2 text-sm font-semibold text-leaf-700">
+                Everything is approved. The unit can be published.
+              </p>
             ) : (
               <div>
                 <p className="text-sm font-semibold text-ant-700">Fix these first:</p>
@@ -53,15 +61,32 @@ export function ReleasesTab({ unit }: { unit: UnitDetail }) {
                 className="flex flex-col gap-3 border-t border-cream-200 pt-4"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  if (window.confirm(`Publish ${unit.code} for teachers? Teachers get the new version next time they open the unit.`)) {
+                  if (
+                    window.confirm(
+                      `Publish ${unit.code} for teachers? Teachers get the new version next time they open the unit.`,
+                    )
+                  ) {
                     publish.mutate(undefined, { onSuccess: () => setNote('') });
                   }
                 }}
               >
                 <Field label="Release note" hint="What changed, for teachers and the team.">
-                  {(id, describedBy) => <TextInput id={id} aria-describedby={describedBy} value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} />}
+                  {(id, describedBy) => (
+                    <TextInput
+                      id={id}
+                      aria-describedby={describedBy}
+                      value={note}
+                      onChange={(event) => setNote(event.target.value)}
+                      maxLength={500}
+                    />
+                  )}
                 </Field>
-                <Button type="submit" className="self-start" busy={publish.isPending} disabled={check.data.blockers.length > 0}>
+                <Button
+                  type="submit"
+                  className="self-start"
+                  busy={publish.isPending}
+                  disabled={check.data.blockers.length > 0}
+                >
                   Publish new version
                 </Button>
                 {publish.data ? (
@@ -86,7 +111,8 @@ export function ReleasesTab({ unit }: { unit: UnitDetail }) {
           <ol className="flex flex-col divide-y divide-cream-200">
             {unit.releases.map((release) => (
               <li key={release.id} className="py-2 text-sm">
-                <span className="font-bold">v{release.version}</span> · {formatDate(release.publishedAt, true)} · {release.publishedBy?.name ?? '—'}
+                <span className="font-bold">v{release.version}</span> ·{' '}
+                {formatDate(release.publishedAt, true)} · {release.publishedBy?.name ?? '—'}
                 {release.note ? <p className="text-bark-500">{release.note}</p> : null}
               </li>
             ))}

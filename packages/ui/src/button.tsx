@@ -28,10 +28,29 @@ export function buttonClass(variant: Variant = 'primary', size: Size = 'md', ext
   return `inline-flex items-center justify-center rounded-xl font-semibold transition-colors disabled:cursor-not-allowed ${VARIANTS[variant]} ${SIZES[size]} ${extra}`;
 }
 
-export function Button({ variant = 'primary', size = 'md', busy = false, className = '', disabled, children, ...props }: ButtonProps) {
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  busy = false,
+  className = '',
+  disabled,
+  children,
+  ...props
+}: ButtonProps) {
   return (
-    <button type="button" className={buttonClass(variant, size, className)} disabled={disabled || busy} aria-busy={busy} {...props}>
-      {busy ? <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden /> : null}
+    <button
+      type="button"
+      className={buttonClass(variant, size, className)}
+      disabled={disabled || busy}
+      aria-busy={busy}
+      {...props}
+    >
+      {busy ? (
+        <span
+          className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+          aria-hidden
+        />
+      ) : null}
       {children}
     </button>
   );

@@ -75,8 +75,16 @@ export function LessonPrint({ lesson }: { lesson: LessonDetail }) {
 
       {lesson.support || lesson.challenge ? (
         <Section title="Support and challenge">
-          {lesson.support ? <p><strong>Support:</strong> {lesson.support}</p> : null}
-          {lesson.challenge ? <p><strong>Challenge:</strong> {lesson.challenge}</p> : null}
+          {lesson.support ? (
+            <p>
+              <strong>Support:</strong> {lesson.support}
+            </p>
+          ) : null}
+          {lesson.challenge ? (
+            <p>
+              <strong>Challenge:</strong> {lesson.challenge}
+            </p>
+          ) : null}
         </Section>
       ) : null}
       {lesson.lookFor ? (

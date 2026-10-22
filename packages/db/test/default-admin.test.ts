@@ -23,7 +23,13 @@ describe('seedDefaultAdmin', () => {
 
   it('adds the roles to an existing account without removing others and reactivates it', async () => {
     await prisma.user.create({
-      data: { id: 'existing-admin', email: 'existing@example.com', name: 'Existing', roles: ['TEACHER'], active: false },
+      data: {
+        id: 'existing-admin',
+        email: 'existing@example.com',
+        name: 'Existing',
+        roles: ['TEACHER'],
+        active: false,
+      },
     });
     expect(await seedDefaultAdmin(prisma, 'existing@example.com')).toBe('updated');
     const user = await prisma.user.findUniqueOrThrow({ where: { id: 'existing-admin' } });

@@ -52,6 +52,11 @@ export function RequireStaff({ appName, children }: { appName: string; children:
       />
     );
   }
-  if (me.error) return <div className="p-8"><ErrorNotice error={me.error} /></div>;
+  if (me.error)
+    return (
+      <div className="p-8">
+        <ErrorNotice error={me.error} />
+      </div>
+    );
   return <SessionContext.Provider value={me.data}>{children}</SessionContext.Provider>;
 }

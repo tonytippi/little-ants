@@ -5,7 +5,11 @@ import './globals.css';
 import { Providers } from './providers';
 
 const nunito = Nunito({ subsets: ['latin', 'vietnamese'], variable: '--font-nunito' });
-const andika = Andika({ subsets: ['latin', 'vietnamese'], weight: ['400', '700'], variable: '--font-andika' });
+const andika = Andika({
+  subsets: ['latin', 'vietnamese'],
+  weight: ['400', '700'],
+  variable: '--font-andika',
+});
 
 export const metadata: Metadata = {
   title: { default: 'Little Ants Admin', template: '%s · Little Ants Admin' },

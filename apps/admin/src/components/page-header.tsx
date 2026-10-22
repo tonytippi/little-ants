@@ -18,7 +18,9 @@ export function PageHeader({ title, eyebrow, back, actions, children }: PageHead
             ← {back.label}
           </Link>
         ) : null}
-        {eyebrow ? <p className="mt-1 text-xs font-bold uppercase tracking-wider text-ant-500">{eyebrow}</p> : null}
+        {eyebrow ? (
+          <p className="mt-1 text-xs font-bold uppercase tracking-wider text-ant-500">{eyebrow}</p>
+        ) : null}
         <h1 className="mt-1 text-2xl font-extrabold text-bark-900">{title}</h1>
         {children ? <div className="mt-2 text-sm text-bark-500">{children}</div> : null}
       </div>

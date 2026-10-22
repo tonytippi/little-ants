@@ -81,14 +81,25 @@ export class LocalStorageController {
   async publicFile(@Param('key') keyParts: string[], @Res() response: Response): Promise<void> {
     const storage = this.local();
     const key = keyParts.join('/');
-    const asset = await this.prisma.client.asset.findUnique({ where: { storageKey: key }, select: { status: true } });
+    const asset = await this.prisma.client.asset.findUnique({
+      where: { storageKey: key },
+      select: { status: true },
+    });
     if (asset?.status !== 'APPROVED') throw new NotFoundException();
     await this.send(storage, key, response, 'public, max-age=31536000, immutable');
   }
 
-  private async send(storage: LocalStorage, key: string, response: Response, cacheControl: string): Promise<void> {
+  private async send(
+    storage: LocalStorage,
+    key: string,
+    response: Response,
+    cacheControl: string,
+  ): Promise<void> {
     if (!(await storage.head(key))) throw new NotFoundException();
-    const asset = await this.prisma.client.asset.findUnique({ where: { storageKey: key }, select: { mimeType: true } });
+    const asset = await this.prisma.client.asset.findUnique({
+      where: { storageKey: key },
+      select: { mimeType: true },
+    });
     response.setHeader('Cache-Control', cacheControl);
     // Files are user uploads: never let the browser run them as pages on the API origin.
     response.setHeader('X-Content-Type-Options', 'nosniff');

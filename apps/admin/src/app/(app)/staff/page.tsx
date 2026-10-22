@@ -33,10 +33,15 @@ export default function StaffPage() {
 }
 
 function Staff() {
-  const query = useQuery({ queryKey: KEY, queryFn: () => api.get<{ users: StaffMember[]; invites: StaffInvite[] }>('/staff') });
+  const query = useQuery({
+    queryKey: KEY,
+    queryFn: () => api.get<{ users: StaffMember[]; invites: StaffInvite[] }>('/staff'),
+  });
   return (
     <div>
-      <PageHeader title="Staff">Staff sign in with Google. Invite their email first; their roles come from the invite.</PageHeader>
+      <PageHeader title="Staff">
+        Staff sign in with Google. Invite their email first; their roles come from the invite.
+      </PageHeader>
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-6">
           {query.isPending ? <Spinner label="Loading staff" /> : null}
@@ -71,7 +76,10 @@ function Staff() {
 function StaffRow({ user }: { user: StaffMember }) {
   const me = useMe();
   const [roles, setRoles] = useState<Role[]>(user.roles);
-  const update = useApiMutation((data: { roles?: Role[]; active?: boolean }) => api.patch(`/staff/${user.id}`, data), [KEY]);
+  const update = useApiMutation(
+    (data: { roles?: Role[]; active?: boolean }) => api.patch(`/staff/${user.id}`, data),
+    [KEY],
+  );
   const dirty = roles.slice().sort().join() !== user.roles.slice().sort().join();
   const isMe = user.id === me.user.id;
 
@@ -91,7 +99,11 @@ function StaffRow({ user }: { user: StaffMember }) {
               <input
                 type="checkbox"
                 checked={roles.includes(role)}
-                onChange={(event) => setRoles((current) => (event.target.checked ? [...current, role] : current.filter((item) => item !== role)))}
+                onChange={(event) =>
+                  setRoles((current) =>
+                    event.target.checked ? [...current, role] : current.filter((item) => item !== role),
+                  )
+                }
               />
               {humanize(role)}
             </label>
@@ -109,7 +121,9 @@ function StaffRow({ user }: { user: StaffMember }) {
         ) : null}
         <FormError error={update.error} />
       </td>
-      <td className="px-4 py-3 text-xs text-bark-500">{user.assignments.map((item) => item.class.name).join(', ') || '—'}</td>
+      <td className="px-4 py-3 text-xs text-bark-500">
+        {user.assignments.map((item) => item.class.name).join(', ') || '—'}
+      </td>
       <td className="px-4 py-3">
         {user.active ? <Badge tone="leaf">Active</Badge> : <Badge tone="bark">Turned off</Badge>}
         {!isMe ? (
@@ -118,7 +132,11 @@ function StaffRow({ user }: { user: StaffMember }) {
             variant={user.active ? 'danger' : 'secondary'}
             className="mt-2"
             onClick={() => {
-              if (user.active && !window.confirm(`Turn off ${user.name}'s account? They are signed out everywhere at once.`)) return;
+              if (
+                user.active &&
+                !window.confirm(`Turn off ${user.name}'s account? They are signed out everywhere at once.`)
+              )
+                return;
               update.mutate({ active: !user.active });
             }}
           >
@@ -143,9 +161,19 @@ function Invites({ invites }: { invites: StaffInvite[] }) {
             <li key={invite.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
               <span>
                 <span className="font-semibold">{invite.email}</span>
-                <span className="text-bark-500"> · {invite.roles.map((role) => humanize(role)).join(', ')} · invited {formatDate(invite.createdAt)}</span>
+                <span className="text-bark-500">
+                  {' '}
+                  · {invite.roles.map((role) => humanize(role)).join(', ')} · invited{' '}
+                  {formatDate(invite.createdAt)}
+                </span>
               </span>
-              <Button size="sm" variant="ghost" onClick={() => window.confirm(`Cancel the invite for ${invite.email}?`) && cancel.mutate(invite.id)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  window.confirm(`Cancel the invite for ${invite.email}?`) && cancel.mutate(invite.id)
+                }
+              >
                 Cancel invite
               </Button>
             </li>
@@ -173,7 +201,16 @@ function InviteForm() {
       <h2 className="mb-3 font-bold">Invite someone</h2>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <Field label="Google email" error={errors.email}>
-          {(id, describedBy) => <TextInput id={id} aria-describedby={describedBy} type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />}
+          {(id, describedBy) => (
+            <TextInput
+              id={id}
+              aria-describedby={describedBy}
+              type="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          )}
         </Field>
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-semibold text-bark-700">Roles</legend>
@@ -183,10 +220,15 @@ function InviteForm() {
                 type="checkbox"
                 className="mt-1"
                 checked={roles.includes(role)}
-                onChange={(event) => setRoles((current) => (event.target.checked ? [...current, role] : current.filter((item) => item !== role)))}
+                onChange={(event) =>
+                  setRoles((current) =>
+                    event.target.checked ? [...current, role] : current.filter((item) => item !== role),
+                  )
+                }
               />
               <span>
-                <span className="font-semibold">{humanize(role)}</span> <span className="text-bark-500">— {ROLE_HELP[role]}</span>
+                <span className="font-semibold">{humanize(role)}</span>{' '}
+                <span className="text-bark-500">— {ROLE_HELP[role]}</span>
               </span>
             </label>
           ))}
@@ -194,7 +236,11 @@ function InviteForm() {
         <Button type="submit" busy={invite.isPending} disabled={roles.length === 0}>
           Send invite
         </Button>
-        {invite.isSuccess ? <p role="status" className="text-sm text-leaf-700">Invited. They can now sign in with Google.</p> : null}
+        {invite.isSuccess ? (
+          <p role="status" className="text-sm text-leaf-700">
+            Invited. They can now sign in with Google.
+          </p>
+        ) : null}
         <FormError error={invite.error} />
       </form>
     </Card>

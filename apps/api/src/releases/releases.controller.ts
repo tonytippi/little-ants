@@ -24,10 +24,15 @@ export class ReleasesController {
   /** Publish the unit for teachers (reviewers only). Fails with the list of blockers if anything is not ready. */
   @Roles('REVIEWER')
   @Post('releases')
-  async publish(@CurrentUser() user: StaffUser, @Param('code') code: string, @Body(new ZodBody(releaseInput)) body: z.infer<typeof releaseInput>) {
+  async publish(
+    @CurrentUser() user: StaffUser,
+    @Param('code') code: string,
+    @Body(new ZodBody(releaseInput)) body: z.infer<typeof releaseInput>,
+  ) {
     const unit = await this.content.unitByCode(code);
     const result = await this.builder.publish(unit.id, user.id, body.note);
-    if ('blockers' in result) throw new ConflictException({ message: 'The unit is not ready to publish', ...result });
+    if ('blockers' in result)
+      throw new ConflictException({ message: 'The unit is not ready to publish', ...result });
     return result;
   }
 
@@ -42,7 +47,9 @@ export class ReleasesController {
   @Get('releases/:version')
   async release(@Param('code') code: string, @Param('version') version: string) {
     const unit = await this.content.unitByCode(code);
-    const release = await this.content.db.unitRelease.findUnique({ where: { unitId_version: { unitId: unit.id, version: Number(version) } } });
+    const release = await this.content.db.unitRelease.findUnique({
+      where: { unitId_version: { unitId: unit.id, version: Number(version) } },
+    });
     if (!release) throw new NotFoundException();
     return release.payload;
   }

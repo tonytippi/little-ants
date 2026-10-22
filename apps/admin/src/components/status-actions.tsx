@@ -19,13 +19,25 @@ interface Transition {
 const TRANSITIONS: Record<ContentStatus, Transition[]> = {
   DRAFT: [
     { to: 'REVIEW', label: 'Send for review', variant: 'primary' },
-    { to: 'ARCHIVED', label: 'Archive', variant: 'danger', confirm: 'Archive this item? It will be left out of releases.' },
+    {
+      to: 'ARCHIVED',
+      label: 'Archive',
+      variant: 'danger',
+      confirm: 'Archive this item? It will be left out of releases.',
+    },
   ],
   REVIEW: [
     { to: 'APPROVED', label: 'Approve', variant: 'primary', reviewerOnly: true },
     { to: 'DRAFT', label: 'Back to draft', variant: 'secondary' },
   ],
-  APPROVED: [{ to: 'ARCHIVED', label: 'Archive', variant: 'danger', confirm: 'Archive this approved item? It will be left out of the next release.' }],
+  APPROVED: [
+    {
+      to: 'ARCHIVED',
+      label: 'Archive',
+      variant: 'danger',
+      confirm: 'Archive this approved item? It will be left out of the next release.',
+    },
+  ],
   ARCHIVED: [{ to: 'DRAFT', label: 'Restore as draft', variant: 'secondary' }],
 };
 

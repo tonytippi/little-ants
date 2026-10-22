@@ -66,7 +66,10 @@ interface ServiceAccountKey {
 }
 
 /** Signed JWT a service account exchanges for an access token (Google's "JWT bearer" flow). */
-export function serviceAccountAssertion(account: ServiceAccountKey, now = Math.floor(Date.now() / 1000)): string {
+export function serviceAccountAssertion(
+  account: ServiceAccountKey,
+  now = Math.floor(Date.now() / 1000),
+): string {
   const encode = (value: object): string => Buffer.from(JSON.stringify(value)).toString('base64url');
   const unsigned = `${encode({ alg: 'RS256', typ: 'JWT' })}.${encode({
     iss: account.client_email,
@@ -108,7 +111,9 @@ export function driveAuthFromEnv(env: Record<string, string | undefined>): Drive
   if (keyFile) return serviceAccountAuth(keyFile);
   const key = env.GOOGLE_DRIVE_API_KEY?.trim();
   if (key) return apiKeyAuth(key);
-  throw new Error('Set GOOGLE_DRIVE_API_KEY (folder shared by link) or GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE to read from Google Drive');
+  throw new Error(
+    'Set GOOGLE_DRIVE_API_KEY (folder shared by link) or GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE to read from Google Drive',
+  );
 }
 
 export class DriveClient {
@@ -125,7 +130,10 @@ export class DriveClient {
     do {
       const url = new URL(`${API}/files`);
       url.searchParams.set('q', `'${folderId}' in parents and trashed = false`);
-      url.searchParams.set('fields', 'nextPageToken, files(id, name, mimeType, modifiedTime, size, md5Checksum, shortcutDetails)');
+      url.searchParams.set(
+        'fields',
+        'nextPageToken, files(id, name, mimeType, modifiedTime, size, md5Checksum, shortcutDetails)',
+      );
       url.searchParams.set('pageSize', '1000');
       url.searchParams.set('supportsAllDrives', 'true');
       url.searchParams.set('includeItemsFromAllDrives', 'true');
@@ -162,7 +170,8 @@ export class DriveClient {
     const response = await this.fetchImpl(url, { headers });
     if (response.ok) return response;
     const detail = await response.text().catch(() => '');
-    const rateLimited = response.status === 429 || (response.status === 403 && /rateLimitExceeded|quotaExceeded/i.test(detail));
+    const rateLimited =
+      response.status === 429 || (response.status === 403 && /rateLimitExceeded|quotaExceeded/i.test(detail));
     // Google answers bursts of anonymous (API key) downloads with a "sorry, automated queries" page for a while.
     const blocked = response.status === 403 && /automated queries/i.test(detail);
     if ((rateLimited || response.status >= 500) && attempt < 5) {
@@ -181,7 +190,12 @@ export class DriveClient {
     }
     const reason =
       /"message":\s*"([^"]+)"/.exec(detail)?.[1] ??
-      (detail.replaceAll(/<[^>]+>/g, ' ').replaceAll(/\s+/g, ' ').trim().slice(0, 200) || response.statusText);
+      (detail
+        .replaceAll(/<[^>]+>/g, ' ')
+        .replaceAll(/\s+/g, ' ')
+        .trim()
+        .slice(0, 200) ||
+        response.statusText);
     // Never include the URL: with an API key it carries the key.
     throw new Error(`Google Drive request failed (HTTP ${response.status}, ${describe(url)}): ${reason}`);
   }
@@ -211,7 +225,11 @@ function safeName(name: string, taken: Set<string>): string {
  * The program folder to import: the folder itself when it holds the unit folders,
  * otherwise its "LA 3-6" child (the shared folder is usually the whole "Little Ants English" tree).
  */
-export async function findProgramFolder(client: DriveClient, folderId: string, programName = 'LA 3-6'): Promise<DriveFile> {
+export async function findProgramFolder(
+  client: DriveClient,
+  folderId: string,
+  programName = 'LA 3-6',
+): Promise<DriveFile> {
   const children = await client.list(folderId);
   if (children.some((child) => child.mimeType === FOLDER && unitNumber(child.name) !== null)) {
     return client.get(folderId);
@@ -238,7 +256,11 @@ export async function downloadFolder(
   client: DriveClient,
   folderId: string,
   target: string,
-  options: { concurrency?: number; cacheDir?: string; onFile?: (entry: ManifestEntry & { cached: boolean }) => void } = {},
+  options: {
+    concurrency?: number;
+    cacheDir?: string;
+    onFile?: (entry: ManifestEntry & { cached: boolean }) => void;
+  } = {},
 ): Promise<DownloadResult> {
   const pending: { file: DriveFile; relative: string }[] = [];
   const skipped: string[] = [];
@@ -260,7 +282,10 @@ export async function downloadFolder(
         skipped.push(path.join(relative, item.name));
         continue;
       }
-      const name = exported && !item.name.toLowerCase().endsWith(exported.extension) ? `${item.name}${exported.extension}` : item.name;
+      const name =
+        exported && !item.name.toLowerCase().endsWith(exported.extension)
+          ? `${item.name}${exported.extension}`
+          : item.name;
       pending.push({ file: item, relative: path.join(relative, safeName(name, taken)) });
     }
   };
@@ -272,7 +297,8 @@ export async function downloadFolder(
     while (next < pending.length) {
       const { file, relative } = pending[next++]!;
       const destination = path.join(target, relative);
-      const cached = options.cacheDir && cacheName(file) ? path.join(options.cacheDir, cacheName(file)!) : null;
+      const cached =
+        options.cacheDir && cacheName(file) ? path.join(options.cacheDir, cacheName(file)!) : null;
       const hit = cached !== null && existsSync(cached);
       if (hit) copyFileSync(cached, destination);
       else {

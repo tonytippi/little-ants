@@ -11,9 +11,16 @@ function baseInput(overrides: Partial<RuleInput> = {}): RuleInput {
       { cardId: 'U02-02', kind: 'CORE', pictureBrief: 'a hand' },
       { cardId: 'U02-03', kind: 'REVIEW', pictureBrief: 'a cat' },
     ],
-    materials: [{ code: 'ST1', type: 'STORY', title: 'Story', fullText: '', pageTexts: ['I see a cat.', 'Hello!'] }],
+    materials: [
+      { code: 'ST1', type: 'STORY', title: 'Story', fullText: '', pageTexts: ['I see a cat.', 'Hello!'] },
+    ],
     lessons: [
-      { number: 1, minutes: 10, newToday: ['ST1'], steps: [{ title: 'ST1 Story', minutes: 10, materialCode: 'ST1' }] },
+      {
+        number: 1,
+        minutes: 10,
+        newToday: ['ST1'],
+        steps: [{ title: 'ST1 Story', minutes: 10, materialCode: 'ST1' }],
+      },
     ],
     expectedLessons: 1,
     ...overrides,
@@ -61,7 +68,15 @@ describe('checkUnitRules', () => {
     const findings = checkUnitRules(
       baseInput({
         words: [{ cardId: 'U02-01', kind: 'CORE', pictureBrief: '' }],
-        materials: [{ code: 'ST1', type: 'STORY', title: 'Story', fullText: '', pageTexts: ['One two three four five six'] }],
+        materials: [
+          {
+            code: 'ST1',
+            type: 'STORY',
+            title: 'Story',
+            fullText: '',
+            pageTexts: ['One two three four five six'],
+          },
+        ],
       }),
     );
     expect(findings.map((finding) => finding.rule).sort()).toEqual(

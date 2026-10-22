@@ -38,31 +38,60 @@ export default function LessonPage() {
         actions={
           <>
             {data.previousId ? (
-              <Link href={`/lessons/${data.previousId}`} className={buttonClass('ghost', 'sm')} aria-label="Previous lesson">
+              <Link
+                href={`/lessons/${data.previousId}`}
+                className={buttonClass('ghost', 'sm')}
+                aria-label="Previous lesson"
+              >
                 ← Lesson {data.number - 1}
               </Link>
             ) : null}
             {data.nextId ? (
-              <Link href={`/lessons/${data.nextId}`} className={buttonClass('ghost', 'sm')} aria-label="Next lesson">
+              <Link
+                href={`/lessons/${data.nextId}`}
+                className={buttonClass('ghost', 'sm')}
+                aria-label="Next lesson"
+              >
                 Lesson {data.number + 1} →
               </Link>
             ) : null}
             <Link href={`/print/lessons/${data.id}`} className={buttonClass('secondary', 'sm')}>
               Print
             </Link>
-            <a href={`${TEACHER_APP_URL}/preview/${data.unit.code}?lesson=${data.number}`} target="_blank" rel="noreferrer" className={buttonClass('secondary', 'sm')}>
+            <a
+              href={`${TEACHER_APP_URL}/preview/${data.unit.code}?lesson=${data.number}`}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonClass('secondary', 'sm')}
+            >
               Preview
             </a>
-            <HistoryButton entityType="lesson" entityId={data.id} current={data as unknown as Record<string, unknown>} invalidate={invalidate} />
+            <HistoryButton
+              entityType="lesson"
+              entityId={data.id}
+              current={data as unknown as Record<string, unknown>}
+              invalidate={invalidate}
+            />
           </>
         }
       />
       <div className="mb-5 flex justify-end">
-        <StatusActions status={data.status} version={data.version} statusPath={`/content/lessons/${data.id}/status`} invalidate={invalidate} />
+        <StatusActions
+          status={data.status}
+          version={data.version}
+          statusPath={`/content/lessons/${data.id}/status`}
+          invalidate={invalidate}
+        />
       </div>
       {unit.isPending ? <Spinner label="Loading unit materials" /> : null}
       {unit.error ? <ErrorNotice error={unit.error} /> : null}
-      {unit.data ? <LessonEditor key={`${data.id}-${data.version}-${data.status}`} lesson={data} materials={unit.data.materials} /> : null}
+      {unit.data ? (
+        <LessonEditor
+          key={`${data.id}-${data.version}-${data.status}`}
+          lesson={data}
+          materials={unit.data.materials}
+        />
+      ) : null}
     </div>
   );
 }

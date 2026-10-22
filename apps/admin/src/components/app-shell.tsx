@@ -21,7 +21,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const signOut = useSignOut();
 
   const isActive = (href: string): boolean =>
-    href === '/' ? pathname === '/' || pathname.startsWith('/units') || pathname.startsWith('/materials') || pathname.startsWith('/lessons') : pathname.startsWith(href);
+    href === '/'
+      ? pathname === '/' ||
+        pathname.startsWith('/units') ||
+        pathname.startsWith('/materials') ||
+        pathname.startsWith('/lessons')
+      : pathname.startsWith(href);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -43,15 +48,25 @@ export function AppShell({ children }: { children: ReactNode }) {
               {item.label}
             </Link>
           ))}
-          <button type="button" onClick={() => void signOut()} className="rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap text-ant-600 hover:bg-cream-100 md:hidden">
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap text-ant-600 hover:bg-cream-100 md:hidden"
+          >
             Sign out
           </button>
         </nav>
         <div className="mt-auto hidden border-t border-cream-200 px-5 py-4 md:block">
           <p className="truncate text-sm font-semibold">{user.name}</p>
           <p className="truncate text-xs text-bark-500">{user.email}</p>
-          <p className="mt-1 text-xs text-bark-500">{user.roles.map((role) => role.toLowerCase()).join(', ') || 'no role'}</p>
-          <button type="button" onClick={() => void signOut()} className="mt-3 text-sm font-semibold text-ant-600 hover:underline">
+          <p className="mt-1 text-xs text-bark-500">
+            {user.roles.map((role) => role.toLowerCase()).join(', ') || 'no role'}
+          </p>
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="mt-3 text-sm font-semibold text-ant-600 hover:underline"
+          >
             Sign out
           </button>
         </div>

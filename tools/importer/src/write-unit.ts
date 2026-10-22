@@ -1,4 +1,10 @@
-import { stateAfterEdit, type Prisma, type PrismaClient, type ProductionStage, type VersionedState } from '@little-ants/db';
+import {
+  stateAfterEdit,
+  type Prisma,
+  type PrismaClient,
+  type ProductionStage,
+  type VersionedState,
+} from '@little-ants/db';
 import { materialTypeForCode } from './mapping.js';
 import type { ParsedUnit } from './parse-unit.js';
 
@@ -23,16 +29,31 @@ const ALL_STAGES: ProductionStage[] = [
 export async function hasManualEdits(prisma: PrismaClient, unitCode: string): Promise<boolean> {
   const unit = await prisma.unit.findUnique({
     where: { code: unitCode },
-    select: { id: true, words: { select: { id: true } }, materials: { select: { id: true } }, lessons: { select: { id: true } } },
+    select: {
+      id: true,
+      words: { select: { id: true } },
+      materials: { select: { id: true } },
+      lessons: { select: { id: true } },
+    },
   });
   if (!unit) return false;
-  const ids = [unit.id, ...unit.words.map((w) => w.id), ...unit.materials.map((m) => m.id), ...unit.lessons.map((l) => l.id)];
-  const manual = await prisma.revision.count({ where: { entityId: { in: ids }, note: { not: IMPORT_NOTE } } });
+  const ids = [
+    unit.id,
+    ...unit.words.map((w) => w.id),
+    ...unit.materials.map((m) => m.id),
+    ...unit.lessons.map((l) => l.id),
+  ];
+  const manual = await prisma.revision.count({
+    where: { entityId: { in: ids }, note: { not: IMPORT_NOTE } },
+  });
   return manual > 0;
 }
 
 /** The character whose first name appears first in the note, e.g. "Mai & Bao (with Tiny Ant)" → Mai. */
-export function leadCharacterFor<T extends { name: string; code: string }>(note: string, characters: T[]): T | undefined {
+export function leadCharacterFor<T extends { name: string; code: string }>(
+  note: string,
+  characters: T[],
+): T | undefined {
   const lower = note.toLowerCase();
   let best: { character: T; index: number } | undefined;
   for (const character of characters) {
@@ -115,13 +136,25 @@ export async function writeUnit(prisma: PrismaClient, parsed: ParsedUnit): Promi
         create: { code: overview.code, ...unitData },
       });
       const revisions: Prisma.RevisionCreateManyInput[] = [
-        { entityType: 'unit', entityId: unit.id, version: unit.version, snapshot: snapshot(unit), note: IMPORT_NOTE },
+        {
+          entityType: 'unit',
+          entityId: unit.id,
+          version: unit.version,
+          snapshot: snapshot(unit),
+          note: IMPORT_NOTE,
+        },
       ];
 
       const [existingWords, existingMaterials, existingLessons] = await Promise.all([
-        tx.word.findMany({ where: { unitId: unit.id } }).then((rows) => new Map(rows.map((row) => [row.cardId, row]))),
-        tx.material.findMany({ where: { unitId: unit.id } }).then((rows) => new Map(rows.map((row) => [row.code, row]))),
-        tx.lesson.findMany({ where: { unitId: unit.id } }).then((rows) => new Map(rows.map((row) => [row.number, row]))),
+        tx.word
+          .findMany({ where: { unitId: unit.id } })
+          .then((rows) => new Map(rows.map((row) => [row.cardId, row]))),
+        tx.material
+          .findMany({ where: { unitId: unit.id } })
+          .then((rows) => new Map(rows.map((row) => [row.code, row]))),
+        tx.lesson
+          .findMany({ where: { unitId: unit.id } })
+          .then((rows) => new Map(rows.map((row) => [row.number, row]))),
       ]);
 
       // Words
@@ -134,21 +167,32 @@ export async function writeUnit(prisma: PrismaClient, parsed: ParsedUnit): Promi
           update: { ...data, unitId: unit.id, ...reopen(existingWords.get(cardId)) },
           create: { cardId, ...data, unitId: unit.id },
         });
-        revisions.push({ entityType: 'word', entityId: row.id, version: row.version, snapshot: snapshot(row), note: IMPORT_NOTE });
+        revisions.push({
+          entityType: 'word',
+          entityId: row.id,
+          version: row.version,
+          snapshot: snapshot(row),
+          note: IMPORT_NOTE,
+        });
       }
 
       const materialRows = materialRowsFor(sheet);
       const firstLesson = new Map<string, number>();
       for (const lesson of [...plans.lessons].sort((a, b) => a.number - b.number)) {
         for (const step of lesson.steps) {
-          if (step.materialCode && !firstLesson.has(step.materialCode)) firstLesson.set(step.materialCode, lesson.number);
+          if (step.materialCode && !firstLesson.has(step.materialCode))
+            firstLesson.set(step.materialCode, lesson.number);
         }
       }
       // Lessons are rebuilt below, so steps referencing removed materials disappear with them.
-      await tx.lesson.deleteMany({ where: { unitId: unit.id, number: { notIn: plans.lessons.map((l) => l.number) } } });
+      await tx.lesson.deleteMany({
+        where: { unitId: unit.id, number: { notIn: plans.lessons.map((l) => l.number) } },
+      });
       await tx.lessonStep.deleteMany({ where: { lesson: { unitId: unit.id } } });
       await tx.prepItem.deleteMany({ where: { lesson: { unitId: unit.id } } });
-      await tx.material.deleteMany({ where: { unitId: unit.id, code: { notIn: materialRows.map((m) => m.code) } } });
+      await tx.material.deleteMany({
+        where: { unitId: unit.id, code: { notIn: materialRows.map((m) => m.code) } },
+      });
 
       const materialIds = new Map<string, string>();
       for (const material of materialRows) {
@@ -168,7 +212,13 @@ export async function writeUnit(prisma: PrismaClient, parsed: ParsedUnit): Promi
           create: { ...data, unitId: unit.id, code: material.code },
         });
         materialIds.set(material.code, row.id);
-        revisions.push({ entityType: 'material', entityId: row.id, version: row.version, snapshot: snapshot(row), note: IMPORT_NOTE });
+        revisions.push({
+          entityType: 'material',
+          entityId: row.id,
+          version: row.version,
+          snapshot: snapshot(row),
+          note: IMPORT_NOTE,
+        });
 
         await tx.materialPage.deleteMany({ where: { materialId: row.id } });
         const materialPages = pages.get(material.code) ?? [];
@@ -188,7 +238,14 @@ export async function writeUnit(prisma: PrismaClient, parsed: ParsedUnit): Promi
           await tx.productionStatus.upsert({
             where: { materialId_stage: { materialId, stage } },
             update: { state, owner: production.owner, dueDate: production.dueDate, notes: production.notes },
-            create: { materialId, stage, state, owner: production.owner, dueDate: production.dueDate, notes: production.notes },
+            create: {
+              materialId,
+              stage,
+              state,
+              owner: production.owner,
+              dueDate: production.dueDate,
+              notes: production.notes,
+            },
           });
         }
       }
@@ -216,7 +273,13 @@ export async function writeUnit(prisma: PrismaClient, parsed: ParsedUnit): Promi
           update: { ...data, ...reopen(existingLessons.get(lesson.number)) },
           create: { ...data, unitId: unit.id, number: lesson.number },
         });
-        revisions.push({ entityType: 'lesson', entityId: row.id, version: row.version, snapshot: snapshot({ ...row, steps: lesson.steps }), note: IMPORT_NOTE });
+        revisions.push({
+          entityType: 'lesson',
+          entityId: row.id,
+          version: row.version,
+          snapshot: snapshot({ ...row, steps: lesson.steps }),
+          note: IMPORT_NOTE,
+        });
         await tx.lessonStep.createMany({
           data: lesson.steps.map((step, index) => ({
             lessonId: row.id,
@@ -233,7 +296,12 @@ export async function writeUnit(prisma: PrismaClient, parsed: ParsedUnit): Promi
         await tx.prepItem.createMany({
           data: prepItems.map((text, index) => {
             const code = /^([A-Z]{2}\d+)\b/.exec(text)?.[1];
-            return { lessonId: row.id, order: index + 1, text, materialId: code ? (materialIds.get(code) ?? null) : null };
+            return {
+              lessonId: row.id,
+              order: index + 1,
+              text,
+              materialId: code ? (materialIds.get(code) ?? null) : null,
+            };
           }),
         });
       }
@@ -245,14 +313,24 @@ export async function writeUnit(prisma: PrismaClient, parsed: ParsedUnit): Promi
       });
       // Keep sign-offs made in Admin when the same check is imported again.
       const signed = new Map(
-        (await tx.gateCheck.findMany({ where: { unitId: unit.id, done: true } })).map((gate) => [`${gate.gate}:${gate.text}`, gate]),
+        (await tx.gateCheck.findMany({ where: { unitId: unit.id, done: true } })).map((gate) => [
+          `${gate.gate}:${gate.text}`,
+          gate,
+        ]),
       );
       await tx.gateCheck.deleteMany({ where: { unitId: unit.id } });
       await tx.gateCheck.createMany({
         data: sheet.gates.map((gate) => {
           const previous = signed.get(`${gate.gate}:${gate.text}`);
           return previous
-            ? { ...gate, unitId: unit.id, done: true, doneAt: previous.doneAt, signer: previous.signer, notes: previous.notes || gate.notes }
+            ? {
+                ...gate,
+                unitId: unit.id,
+                done: true,
+                doneAt: previous.doneAt,
+                signer: previous.signer,
+                notes: previous.notes || gate.notes,
+              }
             : { ...gate, unitId: unit.id };
         }),
       });

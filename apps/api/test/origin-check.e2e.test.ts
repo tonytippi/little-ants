@@ -20,7 +20,11 @@ describe('cross-site request protection', () => {
   it('rejects a state-changing request from another site, even with a valid session', async () => {
     const response = await request(server())
       .post('/api/campuses')
-      .set({ [TEST_USER_HEADER]: admin.id, Origin: 'https://media.littleants.vn', 'Sec-Fetch-Site': 'same-site' })
+      .set({
+        [TEST_USER_HEADER]: admin.id,
+        Origin: 'https://media.littleants.vn',
+        'Sec-Fetch-Site': 'same-site',
+      })
       .send({ name: 'Forged' });
     expect(response.status).toBe(403);
     expect(await ctx.prisma.campus.count({ where: { name: 'Forged' } })).toBe(0);
@@ -40,11 +44,17 @@ describe('cross-site request protection', () => {
       .set({ [TEST_USER_HEADER]: admin.id, Origin: 'http://localhost:3000' })
       .send({ name: 'Real campus' })
       .expect(201);
-    await request(server()).get('/api/campuses').set({ [TEST_USER_HEADER]: admin.id, Origin: 'https://evil.example' }).expect(200);
+    await request(server())
+      .get('/api/campuses')
+      .set({ [TEST_USER_HEADER]: admin.id, Origin: 'https://evil.example' })
+      .expect(200);
   });
 
   it('refuses accounts that have no role', async () => {
     const nobody = await createStaff(ctx.prisma, [], 'No role');
-    await request(server()).get('/api/me').set({ [TEST_USER_HEADER]: nobody.id }).expect(403);
+    await request(server())
+      .get('/api/me')
+      .set({ [TEST_USER_HEADER]: nobody.id })
+      .expect(403);
   });
 });

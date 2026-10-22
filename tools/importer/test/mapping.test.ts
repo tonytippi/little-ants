@@ -5,8 +5,8 @@ import { leadCharacterFor } from '../src/write-unit.js';
 describe('classifyStep', () => {
   it.each([
     ['CH2 I Can Jump!', 'CHANT', 'CH2'],
-    ['NEW song: SG1 Hello, What\'s Your Name?', 'SONG', 'SG1'],
-    ['NEW Move & Do: MD1 Let\'s Move', 'MOVE_AND_DO', 'MD1'],
+    ["NEW song: SG1 Hello, What's Your Name?", 'SONG', 'SG1'],
+    ["NEW Move & Do: MD1 Let's Move", 'MOVE_AND_DO', 'MD1'],
     ['Sound Trail: m /m/ + s /s/', 'SOUND_TRAIL', 'SN'],
     ['Talk Scene: Ant Hill School', 'TALK_SCENE', null],
     ['Hello Circle – first lesson!', 'HELLO_CIRCLE', null],

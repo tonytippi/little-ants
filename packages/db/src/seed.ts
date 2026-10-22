@@ -15,8 +15,14 @@ async function main(): Promise<void> {
       prisma.level.count(),
       prisma.character.count(),
     ]);
-    console.log(`Seed done. Database now has ${programs} programs, ${levels} levels, ${characters} characters.`);
-    console.log(admin === 'invited' ? `Admin ${adminEmail} invited (sign in with Google).` : `Admin ${adminEmail} already has an account; staff roles ensured.`);
+    console.log(
+      `Seed done. Database now has ${programs} programs, ${levels} levels, ${characters} characters.`,
+    );
+    console.log(
+      admin === 'invited'
+        ? `Admin ${adminEmail} invited (sign in with Google).`
+        : `Admin ${adminEmail} already has an account; staff roles ensured.`,
+    );
   } finally {
     await prisma.$disconnect();
   }

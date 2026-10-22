@@ -49,7 +49,11 @@ export async function createTestApp(options: { headerAuth?: boolean } = {}): Pro
 
 let counter = 0;
 
-export async function createStaff(prisma: PrismaClient, roles: Role[], name = 'Test user'): Promise<StaffUser> {
+export async function createStaff(
+  prisma: PrismaClient,
+  roles: Role[],
+  name = 'Test user',
+): Promise<StaffUser> {
   counter += 1;
   return prisma.user.create({
     data: { name, email: `staff${counter}-${Date.now()}@example.com`, roles },

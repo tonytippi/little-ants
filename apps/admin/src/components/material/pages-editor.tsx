@@ -24,16 +24,28 @@ const newKey = (): string => `page-${(counter += 1)}`;
 export function PagesEditor({ material }: { material: MaterialDetail }) {
   const { canEdit } = usePermissions();
   const [pages, setPages] = useState<PageDraft[]>(() =>
-    material.pages.map((page) => ({ key: newKey(), text: page.text, image: page.imageAsset, audio: page.audioAsset })),
+    material.pages.map((page) => ({
+      key: newKey(),
+      text: page.text,
+      image: page.imageAsset,
+      audio: page.audioAsset,
+    })),
   );
   const [picker, setPicker] = useState<{ index: number; kind: 'IMAGE' | 'AUDIO' } | null>(null);
   const [dirty, setDirty] = useState(false);
   const save = useApiMutation(
     () =>
       api.put(`/content/materials/${material.id}/pages`, {
-        pages: pages.map((page) => ({ text: page.text, imageAssetId: page.image?.id ?? null, audioAssetId: page.audio?.id ?? null })),
+        pages: pages.map((page) => ({
+          text: page.text,
+          imageAssetId: page.image?.id ?? null,
+          audioAssetId: page.audio?.id ?? null,
+        })),
       }),
-    [['material', material.id], ['unit', material.unit.code]],
+    [
+      ['material', material.id],
+      ['unit', material.unit.code],
+    ],
   );
 
   const update = (index: number, patch: Partial<PageDraft>): void => {
@@ -61,15 +73,30 @@ export function PagesEditor({ material }: { material: MaterialDetail }) {
     <div className="flex flex-col gap-3">
       <ol className="flex flex-col gap-3">
         {pages.map((page, index) => (
-          <li key={page.key} className="grid gap-3 rounded-xl bg-cream-50 p-3 ring-1 ring-cream-200 md:grid-cols-[3rem_1fr_10rem]">
+          <li
+            key={page.key}
+            className="grid gap-3 rounded-xl bg-cream-50 p-3 ring-1 ring-cream-200 md:grid-cols-[3rem_1fr_10rem]"
+          >
             <div className="flex flex-row items-center gap-1 md:flex-col">
               <span className="text-lg font-extrabold text-bark-500">{index + 1}</span>
               {canEdit ? (
                 <>
-                  <Button size="sm" variant="ghost" aria-label={`Move page ${index + 1} up`} disabled={index === 0} onClick={() => move(index, -1)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Move page ${index + 1} up`}
+                    disabled={index === 0}
+                    onClick={() => move(index, -1)}
+                  >
                     ↑
                   </Button>
-                  <Button size="sm" variant="ghost" aria-label={`Move page ${index + 1} down`} disabled={index === pages.length - 1} onClick={() => move(index, 1)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Move page ${index + 1} down`}
+                    disabled={index === pages.length - 1}
+                    onClick={() => move(index, 1)}
+                  >
                     ↓
                   </Button>
                 </>
@@ -84,7 +111,11 @@ export function PagesEditor({ material }: { material: MaterialDetail }) {
               onChange={(event) => update(index, { text: event.target.value })}
             />
             <div className="flex flex-col gap-2">
-              {page.image ? <AssetView asset={page.image} size="sm" /> : <span className="text-xs text-bark-500">No picture</span>}
+              {page.image ? (
+                <AssetView asset={page.image} size="sm" />
+              ) : (
+                <span className="text-xs text-bark-500">No picture</span>
+              )}
               {page.audio ? <AssetView asset={page.audio} /> : null}
               {canEdit ? (
                 <div className="flex flex-wrap gap-1">
@@ -95,7 +126,11 @@ export function PagesEditor({ material }: { material: MaterialDetail }) {
                     {page.audio ? 'Audio…' : '+ Audio'}
                   </Button>
                   {page.image || page.audio ? (
-                    <Button size="sm" variant="ghost" onClick={() => update(index, { image: null, audio: null })}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => update(index, { image: null, audio: null })}
+                    >
                       Clear files
                     </Button>
                   ) : null}
@@ -128,7 +163,12 @@ export function PagesEditor({ material }: { material: MaterialDetail }) {
           >
             + Add page
           </Button>
-          <Button size="sm" busy={save.isPending} disabled={!dirty} onClick={() => save.mutate(undefined, { onSuccess: () => setDirty(false) })}>
+          <Button
+            size="sm"
+            busy={save.isPending}
+            disabled={!dirty}
+            onClick={() => save.mutate(undefined, { onSuccess: () => setDirty(false) })}
+          >
             Save pages
           </Button>
           {dirty ? <span className="text-xs text-ant-600">Unsaved changes</span> : null}

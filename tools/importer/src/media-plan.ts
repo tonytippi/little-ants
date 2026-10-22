@@ -45,7 +45,6 @@ export interface MediaSources {
   words: { cardId: string; text: string }[];
 }
 
-
 /** Draft layout PDFs are named like "U01_ST1_Who-Is-This_DRAFT.pdf"; the second part is the material code. */
 export function materialCodeFromDesignFile(file: string): string | null {
   const parts = path.basename(file).split('_');
@@ -58,17 +57,25 @@ const POSTER_TYPES = new Set(['SONG', 'CHANT', 'RHYME', 'ROUTINE']);
  * Materials a draft file belongs to: one material ("U01_ST1_…"), every material of a family
  * ("U01_MD_Move-and-Do-Cards" → MD1, MD2, MD3) or every poster ("U01_POSTERS_…" → songs, chants, rhymes, routines).
  */
-export function materialsForDesignFile<T extends { code: string; type: string }>(file: string, materials: T[]): T[] {
+export function materialsForDesignFile<T extends { code: string; type: string }>(
+  file: string,
+  materials: T[],
+): T[] {
   const code = materialCodeFromDesignFile(file);
   return code ? materialsForCode(code, materials) : [];
 }
 
 /** Materials a code in a file name stands for: "ST1" → ST1, "MD" → MD1, MD2, …, "POSTERS" → songs, chants, rhymes, routines. */
-export function materialsForCode<T extends { code: string; type: string }>(code: string, materials: T[]): T[] {
-  if (code.toUpperCase() === 'POSTERS') return materials.filter((material) => POSTER_TYPES.has(material.type));
+export function materialsForCode<T extends { code: string; type: string }>(
+  code: string,
+  materials: T[],
+): T[] {
+  if (code.toUpperCase() === 'POSTERS')
+    return materials.filter((material) => POSTER_TYPES.has(material.type));
   const exact = materials.filter((material) => material.code === code);
   if (exact.length > 0) return exact;
-  if (/^[A-Z]{2}$/.test(code)) return materials.filter((material) => new RegExp(`^${code}\\d+$`).test(material.code));
+  if (/^[A-Z]{2}$/.test(code))
+    return materials.filter((material) => new RegExp(`^${code}\\d+$`).test(material.code));
   return [];
 }
 
@@ -116,7 +123,8 @@ export function planUnitMedia(sources: MediaSources): MediaPlan {
   sources.draftDesigns.forEach((file) => {
     const targets = materialsForDesignFile(file, sources.materials);
     if (targets.length === 0) ignored.push({ file, reason: 'no matching material' });
-    for (const material of targets) links.push({ materialCode: material.code, role: 'draft-layout', order: 0, file });
+    for (const material of targets)
+      links.push({ materialCode: material.code, role: 'draft-layout', order: 0, file });
   });
 
   for (const file of sources.finalFiles) {
@@ -126,7 +134,8 @@ export function planUnitMedia(sources: MediaSources): MediaPlan {
       const code = /^U\d+[-_]([A-Za-z]+\d*)[-_]/.exec(name)?.[1];
       const targets = code ? materialsForCode(code, sources.materials) : [];
       if (targets.length === 0) ignored.push({ file, reason: 'no matching material' });
-      for (const material of targets) links.push({ materialCode: material.code, role: 'print', order: 0, file });
+      for (const material of targets)
+        links.push({ materialCode: material.code, role: 'print', order: 0, file });
       continue;
     }
     if (!IMAGE.test(name)) {
@@ -139,18 +148,38 @@ export function planUnitMedia(sources: MediaSources): MediaPlan {
       const cardId = `U${card[1]}-${card[2]}`;
       const word = wordsByCard.get(cardId);
       if (!word) ignored.push({ file, reason: `no word card ${cardId}` });
-      else if (letters(word.text) !== letters(card[3]!)) ignored.push({ file, reason: `word card ${cardId} is "${word.text}"` });
-      else offer(`word:${cardId}`, file, score, { word: { cardId, file } }, `a lighter copy is used for word card ${cardId}`);
+      else if (letters(word.text) !== letters(card[3]!))
+        ignored.push({ file, reason: `word card ${cardId} is "${word.text}"` });
+      else
+        offer(
+          `word:${cardId}`,
+          file,
+          score,
+          { word: { cardId, file } },
+          `a lighter copy is used for word card ${cardId}`,
+        );
       continue;
     }
     if (/^U\d+_UC_/i.test(name)) {
-      offer('cover', file, score, { picture: { role: 'cover', label: '', order: 0, file } }, 'a lighter copy is used for the unit cover');
+      offer(
+        'cover',
+        file,
+        score,
+        { picture: { role: 'cover', label: '', order: 0, file } },
+        'a lighter copy is used for the unit cover',
+      );
       continue;
     }
     const place = /^U\d+_PLACE_(.+)\.[a-z]+$/i.exec(name);
     if (place) {
       const label = place[1]!.replaceAll(/[-_]+/g, ' ').trim().toLowerCase();
-      offer(`place:${label}`, file, score, { picture: { role: 'place', label, order: 0, file } }, `a lighter copy is used for the place "${label}"`);
+      offer(
+        `place:${label}`,
+        file,
+        score,
+        { picture: { role: 'place', label, order: 0, file } },
+        `a lighter copy is used for the place "${label}"`,
+      );
       continue;
     }
     const picture = /^U\d+_([A-Z]+\d+)_(?:panel(\d+))?/i.exec(name);
@@ -160,7 +189,13 @@ export function planUnitMedia(sources: MediaSources): MediaPlan {
       continue;
     }
     const order = Number(picture?.[2] ?? 0);
-    offer(`poster:${code}:${order}`, file, score, { link: { materialCode: code, role: 'poster', order, file } }, `a lighter copy is used for ${code}`);
+    offer(
+      `poster:${code}:${order}`,
+      file,
+      score,
+      { link: { materialCode: code, role: 'poster', order, file } },
+      `a lighter copy is used for ${code}`,
+    );
   }
 
   for (const file of sources.audio) {
@@ -172,7 +207,13 @@ export function planUnitMedia(sources: MediaSources): MediaPlan {
       if (!/^LA\d*_/i.test(name)) ignored.push({ file, reason: 'no matching material' });
       continue;
     }
-    offer(`audio:${code}`, file, audioVersion(file), { link: { materialCode: code, role: 'audio', order: 0, file } }, `a newer version is used for ${code}`);
+    offer(
+      `audio:${code}`,
+      file,
+      audioVersion(file),
+      { link: { materialCode: code, role: 'audio', order: 0, file } },
+      `a newer version is used for ${code}`,
+    );
   }
 
   const words: WordImage[] = [];

@@ -19,6 +19,12 @@ export function AssetView({ asset, size }: { asset: MaybeUrl; size?: 'sm' | 'md'
     staleTime: 30 * 60_000,
   });
   const url = asset.url ?? detail.data?.url;
-  if (!url) return <div className={`${size === 'sm' ? 'h-14 w-20' : 'h-32 w-full'} animate-pulse rounded-lg bg-cream-100`} aria-label={`Loading ${asset.fileName}`} />;
+  if (!url)
+    return (
+      <div
+        className={`${size === 'sm' ? 'h-14 w-20' : 'h-32 w-full'} animate-pulse rounded-lg bg-cream-100`}
+        aria-label={`Loading ${asset.fileName}`}
+      />
+    );
   return <AssetPreview asset={{ ...asset, url }} size={size} />;
 }

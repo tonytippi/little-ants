@@ -12,7 +12,12 @@ export interface ObjectStorage {
   head(key: string): Promise<StoredObjectInfo | null>;
   delete(key: string): Promise<void>;
   /** URL a browser can PUT the file to directly. With `sizeBytes`, the upload must be exactly that size. */
-  signedUploadUrl(key: string, contentType: string, expiresInSeconds?: number, sizeBytes?: number): Promise<string>;
+  signedUploadUrl(
+    key: string,
+    contentType: string,
+    expiresInSeconds?: number,
+    sizeBytes?: number,
+  ): Promise<string>;
   /** Short-lived URL for private (not yet approved) files. */
   signedReadUrl(key: string, expiresInSeconds?: number): Promise<string>;
   /** Make an approved file reachable at publicUrl(key). Drafts stay private until then. */

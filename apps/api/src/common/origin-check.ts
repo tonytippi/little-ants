@@ -13,10 +13,13 @@ export function originCheck(allowedOrigins: string[]) {
   return (request: Request, response: Response, next: NextFunction): void => {
     if (SAFE_METHODS.has(request.method)) return next();
     // Better Auth checks origins on its own routes; local storage uploads are authorised by their URL signature.
-    if (request.path.startsWith('/api/auth/') || request.path.startsWith('/api/storage/upload/')) return next();
+    if (request.path.startsWith('/api/auth/') || request.path.startsWith('/api/storage/upload/'))
+      return next();
     const origin = request.headers.origin;
     const fetchSite = request.headers['sec-fetch-site'];
-    const ok = origin ? allowed.has(origin) : fetchSite === undefined || fetchSite === 'same-origin' || fetchSite === 'none';
+    const ok = origin
+      ? allowed.has(origin)
+      : fetchSite === undefined || fetchSite === 'same-origin' || fetchSite === 'none';
     if (ok) return next();
     response.status(403).json({ statusCode: 403, message: 'Request origin not allowed' });
   };

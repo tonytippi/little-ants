@@ -20,7 +20,11 @@ export function GatesTab({ unit }: { unit: UnitDetail }) {
         const checks = unit.gateChecks.filter((check) => check.gate === gate);
         const done = checks.filter((check) => check.done).length;
         return (
-          <section key={gate} aria-labelledby={`gate-${gate}`} className="rounded-xl bg-white p-4 ring-1 ring-cream-200">
+          <section
+            key={gate}
+            aria-labelledby={`gate-${gate}`}
+            className="rounded-xl bg-white p-4 ring-1 ring-cream-200"
+          >
             <h2 id={`gate-${gate}`} className="mb-3 font-bold">
               Gate {gate}{' '}
               <span className="text-sm font-normal text-bark-500">
@@ -42,14 +46,27 @@ export function GatesTab({ unit }: { unit: UnitDetail }) {
 function GateItem({ check, unitCode }: { check: Gate; unitCode: string }) {
   const { canEdit } = usePermissions();
   const [notes, setNotes] = useState(check.notes);
-  const update = useApiMutation((data: { done?: boolean; notes?: string }) => api.patch(`/content/units/gate-checks/${check.id}`, data), [['unit', unitCode]]);
+  const update = useApiMutation(
+    (data: { done?: boolean; notes?: string }) => api.patch(`/content/units/gate-checks/${check.id}`, data),
+    [['unit', unitCode]],
+  );
   return (
     <li className="flex flex-wrap items-start gap-3">
       <label className="flex flex-1 items-start gap-2 text-sm">
-        <input type="checkbox" className="mt-1 size-4 accent-leaf-600" checked={check.done} disabled={!canEdit || update.isPending} onChange={(event) => update.mutate({ done: event.target.checked })} />
+        <input
+          type="checkbox"
+          className="mt-1 size-4 accent-leaf-600"
+          checked={check.done}
+          disabled={!canEdit || update.isPending}
+          onChange={(event) => update.mutate({ done: event.target.checked })}
+        />
         <span>
           {check.text}
-          {check.done ? <span className="block text-xs text-bark-500">Done {formatDate(check.doneAt)} · {check.signer}</span> : null}
+          {check.done ? (
+            <span className="block text-xs text-bark-500">
+              Done {formatDate(check.doneAt)} · {check.signer}
+            </span>
+          ) : null}
         </span>
       </label>
       <TextInput

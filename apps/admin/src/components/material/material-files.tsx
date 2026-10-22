@@ -25,10 +25,15 @@ export function MaterialFiles({ material }: { material: MaterialDetail }) {
   const { canEdit } = usePermissions();
   const [picking, setPicking] = useState<(typeof ROLES)[number] | null>(null);
   const setFiles = useApiMutation(
-    ({ role, assetIds }: { role: string; assetIds: string[] }) => api.put(`/content/materials/${material.id}/assets`, { role, assetIds }),
-    [['material', material.id], ['unit', material.unit.code]],
+    ({ role, assetIds }: { role: string; assetIds: string[] }) =>
+      api.put(`/content/materials/${material.id}/assets`, { role, assetIds }),
+    [
+      ['material', material.id],
+      ['unit', material.unit.code],
+    ],
   );
-  const idsFor = (role: string): string[] => material.assets.filter((link) => link.role === role).map((link) => link.assetId);
+  const idsFor = (role: string): string[] =>
+    material.assets.filter((link) => link.role === role).map((link) => link.assetId);
 
   return (
     <Card>
@@ -54,9 +59,16 @@ export function MaterialFiles({ material }: { material: MaterialDetail }) {
               </div>
               <ul className="grid grid-cols-2 gap-2">
                 {links.map((link) => (
-                  <li key={link.id} className="flex flex-col gap-1 rounded-lg bg-cream-50 p-2 ring-1 ring-cream-200">
+                  <li
+                    key={link.id}
+                    className="flex flex-col gap-1 rounded-lg bg-cream-50 p-2 ring-1 ring-cream-200"
+                  >
                     <AssetView asset={link.asset} />
-                    <Link href={`/assets?open=${link.asset.id}`} className="truncate text-xs font-semibold hover:underline" title={link.asset.fileName}>
+                    <Link
+                      href={`/assets?open=${link.asset.id}`}
+                      className="truncate text-xs font-semibold hover:underline"
+                      title={link.asset.fileName}
+                    >
                       {link.asset.fileName}
                     </Link>
                     <div className="flex items-center justify-between">
@@ -66,7 +78,12 @@ export function MaterialFiles({ material }: { material: MaterialDetail }) {
                           size="sm"
                           variant="ghost"
                           aria-label={`Remove ${link.asset.fileName}`}
-                          onClick={() => setFiles.mutate({ role: role.role, assetIds: idsFor(role.role).filter((id) => id !== link.assetId) })}
+                          onClick={() =>
+                            setFiles.mutate({
+                              role: role.role,
+                              assetIds: idsFor(role.role).filter((id) => id !== link.assetId),
+                            })
+                          }
                         >
                           ✕
                         </Button>
@@ -87,7 +104,10 @@ export function MaterialFiles({ material }: { material: MaterialDetail }) {
         unitCode={material.unit.code}
         multiple
         title={picking ? `${picking.label} for ${material.code}` : ''}
-        onPick={(ids) => picking && setFiles.mutate({ role: picking.role, assetIds: [...new Set([...idsFor(picking.role), ...ids])] })}
+        onPick={(ids) =>
+          picking &&
+          setFiles.mutate({ role: picking.role, assetIds: [...new Set([...idsFor(picking.role), ...ids])] })
+        }
       />
     </Card>
   );

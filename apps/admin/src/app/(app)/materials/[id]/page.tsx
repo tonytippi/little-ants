@@ -19,12 +19,23 @@ import { fieldErrors, humanize, useApiMutation, usePermissions } from '../../../
 import type { MaterialDetail } from '../../../../lib/types';
 
 /** Material types whose content is a sequence of pages or cards. */
-const PAGED = new Set(['STORY', 'BOOK', 'TALK_SCENE', 'SOUND_TRAIL', 'TINY_TRACKS', 'HOME_HILL', 'MOVE_AND_DO']);
+const PAGED = new Set([
+  'STORY',
+  'BOOK',
+  'TALK_SCENE',
+  'SOUND_TRAIL',
+  'TINY_TRACKS',
+  'HOME_HILL',
+  'MOVE_AND_DO',
+]);
 
 export default function MaterialPage() {
   const { id } = useParams<{ id: string }>();
   const key = ['material', id];
-  const query = useQuery({ queryKey: key, queryFn: () => api.get<MaterialDetail>(`/content/materials/${id}`) });
+  const query = useQuery({
+    queryKey: key,
+    queryFn: () => api.get<MaterialDetail>(`/content/materials/${id}`),
+  });
 
   if (query.isPending) return <Spinner label="Loading material" />;
   if (query.error) return <ErrorNotice error={query.error} />;
@@ -34,10 +45,20 @@ export default function MaterialPage() {
   return (
     <div>
       <PageHeader
-        back={{ href: `/units/${material.unit.code}?tab=materials`, label: `${material.unit.code} ${material.unit.title}` }}
+        back={{
+          href: `/units/${material.unit.code}?tab=materials`,
+          label: `${material.unit.code} ${material.unit.title}`,
+        }}
         eyebrow={`${material.code} · ${humanize(material.type)}`}
         title={material.title}
-        actions={<HistoryButton entityType="material" entityId={material.id} current={material as unknown as Record<string, unknown>} invalidate={invalidate} />}
+        actions={
+          <HistoryButton
+            entityType="material"
+            entityId={material.id}
+            current={material as unknown as Record<string, unknown>}
+            invalidate={invalidate}
+          />
+        }
       >
         {material.usedInLessons.length ? (
           <span>
@@ -56,7 +77,12 @@ export default function MaterialPage() {
         )}
       </PageHeader>
       <div className="mb-5 flex justify-end">
-        <StatusActions status={material.status} version={material.version} statusPath={`/content/materials/${material.id}/status`} invalidate={invalidate} />
+        <StatusActions
+          status={material.status}
+          version={material.version}
+          statusPath={`/content/materials/${material.id}/status`}
+          invalidate={invalidate}
+        />
       </div>
       <div className="grid gap-6 xl:grid-cols-[3fr_2fr]">
         <div className="flex flex-col gap-6">
@@ -93,11 +119,19 @@ function MaterialForm({ material }: { material: MaterialDetail }) {
     firstLesson: material.firstLesson ? String(material.firstLesson) : '',
   });
   const save = useApiMutation(
-    () => api.patch(`/content/materials/${material.id}`, { ...form, firstLesson: form.firstLesson ? Number(form.firstLesson) : null }),
-    [['material', material.id], ['unit', material.unit.code]],
+    () =>
+      api.patch(`/content/materials/${material.id}`, {
+        ...form,
+        firstLesson: form.firstLesson ? Number(form.firstLesson) : null,
+      }),
+    [
+      ['material', material.id],
+      ['unit', material.unit.code],
+    ],
   );
   const errors = fieldErrors(save.error);
-  const set = (name: keyof typeof form) => (event: { target: { value: string } }) => setForm((current) => ({ ...current, [name]: event.target.value }));
+  const set = (name: keyof typeof form) => (event: { target: { value: string } }) =>
+    setForm((current) => ({ ...current, [name]: event.target.value }));
 
   function submit(event: FormEvent): void {
     event.preventDefault();
@@ -127,13 +161,36 @@ function MaterialForm({ material }: { material: MaterialDetail }) {
             {(id) => <TextInput id={id} value={form.format} onChange={set('format')} />}
           </Field>
           <Field label="First taught in lesson" error={errors.firstLesson}>
-            {(id) => <TextInput id={id} type="number" min={1} max={40} value={form.firstLesson} onChange={set('firstLesson')} />}
+            {(id) => (
+              <TextInput
+                id={id}
+                type="number"
+                min={1}
+                max={40}
+                value={form.firstLesson}
+                onChange={set('firstLesson')}
+              />
+            )}
           </Field>
           <Field label="Target language" className="md:col-span-2" error={errors.targetLanguage}>
             {(id) => <TextInput id={id} value={form.targetLanguage} onChange={set('targetLanguage')} />}
           </Field>
-          <Field label="Full text" hint="Lyrics or text exactly as children hear it. One line per sung or spoken line." className="md:col-span-2" error={errors.fullText}>
-            {(id, describedBy) => <TextArea id={id} aria-describedby={describedBy} rows={10} className="font-child text-base" value={form.fullText} onChange={set('fullText')} />}
+          <Field
+            label="Full text"
+            hint="Lyrics or text exactly as children hear it. One line per sung or spoken line."
+            className="md:col-span-2"
+            error={errors.fullText}
+          >
+            {(id, describedBy) => (
+              <TextArea
+                id={id}
+                aria-describedby={describedBy}
+                rows={10}
+                className="font-child text-base"
+                value={form.fullText}
+                onChange={set('fullText')}
+              />
+            )}
           </Field>
           <Field label="Actions / gestures" className="md:col-span-2">
             {(id) => <TextArea id={id} rows={3} value={form.actions} onChange={set('actions')} />}
@@ -147,7 +204,11 @@ function MaterialForm({ material }: { material: MaterialDetail }) {
             <Button type="submit" busy={save.isPending}>
               Save material
             </Button>
-            {material.status === 'APPROVED' ? <span className="text-xs text-bark-500">Saving starts a new draft version; the approved one stays in history.</span> : null}
+            {material.status === 'APPROVED' ? (
+              <span className="text-xs text-bark-500">
+                Saving starts a new draft version; the approved one stays in history.
+              </span>
+            ) : null}
           </div>
         ) : null}
         <div className="mt-3">
@@ -177,11 +238,16 @@ function ProductionCard({ material }: { material: MaterialDetail }) {
         {material.production.map((row) => (
           <li key={row.id} className="flex justify-between gap-2">
             <span>{STAGE_LABEL[row.stage] ?? row.stage}</span>
-            <span className="font-semibold">{row.state === 'NOT_APPLICABLE' ? 'N/A' : humanize(row.state)}</span>
+            <span className="font-semibold">
+              {row.state === 'NOT_APPLICABLE' ? 'N/A' : humanize(row.state)}
+            </span>
           </li>
         ))}
       </ul>
-      <Link href={`/units/${material.unit.code}?tab=production`} className="mt-3 inline-block text-sm font-semibold text-leaf-700 hover:underline">
+      <Link
+        href={`/units/${material.unit.code}?tab=production`}
+        className="mt-3 inline-block text-sm font-semibold text-leaf-700 hover:underline"
+      >
         Edit on the production board
       </Link>
     </Card>

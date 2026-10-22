@@ -6,11 +6,17 @@ const schema = z.object({ PORT: z.coerce.number().int(), SECRET: z.string().min(
 
 describe('parseEnv', () => {
   it('returns typed values', () => {
-    expect(parseEnv(schema, { PORT: '3001', SECRET: 'long-enough' })).toEqual({ PORT: 3001, SECRET: 'long-enough' });
+    expect(parseEnv(schema, { PORT: '3001', SECRET: 'long-enough' })).toEqual({
+      PORT: 3001,
+      SECRET: 'long-enough',
+    });
   });
 
   it('treats empty values as not set', () => {
-    const withDefault = z.object({ PORT: z.coerce.number().default(3001), SECRET: z.string().min(8).optional() });
+    const withDefault = z.object({
+      PORT: z.coerce.number().default(3001),
+      SECRET: z.string().min(8).optional(),
+    });
     expect(parseEnv(withDefault, { PORT: '', SECRET: '' })).toEqual({ PORT: 3001 });
   });
 

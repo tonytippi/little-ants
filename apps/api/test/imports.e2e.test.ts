@@ -36,7 +36,10 @@ describe('Drive sync requests', () => {
     expect(run).toMatchObject({ status: 'QUEUED', requestedBy: { id: admin.id, name: 'Admin' } });
 
     // What the worker writes back.
-    await ctx.prisma.importRun.update({ where: { id: run.id }, data: { status: 'SUCCEEDED', report: '# Master Sheet import report', finishedAt: new Date() } });
+    await ctx.prisma.importRun.update({
+      where: { id: run.id },
+      data: { status: 'SUCCEEDED', report: '# Master Sheet import report', finishedAt: new Date() },
+    });
     const list = await request(server()).get('/api/imports').set(as(admin)).expect(200);
     expect(list.body[0]).toMatchObject({ id: run.id, status: 'SUCCEEDED' });
     expect(list.body[0].report).toBeUndefined();

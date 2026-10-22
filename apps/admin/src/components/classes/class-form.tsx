@@ -50,7 +50,8 @@ export function ClassForm({ campuses, levels, initial, submitLabel, busy, error,
   }));
   const errors = fieldErrors(error);
   const level = levels.find((item) => item.id === values.levelId);
-  const set = <K extends keyof ClassFormValues>(key: K, value: ClassFormValues[K]): void => setValues((current) => ({ ...current, [key]: value }));
+  const set = <K extends keyof ClassFormValues>(key: K, value: ClassFormValues[K]): void =>
+    setValues((current) => ({ ...current, [key]: value }));
 
   function submit(event: FormEvent): void {
     event.preventDefault();
@@ -73,17 +74,35 @@ export function ClassForm({ campuses, levels, initial, submitLabel, busy, error,
         </Field>
       ) : null}
       <Field label="Class name" error={errors.name}>
-        {(id) => <TextInput id={id} required value={values.name} onChange={(event) => set('name', event.target.value)} placeholder="e.g. Ladybugs" />}
+        {(id) => (
+          <TextInput
+            id={id}
+            required
+            value={values.name}
+            onChange={(event) => set('name', event.target.value)}
+            placeholder="e.g. Ladybugs"
+          />
+        )}
       </Field>
       <Field label="School year" hint="For example 2026-2027" error={errors.schoolYear}>
-        {(id, describedBy) => <TextInput id={id} aria-describedby={describedBy} required value={values.schoolYear} onChange={(event) => set('schoolYear', event.target.value)} />}
+        {(id, describedBy) => (
+          <TextInput
+            id={id}
+            aria-describedby={describedBy}
+            required
+            value={values.schoolYear}
+            onChange={(event) => set('schoolYear', event.target.value)}
+          />
+        )}
       </Field>
       <Field label="Level" error={errors.levelId}>
         {(id) => (
           <Select
             id={id}
             value={values.levelId}
-            onChange={(event) => setValues((current) => ({ ...current, levelId: event.target.value, currentUnitId: null }))}
+            onChange={(event) =>
+              setValues((current) => ({ ...current, levelId: event.target.value, currentUnitId: null }))
+            }
           >
             {levels.map((item) => (
               <option key={item.id} value={item.id}>
@@ -95,7 +114,11 @@ export function ClassForm({ campuses, levels, initial, submitLabel, busy, error,
       </Field>
       <Field label="Current unit" error={errors.currentUnitId}>
         {(id) => (
-          <Select id={id} value={values.currentUnitId ?? ''} onChange={(event) => set('currentUnitId', event.target.value || null)}>
+          <Select
+            id={id}
+            value={values.currentUnitId ?? ''}
+            onChange={(event) => set('currentUnitId', event.target.value || null)}
+          >
             <option value="">Not started</option>
             {level?.units.map((unit) => (
               <option key={unit.id} value={unit.id}>
@@ -105,9 +128,21 @@ export function ClassForm({ campuses, levels, initial, submitLabel, busy, error,
           </Select>
         )}
       </Field>
-      <Field label="Next lesson" hint="Moves on by itself when teachers mark lessons as taught." error={errors.nextLesson}>
+      <Field
+        label="Next lesson"
+        hint="Moves on by itself when teachers mark lessons as taught."
+        error={errors.nextLesson}
+      >
         {(id, describedBy) => (
-          <TextInput id={id} aria-describedby={describedBy} type="number" min={1} max={40} value={values.nextLesson} onChange={(event) => set('nextLesson', Number(event.target.value))} />
+          <TextInput
+            id={id}
+            aria-describedby={describedBy}
+            type="number"
+            min={1}
+            max={40}
+            value={values.nextLesson}
+            onChange={(event) => set('nextLesson', Number(event.target.value))}
+          />
         )}
       </Field>
       <fieldset className="flex flex-col gap-2">
@@ -121,7 +156,12 @@ export function ClassForm({ campuses, levels, initial, submitLabel, busy, error,
                   type="checkbox"
                   checked={values.lessonDays.includes(value)}
                   onChange={(event) =>
-                    set('lessonDays', event.target.checked ? [...values.lessonDays, value].sort() : values.lessonDays.filter((item) => item !== value))
+                    set(
+                      'lessonDays',
+                      event.target.checked
+                        ? [...values.lessonDays, value].sort()
+                        : values.lessonDays.filter((item) => item !== value),
+                    )
                   }
                 />
                 {day}
@@ -132,7 +172,11 @@ export function ClassForm({ campuses, levels, initial, submitLabel, busy, error,
       </fieldset>
       {initial ? (
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={values.active} onChange={(event) => set('active', event.target.checked)} />
+          <input
+            type="checkbox"
+            checked={values.active}
+            onChange={(event) => set('active', event.target.checked)}
+          />
           Class is active
         </label>
       ) : null}

@@ -14,7 +14,16 @@ import { FormError } from './form-error';
 type EntityType = 'unit' | 'word' | 'material' | 'lesson';
 
 /** Fields that are bookkeeping, not content. */
-const IGNORED = new Set(['id', 'unitId', 'createdAt', 'updatedAt', 'status', 'version', 'materialId', 'lessonId']);
+const IGNORED = new Set([
+  'id',
+  'unitId',
+  'createdAt',
+  'updatedAt',
+  'status',
+  'version',
+  'materialId',
+  'lessonId',
+]);
 
 function show(value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
@@ -23,7 +32,10 @@ function show(value: unknown): string {
 }
 
 /** Field-by-field differences between a saved version and the current item. */
-export function diffFields(snapshot: Record<string, unknown>, current: Record<string, unknown>): { field: string; before: string; now: string }[] {
+export function diffFields(
+  snapshot: Record<string, unknown>,
+  current: Record<string, unknown>,
+): { field: string; before: string; now: string }[] {
   const fields = new Set([...Object.keys(snapshot), ...Object.keys(current)]);
   const rows: { field: string; before: string; now: string }[] = [];
   for (const field of fields) {
@@ -52,13 +64,27 @@ export function HistoryButton({ entityType, entityId, current, invalidate }: His
         History
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)} title="History" wide>
-        {open ? <HistoryList entityType={entityType} entityId={entityId} current={current} invalidate={invalidate} onRestored={() => setOpen(false)} /> : null}
+        {open ? (
+          <HistoryList
+            entityType={entityType}
+            entityId={entityId}
+            current={current}
+            invalidate={invalidate}
+            onRestored={() => setOpen(false)}
+          />
+        ) : null}
       </Dialog>
     </>
   );
 }
 
-function HistoryList({ entityType, entityId, current, invalidate, onRestored }: HistoryButtonProps & { onRestored: () => void }) {
+function HistoryList({
+  entityType,
+  entityId,
+  current,
+  invalidate,
+  onRestored,
+}: HistoryButtonProps & { onRestored: () => void }) {
   const { canEdit } = usePermissions();
   const [selected, setSelected] = useState<string | null>(null);
   const key = ['revisions', entityType, entityId];
@@ -66,7 +92,10 @@ function HistoryList({ entityType, entityId, current, invalidate, onRestored }: 
     queryKey: key,
     queryFn: () => api.get<Revision[]>(`/content/revisions?entityType=${entityType}&entityId=${entityId}`),
   });
-  const restore = useApiMutation((id: string) => api.post(`/content/revisions/${id}/restore`), [...invalidate, key]);
+  const restore = useApiMutation(
+    (id: string) => api.post(`/content/revisions/${id}/restore`),
+    [...invalidate, key],
+  );
 
   if (query.isPending) return <Spinner label="Loading history" />;
   if (query.error) return <ErrorNotice error={query.error} />;
@@ -109,7 +138,11 @@ function HistoryList({ entityType, entityId, current, invalidate, onRestored }: 
               variant="secondary"
               busy={restore.isPending}
               onClick={() => {
-                if (window.confirm(`Restore v${revision.version} as a new draft? The current text is kept in history.`)) {
+                if (
+                  window.confirm(
+                    `Restore v${revision.version} as a new draft? The current text is kept in history.`,
+                  )
+                ) {
                   restore.mutate(revision.id, { onSuccess: onRestored });
                 }
               }}

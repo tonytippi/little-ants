@@ -25,10 +25,21 @@ const NEXT: Record<ContentStatus, { to: ContentStatus; label: string; reviewerOn
 };
 
 /** Side panel with a large preview, versions and status actions for one file. */
-export function AssetDetailPanel({ id, onClose, onOpen }: { id: string; onClose: () => void; onOpen: (id: string) => void }) {
+export function AssetDetailPanel({
+  id,
+  onClose,
+  onOpen,
+}: {
+  id: string;
+  onClose: () => void;
+  onOpen: (id: string) => void;
+}) {
   const { canEdit, canReview } = usePermissions();
   const query = useQuery({ queryKey: ['asset', id], queryFn: () => api.get<AssetDetail>(`/assets/${id}`) });
-  const status = useApiMutation((to: ContentStatus) => api.post(`/assets/${id}/status`, { status: to }), [['asset', id], ['assets']]);
+  const status = useApiMutation(
+    (to: ContentStatus) => api.post(`/assets/${id}/status`, { status: to }),
+    [['asset', id], ['assets']],
+  );
 
   return (
     <Card className="self-start xl:sticky xl:top-4">
@@ -61,7 +72,12 @@ export function AssetDetailPanel({ id, onClose, onOpen }: { id: string; onClose:
               {query.data.uploadedBy ? ` · ${query.data.uploadedBy.name}` : ''}
             </dd>
           </dl>
-          <a href={query.data.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-leaf-700 hover:underline">
+          <a
+            href={query.data.url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm font-semibold text-leaf-700 hover:underline"
+          >
             Open file in a new tab
           </a>
           {canEdit ? (
@@ -75,7 +91,11 @@ export function AssetDetailPanel({ id, onClose, onOpen }: { id: string; onClose:
                     variant={item.to === 'APPROVED' ? 'primary' : 'secondary'}
                     busy={status.isPending && status.variables === item.to}
                     onClick={() => {
-                      if (item.to === 'ARCHIVED' && !window.confirm('Archive this file? It will be left out of new releases.')) return;
+                      if (
+                        item.to === 'ARCHIVED' &&
+                        !window.confirm('Archive this file? It will be left out of new releases.')
+                      )
+                        return;
                       status.mutate(item.to);
                     }}
                   >
@@ -87,8 +107,17 @@ export function AssetDetailPanel({ id, onClose, onOpen }: { id: string; onClose:
           <FormError error={status.error} />
           {canEdit ? (
             <div className="border-t border-cream-200 pt-3">
-              <p className="mb-2 text-sm text-bark-500">A new version replaces this file wherever it is used in drafts. Published releases keep the old one.</p>
-              <UploadButton size="sm" label="Upload new version" replacesId={query.data.id} accept={query.data.mimeType} onUploaded={([newId]) => newId && onOpen(newId)} />
+              <p className="mb-2 text-sm text-bark-500">
+                A new version replaces this file wherever it is used in drafts. Published releases keep the
+                old one.
+              </p>
+              <UploadButton
+                size="sm"
+                label="Upload new version"
+                replacesId={query.data.id}
+                accept={query.data.mimeType}
+                onUploaded={([newId]) => newId && onOpen(newId)}
+              />
             </div>
           ) : null}
           {query.data.olderVersions.length ? (

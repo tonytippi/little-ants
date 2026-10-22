@@ -68,7 +68,9 @@ export const unitUpdate = z
     keyLanguage: z.array(text(300)).max(20),
     parentMessage: text(3000),
     levelRulesNote: text(500),
-    links: z.array(z.object({ what: text(300), fromUnit: text(50), how: text(1000), where: text(100) })).max(30),
+    links: z
+      .array(z.object({ what: text(300), fromUnit: text(50), how: text(1000), where: text(100) }))
+      .max(30),
   })
   .partial()
   .extend({ note: text(500).optional() });
@@ -94,7 +96,9 @@ export const wordInput = wordBase.extend({
   imageAssetId: wordBase.shape.imageAssetId.default(null),
 });
 // No defaults here: a PATCH changes only the fields it sends.
-export const wordUpdate = wordBase.partial().extend({ order: z.number().int().min(1).optional(), note: text(500).optional() });
+export const wordUpdate = wordBase
+  .partial()
+  .extend({ order: z.number().int().min(1).optional(), note: text(500).optional() });
 
 export const materialUpdate = z
   .object({
@@ -140,7 +144,10 @@ export const unitPicturesInput = z
     role: z.enum(['cover', 'place']),
     items: z.array(z.object({ assetId: id, label: z.string().trim().max(60).default('') })).max(20),
   })
-  .refine((value) => value.role !== 'cover' || value.items.length <= 1, { message: 'A unit has one cover', path: ['items'] });
+  .refine((value) => value.role !== 'cover' || value.items.length <= 1, {
+    message: 'A unit has one cover',
+    path: ['items'],
+  });
 
 export const lessonInput = z.object({
   week: z.number().int().min(1).max(12),
@@ -173,7 +180,11 @@ export const lessonInput = z.object({
 
 export const canDoGoalsInput = z.object({ goals: z.array(text(500).min(1)).max(15) });
 
-export const gateCheckUpdate = z.object({ done: z.boolean().optional(), notes: text(1000).optional(), signer: text(100).optional() });
+export const gateCheckUpdate = z.object({
+  done: z.boolean().optional(),
+  notes: text(1000).optional(),
+  signer: text(100).optional(),
+});
 
 export const productionUpdate = z.object({
   state: z.enum(PRODUCTION_STATES).optional(),

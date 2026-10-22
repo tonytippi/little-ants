@@ -73,7 +73,12 @@ export interface UnitMediaResult {
  * pictures the importer made before that are no longer in the plan (removed or replaced on the source) are undone.
  * Files people attached in Admin are never touched.
  */
-export async function importUnitMedia(prisma: PrismaClient, storage: ObjectStorage, unitId: string, plan: MediaPlan): Promise<UnitMediaResult> {
+export async function importUnitMedia(
+  prisma: PrismaClient,
+  storage: ObjectStorage,
+  unitId: string,
+  plan: MediaPlan,
+): Promise<UnitMediaResult> {
   const materials = await prisma.material.findMany({ where: { unitId }, select: { id: true, code: true } });
   const materialIds = new Map(materials.map((material) => [material.code, material.id]));
   // Counted per file: one poster PDF linked to six materials is one file.
@@ -100,7 +105,12 @@ export async function importUnitMedia(prisma: PrismaClient, storage: ObjectStora
   for (const material of materials) {
     for (const role of IMPORTED_ROLES) {
       const result = await prisma.materialAsset.deleteMany({
-        where: { materialId: material.id, role, asset: { source: 'import' }, assetId: { notIn: [...(keep.get(`${material.id}:${role}`) ?? [])] } },
+        where: {
+          materialId: material.id,
+          role,
+          asset: { source: 'import' },
+          assetId: { notIn: [...(keep.get(`${material.id}:${role}`) ?? [])] },
+        },
       });
       removed += result.count;
     }
@@ -119,7 +129,12 @@ export async function importUnitMedia(prisma: PrismaClient, storage: ObjectStora
   }
   for (const role of ['cover', 'place']) {
     const result = await prisma.unitAsset.deleteMany({
-      where: { unitId, role, asset: { source: 'import' }, assetId: { notIn: [...(keepPictures.get(role) ?? [])] } },
+      where: {
+        unitId,
+        role,
+        asset: { source: 'import' },
+        assetId: { notIn: [...(keepPictures.get(role) ?? [])] },
+      },
     });
     removed += result.count;
   }
@@ -127,7 +142,10 @@ export async function importUnitMedia(prisma: PrismaClient, storage: ObjectStora
   const pictured = new Set<string>();
   for (const image of plan.words) {
     const asset = await importFileAsAsset(prisma, storage, image.file);
-    await prisma.word.updateMany({ where: { unitId, cardId: image.cardId }, data: { imageAssetId: asset.id } });
+    await prisma.word.updateMany({
+      where: { unitId, cardId: image.cardId },
+      data: { imageAssetId: asset.id },
+    });
     pictured.add(image.cardId);
     count('word', image.file);
   }

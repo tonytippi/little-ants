@@ -32,10 +32,20 @@ interface AssetPickerProps {
 }
 
 /** Choose existing files (filtered to this unit by default) or upload new ones. */
-export function AssetPicker({ open, onClose, onPick, kind, unitCode, multiple = false, title = 'Choose a file' }: AssetPickerProps) {
+export function AssetPicker({
+  open,
+  onClose,
+  onPick,
+  kind,
+  unitCode,
+  multiple = false,
+  title = 'Choose a file',
+}: AssetPickerProps) {
   return (
     <Dialog open={open} onClose={onClose} title={title} wide>
-      {open ? <PickerBody onPick={onPick} kind={kind} unitCode={unitCode} multiple={multiple} onClose={onClose} /> : null}
+      {open ? (
+        <PickerBody onPick={onPick} kind={kind} unitCode={unitCode} multiple={multiple} onClose={onClose} />
+      ) : null}
     </Dialog>
   );
 }
@@ -65,10 +75,21 @@ function PickerBody({ onPick, onClose, kind, unitCode, multiple }: Omit<AssetPic
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3">
-        <TextInput type="search" placeholder="Search file names" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Search file names" className="max-w-xs" />
+        <TextInput
+          type="search"
+          placeholder="Search file names"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          aria-label="Search file names"
+          className="max-w-xs"
+        />
         {unitCode ? (
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={onlyUnit} onChange={(event) => setOnlyUnit(event.target.checked)} />
+            <input
+              type="checkbox"
+              checked={onlyUnit}
+              onChange={(event) => setOnlyUnit(event.target.checked)}
+            />
             Only files used in {unitCode}
           </label>
         ) : null}
@@ -89,21 +110,30 @@ function PickerBody({ onPick, onClose, kind, unitCode, multiple }: Omit<AssetPic
       </div>
       {query.isPending ? <Spinner label="Loading files" /> : null}
       {query.error ? <ErrorNotice error={query.error} /> : null}
-      {query.data && query.data.assets.length === 0 ? <EmptyState title="No files found">Upload a file or change the filters.</EmptyState> : null}
+      {query.data && query.data.assets.length === 0 ? (
+        <EmptyState title="No files found">Upload a file or change the filters.</EmptyState>
+      ) : null}
       {query.data ? (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {query.data.assets.map((asset) => {
             const isChosen = chosen.includes(asset.id);
             return (
               <li key={asset.id}>
-                <div className={`flex h-full flex-col gap-2 rounded-xl border p-2 ${isChosen ? 'border-leaf-600 ring-2 ring-leaf-100' : 'border-cream-200'}`}>
+                <div
+                  className={`flex h-full flex-col gap-2 rounded-xl border p-2 ${isChosen ? 'border-leaf-600 ring-2 ring-leaf-100' : 'border-cream-200'}`}
+                >
                   <AssetPreview asset={asset} />
                   <p className="truncate text-xs font-semibold" title={asset.fileName}>
                     {asset.fileName}
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-1">
                     <StatusBadge status={asset.status} />
-                    <Button size="sm" variant={isChosen ? 'primary' : 'secondary'} onClick={() => toggle(asset.id)} aria-pressed={multiple ? isChosen : undefined}>
+                    <Button
+                      size="sm"
+                      variant={isChosen ? 'primary' : 'secondary'}
+                      onClick={() => toggle(asset.id)}
+                      aria-pressed={multiple ? isChosen : undefined}
+                    >
                       {multiple ? (isChosen ? 'Chosen' : 'Choose') : 'Use'}
                     </Button>
                   </div>

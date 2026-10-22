@@ -21,7 +21,14 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
           {percent}% ({done}/{total})
         </span>
       </div>
-      <div className="mt-1 h-2 overflow-hidden rounded-full bg-cream-200" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="Production progress">
+      <div
+        className="mt-1 h-2 overflow-hidden rounded-full bg-cream-200"
+        role="progressbar"
+        aria-valuenow={percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Production progress"
+      >
         <div className="h-full rounded-full bg-leaf-500" style={{ width: `${percent}%` }} />
       </div>
     </div>
@@ -55,24 +62,36 @@ function UnitCard({ unit }: { unit: UnitSummary }) {
       </div>
       <ProgressBar done={unit.production.done} total={unit.production.total} />
       <p className="text-xs text-bark-500">
-        {unit.latestRelease ? `Published v${unit.latestRelease.version} · ${formatDate(unit.latestRelease.publishedAt)}` : 'Not published yet'}
+        {unit.latestRelease
+          ? `Published v${unit.latestRelease.version} · ${formatDate(unit.latestRelease.publishedAt)}`
+          : 'Not published yet'}
       </p>
     </Link>
   );
 }
 
 export default function UnitsDashboard() {
-  const query = useQuery({ queryKey: ['units'], queryFn: () => api.get<{ units: UnitSummary[] }>('/content/units') });
+  const query = useQuery({
+    queryKey: ['units'],
+    queryFn: () => api.get<{ units: UnitSummary[] }>('/content/units'),
+  });
 
   if (query.isPending) return <Spinner label="Loading units" />;
   if (query.error) return <ErrorNotice error={query.error} />;
   const units = query.data.units;
-  if (units.length === 0) return <EmptyState title="No units yet">Run the Master Sheet importer to load the curriculum.</EmptyState>;
+  if (units.length === 0)
+    return (
+      <EmptyState title="No units yet">Run the Master Sheet importer to load the curriculum.</EmptyState>
+    );
 
-  const levels = [...new Map(units.map((unit) => [unit.level.number, unit.level])).values()].sort((a, b) => a.number - b.number);
+  const levels = [...new Map(units.map((unit) => [unit.level.number, unit.level])).values()].sort(
+    (a, b) => a.number - b.number,
+  );
   return (
     <div>
-      <PageHeader title="Units">Little Ants English 3–6 · edit content, track production and publish units for teachers.</PageHeader>
+      <PageHeader title="Units">
+        Little Ants English 3–6 · edit content, track production and publish units for teachers.
+      </PageHeader>
       {levels.map((level) => (
         <section key={level.number} className="mb-8" aria-labelledby={`level-${level.number}`}>
           <h2 id={`level-${level.number}`} className="mb-3 text-lg font-bold text-leaf-700">

@@ -17,18 +17,31 @@ export interface ParsedUnit {
   issues: ImportIssue[];
 }
 
-export async function parseUnit(files: UnitFiles, rulesForLevel: (level: number) => LevelRules): Promise<ParsedUnit> {
+export async function parseUnit(
+  files: UnitFiles,
+  rulesForLevel: (level: number) => LevelRules,
+): Promise<ParsedUnit> {
   const issues: ImportIssue[] = [];
   const sheet = await parseMasterSheet(files.masterSheet, issues);
   const code = sheet.overview.code || files.folder;
 
   let plans: LessonPlanData = { lessons: [], parentMessage: '' };
   if (files.lessonPlans) plans = parseLessonPlans(await docxToHtml(files.lessonPlans), issues);
-  else issues.push({ level: 'error', where: 'files', message: 'Lesson plans file (UNN_Lesson-Plans_L01-40.docx) not found' });
+  else
+    issues.push({
+      level: 'error',
+      where: 'files',
+      message: 'Lesson plans file (UNN_Lesson-Plans_L01-40.docx) not found',
+    });
 
   let contentTexts = new Map<string, ContentTextEntry>();
   if (files.contentTexts) contentTexts = parseContentTexts(await docxToHtml(files.contentTexts));
-  else issues.push({ level: 'warning', where: 'files', message: 'Content texts file (UNN_Content-Texts.docx) not found' });
+  else
+    issues.push({
+      level: 'warning',
+      where: 'files',
+      message: 'Content texts file (UNN_Content-Texts.docx) not found',
+    });
 
   // Steps such as "Talk Scene: Ant Hill School" name the material by title, not code.
   const talkScenes = sheet.materials.filter((material) => material.type === 'TALK_SCENE');
@@ -37,11 +50,16 @@ export async function parseUnit(files: UnitFiles, rulesForLevel: (level: number)
     for (const step of lesson.steps) {
       // e.g. "Book cover talk" whose instructions mention BB1
       if (step.kind === 'OTHER' && !step.materialCode) {
-        const mentioned = materialCodesIn(`${step.title}\n${step.teacherText}`).find((code) => knownCodes.has(code));
+        const mentioned = materialCodesIn(`${step.title}\n${step.teacherText}`).find((code) =>
+          knownCodes.has(code),
+        );
         if (mentioned) step.materialCode = mentioned;
       }
       if (step.kind !== 'TALK_SCENE' || step.materialCode) continue;
-      const title = step.title.replace(/^.*?Talk Scene:\s*/i, '').trim().toLowerCase();
+      const title = step.title
+        .replace(/^.*?Talk Scene:\s*/i, '')
+        .trim()
+        .toLowerCase();
       const match = talkScenes.find((material) => material.title.toLowerCase() === title) ?? talkScenes[0];
       step.materialCode = match?.code ?? null;
     }
@@ -56,7 +74,8 @@ export async function parseUnit(files: UnitFiles, rulesForLevel: (level: number)
   for (const material of sheet.materials) {
     const entry = contentTexts.get(material.code);
     if (!entry) continue;
-    if (!material.fullText && entry.lines.length > 0 && entry.pages.length === 0) material.fullText = entry.lines.join('\n');
+    if (!material.fullText && entry.lines.length > 0 && entry.pages.length === 0)
+      material.fullText = entry.lines.join('\n');
     if (!material.actions && entry.actions) material.actions = entry.actions;
     if (entry.title && material.title && entry.title !== material.title) {
       issues.push({
@@ -97,7 +116,9 @@ export async function parseUnit(files: UnitFiles, rulesForLevel: (level: number)
     const lesson = lessonsByNumber.get(row.lesson);
     if (!lesson) continue;
     const inPlan = new Set(
-      lesson.steps.map((step) => step.materialCode).filter((value): value is string => !!value && !/^(RT|SN|TT)/.test(value)),
+      lesson.steps
+        .map((step) => step.materialCode)
+        .filter((value): value is string => !!value && !/^(RT|SN|TT)/.test(value)),
     );
     const inSheet = new Set(row.materialCodes);
     const onlySheet = [...inSheet].filter((value) => !inPlan.has(value));
@@ -106,7 +127,11 @@ export async function parseUnit(files: UnitFiles, rulesForLevel: (level: number)
       const parts = [];
       if (onlySheet.length) parts.push(`only in tab 6: ${onlySheet.join(', ')}`);
       if (onlyPlan.length) parts.push(`only in the lesson plan: ${onlyPlan.join(', ')}`);
-      issues.push({ level: 'warning', where: `lesson ${row.lesson}`, message: `Tab 6 and the lesson plan differ (${parts.join('; ')})` });
+      issues.push({
+        level: 'warning',
+        where: `lesson ${row.lesson}`,
+        message: `Tab 6 and the lesson plan differ (${parts.join('; ')})`,
+      });
     }
   }
 

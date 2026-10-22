@@ -1,6 +1,22 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Patch, Post, Put } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { editContent, stateAfterEdit, writeRevision } from '@little-ants/db';
-import { canDoGoalsInput, gateCheckUpdate, statusChange, unitPicturesInput, unitUpdate } from '@little-ants/shared';
+import {
+  canDoGoalsInput,
+  gateCheckUpdate,
+  statusChange,
+  unitPicturesInput,
+  unitUpdate,
+} from '@little-ants/shared';
 import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators.js';
 import type { StaffUser } from '../auth/staff-access.js';
@@ -46,7 +62,8 @@ export class UnitsController {
           this.db.lesson.groupBy({ by: ['status'], _count: true, where: { unitId: unit.id } }),
         ]);
         const merged: Record<string, number> = {};
-        for (const row of [...words, ...materials, ...lessons]) merged[row.status] = (merged[row.status] ?? 0) + row._count;
+        for (const row of [...words, ...materials, ...lessons])
+          merged[row.status] = (merged[row.status] ?? 0) + row._count;
         return merged;
       }),
     );
@@ -64,7 +81,9 @@ export class UnitsController {
           leadCharacter: unit.leadCharacter?.name ?? unit.leadCharacterNote,
           counts: unit._count,
           contentStatus: statusCounts[index],
-          production: progress ? { done: Number(progress.done), total: Number(progress.total) } : { done: 0, total: 0 },
+          production: progress
+            ? { done: Number(progress.done), total: Number(progress.total) }
+            : { done: 0, total: 0 },
           latestRelease: unit.releases[0] ?? null,
         };
       }),
@@ -87,19 +106,41 @@ export class UnitsController {
         },
         lessons: {
           orderBy: { number: 'asc' },
-          select: { id: true, number: true, week: true, stage: true, minutes: true, newToday: true, status: true, version: true },
+          select: {
+            id: true,
+            number: true,
+            week: true,
+            stage: true,
+            minutes: true,
+            newToday: true,
+            status: true,
+            version: true,
+          },
         },
         canDoGoals: { orderBy: { order: 'asc' } },
         pictures: { orderBy: [{ role: 'asc' }, { order: 'asc' }], include: { asset: true } },
         gateChecks: { orderBy: [{ gate: 'asc' }, { order: 'asc' }] },
-        releases: { orderBy: { version: 'desc' }, select: { id: true, version: true, note: true, publishedAt: true, publishedBy: { select: { name: true } } } },
+        releases: {
+          orderBy: { version: 'desc' },
+          select: {
+            id: true,
+            version: true,
+            note: true,
+            publishedAt: true,
+            publishedBy: { select: { name: true } },
+          },
+        },
       },
     });
   }
 
   @Roles('AUTHOR', 'REVIEWER')
   @Patch(':code')
-  async update(@CurrentUser() user: StaffUser, @Param('code') code: string, @Body(new ZodBody(unitUpdate)) body: z.infer<typeof unitUpdate>) {
+  async update(
+    @CurrentUser() user: StaffUser,
+    @Param('code') code: string,
+    @Body(new ZodBody(unitUpdate)) body: z.infer<typeof unitUpdate>,
+  ) {
     const unit = await this.content.unitByCode(code);
     const { note, ...data } = body;
     return editContent(this.db, 'unit', unit.id, data, { authorId: user.id, note: note ?? 'edit unit' });
@@ -108,26 +149,45 @@ export class UnitsController {
   /** Set the unit's cover or its place pictures (replaces that role's pictures, in the order given). */
   @Roles('AUTHOR', 'REVIEWER')
   @Put(':code/pictures')
-  async setPictures(@CurrentUser() user: StaffUser, @Param('code') code: string, @Body(new ZodBody(unitPicturesInput)) body: z.infer<typeof unitPicturesInput>) {
+  async setPictures(
+    @CurrentUser() user: StaffUser,
+    @Param('code') code: string,
+    @Body(new ZodBody(unitPicturesInput)) body: z.infer<typeof unitPicturesInput>,
+  ) {
     const unit = await this.content.unitByCode(code);
     const ids = body.items.map((item) => item.assetId);
     const images = await this.db.asset.count({ where: { id: { in: ids }, kind: 'IMAGE' } });
-    if (images !== new Set(ids).size || ids.length !== new Set(ids).size) throw new BadRequestException('Unit pictures must be different image files');
+    if (images !== new Set(ids).size || ids.length !== new Set(ids).size)
+      throw new BadRequestException('Unit pictures must be different image files');
     return this.db.$transaction(async (tx) => {
       const current = await tx.unit.findUniqueOrThrow({ where: { id: unit.id } });
       await tx.unitAsset.deleteMany({ where: { unitId: unit.id, role: body.role } });
       await tx.unitAsset.createMany({
-        data: body.items.map((item, order) => ({ unitId: unit.id, assetId: item.assetId, label: item.label, role: body.role, order })),
+        data: body.items.map((item, order) => ({
+          unitId: unit.id,
+          assetId: item.assetId,
+          label: item.label,
+          role: body.role,
+          order,
+        })),
       });
       const updated = await tx.unit.update({ where: { id: unit.id }, data: stateAfterEdit(current) });
       await writeRevision(tx, 'unit', updated, { authorId: user.id, note: `set ${body.role} pictures` });
-      return tx.unitAsset.findMany({ where: { unitId: unit.id }, include: { asset: true }, orderBy: [{ role: 'asc' }, { order: 'asc' }] });
+      return tx.unitAsset.findMany({
+        where: { unitId: unit.id },
+        include: { asset: true },
+        orderBy: [{ role: 'asc' }, { order: 'asc' }],
+      });
     });
   }
 
   @Roles('AUTHOR', 'REVIEWER')
   @Post(':code/status')
-  async status(@CurrentUser() user: StaffUser, @Param('code') code: string, @Body(new ZodBody(statusChange)) body: z.infer<typeof statusChange>) {
+  async status(
+    @CurrentUser() user: StaffUser,
+    @Param('code') code: string,
+    @Body(new ZodBody(statusChange)) body: z.infer<typeof statusChange>,
+  ) {
     const unit = await this.content.unitByCode(code);
     return this.content.setStatus(user, 'unit', unit.id, body.status, body.note);
   }
@@ -156,11 +216,17 @@ export class UnitsController {
 
   @Roles('AUTHOR', 'REVIEWER')
   @Put(':code/can-do-goals')
-  async setGoals(@CurrentUser() user: StaffUser, @Param('code') code: string, @Body(new ZodBody(canDoGoalsInput)) body: z.infer<typeof canDoGoalsInput>) {
+  async setGoals(
+    @CurrentUser() user: StaffUser,
+    @Param('code') code: string,
+    @Body(new ZodBody(canDoGoalsInput)) body: z.infer<typeof canDoGoalsInput>,
+  ) {
     const unit = await this.content.unitByCode(code);
     await this.db.$transaction([
       this.db.canDoGoal.deleteMany({ where: { unitId: unit.id } }),
-      this.db.canDoGoal.createMany({ data: body.goals.map((text, index) => ({ unitId: unit.id, order: index + 1, text })) }),
+      this.db.canDoGoal.createMany({
+        data: body.goals.map((text, index) => ({ unitId: unit.id, order: index + 1, text })),
+      }),
     ]);
     // Goals belong to the unit, so the change is recorded (and re-opens review) on the unit.
     await editContent(this.db, 'unit', unit.id, {}, { authorId: user.id, note: 'edit can-do goals' });
@@ -169,14 +235,23 @@ export class UnitsController {
 
   @Roles('AUTHOR', 'REVIEWER')
   @Patch('gate-checks/:id')
-  async updateGate(@CurrentUser() user: StaffUser, @Param('id') id: string, @Body(new ZodBody(gateCheckUpdate)) body: z.infer<typeof gateCheckUpdate>) {
+  async updateGate(
+    @CurrentUser() user: StaffUser,
+    @Param('id') id: string,
+    @Body(new ZodBody(gateCheckUpdate)) body: z.infer<typeof gateCheckUpdate>,
+  ) {
     const gate = await this.db.gateCheck.findUnique({ where: { id } });
     if (!gate) throw new NotFoundException();
     return this.db.gateCheck.update({
       where: { id },
       data: {
         ...body,
-        ...(body.done === undefined ? {} : { doneAt: body.done ? new Date() : null, signer: body.signer ?? (body.done ? user.name : gate.signer) }),
+        ...(body.done === undefined
+          ? {}
+          : {
+              doneAt: body.done ? new Date() : null,
+              signer: body.signer ?? (body.done ? user.name : gate.signer),
+            }),
       },
     });
   }

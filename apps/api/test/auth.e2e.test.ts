@@ -37,7 +37,9 @@ describe('staff sign-in', () => {
 
   it('lets an invited teacher sign up, sign in and read /me with the roles from the invite', async () => {
     const admin = await createStaff(ctx.prisma, ['ADMIN']);
-    await ctx.prisma.staffInvite.create({ data: { email: 'teacher@example.com', roles: ['TEACHER'], invitedById: admin.id } });
+    await ctx.prisma.staffInvite.create({
+      data: { email: 'teacher@example.com', roles: ['TEACHER'], invitedById: admin.id },
+    });
 
     await request(server())
       .post('/api/auth/sign-up/email')
@@ -56,9 +58,13 @@ describe('staff sign-in', () => {
     const me = await request(server()).get('/api/me').set('Cookie', cookies).expect(200);
     expect(me.body.user).toMatchObject({ email: 'teacher@example.com', name: 'Ms Lan', roles: ['TEACHER'] });
 
-    const invite = await ctx.prisma.staffInvite.findUniqueOrThrow({ where: { email: 'teacher@example.com' } });
+    const invite = await ctx.prisma.staffInvite.findUniqueOrThrow({
+      where: { email: 'teacher@example.com' },
+    });
     expect(invite.acceptedAt).not.toBeNull();
-    expect(await ctx.prisma.auditLog.count({ where: { action: 'sign-in', actorId: me.body.user.id } })).toBeGreaterThan(0);
+    expect(
+      await ctx.prisma.auditLog.count({ where: { action: 'sign-in', actorId: me.body.user.id } }),
+    ).toBeGreaterThan(0);
 
     // Deactivating the account ends the session at once.
     await ctx.prisma.user.update({ where: { id: me.body.user.id }, data: { active: false } });

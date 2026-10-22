@@ -42,7 +42,10 @@ type Tx = Prisma.TransactionClient;
 // The four content delegates share the same findUniqueOrThrow/update shape.
 interface ContentDelegate {
   findUniqueOrThrow(args: { where: { id: string } }): Promise<VersionedState & { id: string }>;
-  update(args: { where: { id: string }; data: Record<string, unknown> }): Promise<VersionedState & { id: string }>;
+  update(args: {
+    where: { id: string };
+    data: Record<string, unknown>;
+  }): Promise<VersionedState & { id: string }>;
 }
 
 function delegateFor(tx: Tx, entity: ContentEntity): ContentDelegate {

@@ -35,12 +35,19 @@ export function Dialog({ open, onClose, title, children, footer, wide = false }:
             <h2 id="dialog-title" className="text-lg font-bold">
               {title}
             </h2>
-            <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-bark-500 hover:bg-cream-100" aria-label="Close">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-2 py-1 text-bark-500 hover:bg-cream-100"
+              aria-label="Close"
+            >
               ✕
             </button>
           </header>
           <div className="overflow-y-auto px-5 py-4">{children}</div>
-          {footer ? <footer className="flex justify-end gap-2 border-t border-cream-200 px-5 py-3">{footer}</footer> : null}
+          {footer ? (
+            <footer className="flex justify-end gap-2 border-t border-cream-200 px-5 py-3">{footer}</footer>
+          ) : null}
         </div>
       ) : null}
     </dialog>

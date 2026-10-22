@@ -22,7 +22,14 @@ interface UploadButtonProps {
 const ALL_TYPES = Object.keys(ASSET_MIME_TYPES).join(',');
 
 /** File picker that uploads straight to storage and reports progress per file. */
-export function UploadButton({ label = 'Upload files', multiple = true, accept = ALL_TYPES, replacesId, onUploaded, size = 'md' }: UploadButtonProps) {
+export function UploadButton({
+  label = 'Upload files',
+  multiple = true,
+  accept = ALL_TYPES,
+  replacesId,
+  onUploaded,
+  size = 'md',
+}: UploadButtonProps) {
   const input = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const [progress, setProgress] = useState<{ name: string; fraction: number }[]>([]);
@@ -38,7 +45,8 @@ export function UploadButton({ label = 'Upload files', multiple = true, accept =
       for (const [index, file] of list.entries()) {
         const result = await uploadAsset(api, file, {
           replacesId,
-          onProgress: (fraction) => setProgress((rows) => rows.map((row, i) => (i === index ? { ...row, fraction } : row))),
+          onProgress: (fraction) =>
+            setProgress((rows) => rows.map((row, i) => (i === index ? { ...row, fraction } : row))),
         });
         ids.push(result.id);
       }
@@ -55,9 +63,19 @@ export function UploadButton({ label = 'Upload files', multiple = true, accept =
   const busy = progress.length > 0;
   return (
     <div className="flex flex-col gap-2">
-      <label className={`${buttonClass('secondary', size)} cursor-pointer ${busy ? 'pointer-events-none opacity-60' : ''}`}>
+      <label
+        className={`${buttonClass('secondary', size)} cursor-pointer ${busy ? 'pointer-events-none opacity-60' : ''}`}
+      >
         {busy ? 'Uploading…' : label}
-        <input ref={input} type="file" className="sr-only" multiple={multiple && !replacesId} accept={accept} onChange={(event) => void upload(event.target.files)} disabled={busy} />
+        <input
+          ref={input}
+          type="file"
+          className="sr-only"
+          multiple={multiple && !replacesId}
+          accept={accept}
+          onChange={(event) => void upload(event.target.files)}
+          disabled={busy}
+        />
       </label>
       {progress.map((row) => (
         <div key={row.name} className="text-xs text-bark-500">

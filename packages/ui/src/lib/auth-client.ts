@@ -18,6 +18,9 @@ export interface StaffUser {
   roles: ('ADMIN' | 'AUTHOR' | 'REVIEWER' | 'TEACHER')[];
 }
 
-export function hasRole(user: Pick<StaffUser, 'roles'> | null | undefined, ...roles: StaffUser['roles']): boolean {
+export function hasRole(
+  user: Pick<StaffUser, 'roles'> | null | undefined,
+  ...roles: StaffUser['roles']
+): boolean {
   return !!user && user.roles.some((role) => role === 'ADMIN' || roles.includes(role));
 }
