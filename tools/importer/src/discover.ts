@@ -41,10 +41,17 @@ export function discoverUnit(folder: string): UnitFiles {
   };
 }
 
-/** Unit folders ("Unit 1_Hello Little Ants_", …) under the LA 3-6 program folder, sorted by number. */
+/** Unit number from a unit folder name: "Unit 1_Hello Little Ants_" and "Unit01_HelloLittleAnts" both give 1. */
+export function unitNumber(folderName: string): number | null {
+  const match = /^Unit\s*(\d+)/i.exec(folderName);
+  return match ? Number(match[1]) : null;
+}
+
+/** Unit folders under the LA 3-6 program folder, sorted by number. */
 export function discoverUnitFolders(programFolder: string): string[] {
-  return readdirSync(programFolder)
-    .filter((name) => /^Unit \d+/.test(name))
-    .sort((a, b) => Number(/\d+/.exec(a)?.[0]) - Number(/\d+/.exec(b)?.[0]))
+  return readdirSync(programFolder, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && unitNumber(entry.name) !== null)
+    .map((entry) => entry.name)
+    .sort((a, b) => unitNumber(a)! - unitNumber(b)!)
     .map((name) => path.join(programFolder, name));
 }

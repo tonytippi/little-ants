@@ -15,10 +15,11 @@ function escapeCell(value: string): string {
   return value.replaceAll('|', '\\|').replaceAll('\n', ' ');
 }
 
-export function renderReport(reports: UnitReport[], options: { dryRun: boolean; startedAt: Date }): string {
+export function renderReport(reports: UnitReport[], options: { dryRun: boolean; startedAt: Date; source?: string[] }): string {
   const lines: string[] = [];
   lines.push('# Master Sheet import report', '');
   lines.push(`Run: ${options.startedAt.toISOString()} · Mode: ${options.dryRun ? 'dry run (nothing written)' : 'write'}`, '');
+  if (options.source?.length) lines.push(...options.source, '');
   lines.push('| Unit | Title | Lessons | Words | Materials | Errors | Warnings | Notes |');
   lines.push('|---|---|---|---|---|---|---|---|');
   for (const report of reports) {
