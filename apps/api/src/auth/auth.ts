@@ -27,6 +27,9 @@ export function createAuth(prisma: PrismaClient, env: Env) {
     },
     advanced: {
       useSecureCookies: env.NODE_ENV === 'production',
+      // Cookies are shared across the parent domain, so a unique prefix keeps other Better Auth apps
+      // on the same domain from overwriting our state and session cookies.
+      cookiePrefix: 'little-ants',
       // Behind Cloudflare the real client address is in CF-Connecting-IP (X-Forwarded-For can be spoofed).
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] },
       crossSubDomainCookies: env.AUTH_COOKIE_DOMAIN ? { enabled: true, domain: env.AUTH_COOKIE_DOMAIN } : undefined,
