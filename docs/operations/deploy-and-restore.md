@@ -3,7 +3,7 @@
 One VPS runs everything with Docker Compose. Cloudflare Tunnel is the only way in; media comes straight from R2.
 
 ```
-Browser ─► Cloudflare ─► Tunnel (cloudflared) ─► VPS: api · admin · teacher · postgres · backup
+Browser ─► Cloudflare ─► Tunnel (cloudflared) ─► 127.0.0.1:9200-9202 ─► admin · teacher · api · postgres · backup
         └► la-media.passionedu.org ─► R2 bucket (approved files, cached for a year)
 ```
 
@@ -21,16 +21,18 @@ Files: [`infra/docker-compose.prod.yml`](../../infra/docker-compose.prod.yml), [
    - Apply `infra/r2-cors.json` to both the files and the media bucket (change the origins to your domains). Admin uploads to the files bucket directly, and the Teacher app downloads from both.
    - Create an R2 API token with read/write on all three buckets.
 3. **Google sign-in**: create an OAuth web client. Authorised redirect URI: `https://la-api.passionedu.org/api/auth/callback/google`.
-4. **Tunnel**: Zero Trust → Networks → Tunnels → create a tunnel, copy its token, and add public hostnames:
-   - `la-api.passionedu.org` → `http://api:3001`
-   - `la-admin.passionedu.org` → `http://admin:3000`
-   - `la-teacher.passionedu.org` → `http://teacher:3002`
-5. **Settings**: `cp infra/env.production.example infra/.env.production` and fill in every value.
+4. **Tunnel**: in Zero Trust → Networks → Tunnels, add public hostnames to the tunnel whose `cloudflared` runs on this server:
+   - `la-admin.passionedu.org` → `http://localhost:9200`
+   - `la-teacher.passionedu.org` → `http://localhost:9201`
+   - `la-api.passionedu.org` → `http://localhost:9202` (the browser apps and Google sign-in call the API directly)
+
+   The containers listen on `127.0.0.1` only. PostgreSQL is also published on `127.0.0.1:9203` for `psql` and the importer; do not add it to the tunnel. To run the tunnel in Docker instead, set `CLOUDFLARE_TUNNEL_TOKEN`, add `--profile tunnel` to the compose commands, and point the hostnames at `http://admin:3000`, `http://teacher:3002` and `http://api:3001`.
+5. **Settings**: `cp infra/env.production.example .env.production` at the repository root and fill in every value. The compose file sets `NODE_ENV`, `DATABASE_URL` (the `postgres` container), the public URLs and `CORS_ORIGINS` itself. Changing a hostname needs a rebuild, because the URLs are baked into the browser bundles.
 6. **First deploy**: `infra/deploy.sh`.
 7. **Seed and first admin** (once):
 
 ```bash
-COMPOSE="docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production"
+COMPOSE="docker compose -f infra/docker-compose.prod.yml --env-file .env.production"
 $COMPOSE --profile tools run --rm migrate pnpm --filter @little-ants/db run seed
 ```
 
@@ -86,7 +88,7 @@ infra/deploy.sh
 
 The script builds images tagged with the commit, uploads a database backup to R2, runs migrations, restarts the services and waits for `/health`.
 
-**Rollback**: `IMAGE_TAG=<previous commit> docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production up -d`. If a migration must be undone, restore the `before-deploy-<commit>` backup (below).
+**Rollback**: `IMAGE_TAG=<previous commit> docker compose -f infra/docker-compose.prod.yml --env-file .env.production up -d`. If a migration must be undone, restore the `before-deploy-<commit>` backup (below).
 
 ## Backups
 

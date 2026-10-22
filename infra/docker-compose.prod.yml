@@ -1,14 +1,28 @@
-# Production stack on one VPS. Public traffic arrives only through Cloudflare Tunnel;
-# no container publishes a port on the host.
+# Production stack on one host. Public traffic arrives through Cloudflare Tunnel, which points at
+# these ports on 127.0.0.1 (nothing listens on a public interface):
 #
-#   docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production up -d
+#   la-admin.passionedu.org   → http://localhost:9200   (admin)
+#   la-teacher.passionedu.org → http://localhost:9201   (teacher)
+#   la-api.passionedu.org     → http://localhost:9202   (api; the browser apps and Google sign-in call it)
+#   127.0.0.1:9203            → postgres, for psql and the importer on the host only
 #
+#   docker compose -f infra/docker-compose.prod.yml --env-file .env.production up -d
+#
+# Settings and secrets come from the repository-root .env.production (template:
+# infra/env.production.example). Hostnames, DATABASE_URL and NODE_ENV are set here.
 # See docs/operations/deploy-and-restore.md.
 
+name: little-ants
+
 x-app-env: &app-env
-  env_file: .env.production
+  env_file: ../.env.production
   restart: unless-stopped
   networks: [internal]
+
+x-server-env: &server-env
+  NODE_ENV: production
+  # Use a URL-safe POSTGRES_PASSWORD (e.g. openssl rand -hex 32): it is embedded in this URL.
+  DATABASE_URL: postgresql://${POSTGRES_USER:-little_ants}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-little_ants}
 
 services:
   postgres:
@@ -18,6 +32,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-little_ants}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-little_ants}
+    ports:
+      - '127.0.0.1:9203:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -31,13 +47,15 @@ services:
 
   migrate:
     <<: *app-env
+    environment: *server-env
     build: &build
       context: ..
       dockerfile: infra/Dockerfile
       target: migrate
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
-        NEXT_PUBLIC_TEACHER_APP_URL: ${NEXT_PUBLIC_TEACHER_APP_URL:?set NEXT_PUBLIC_TEACHER_APP_URL}
+        # Baked into the browser bundles at build time.
+        NEXT_PUBLIC_API_URL: https://${API_HOST:-la-api.passionedu.org}
+        NEXT_PUBLIC_TEACHER_APP_URL: https://${TEACHER_HOST:-la-teacher.passionedu.org}
         BUILD_ID: ${IMAGE_TAG:-local}
     restart: 'no'
     profiles: [tools]
@@ -54,6 +72,7 @@ services:
   # goes in infra/secrets/ (GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE=/repo/infra/secrets/<file>.json).
   import-worker:
     <<: *app-env
+    environment: *server-env
     image: little-ants-importer:${IMAGE_TAG:-latest}
     build: { <<: *build, target: importer }
     command: ['pnpm', '--filter', '@little-ants/importer', 'run', 'la-import', '--worker']
@@ -70,6 +89,7 @@ services:
 
   import:
     <<: *app-env
+    environment: *server-env
     image: little-ants-importer:${IMAGE_TAG:-latest}
     build: { <<: *build, target: importer }
     restart: 'no'
@@ -82,6 +102,15 @@ services:
     <<: *app-env
     image: little-ants-api:${IMAGE_TAG:-latest}
     build: { <<: *build, target: api }
+    environment:
+      <<: *server-env
+      API_PORT: 3001
+      API_PUBLIC_URL: https://${API_HOST:-la-api.passionedu.org}
+      CORS_ORIGINS: https://${ADMIN_HOST:-la-admin.passionedu.org},https://${TEACHER_HOST:-la-teacher.passionedu.org}
+      # Shares the session cookie between the admin, teacher and api hosts.
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.passionedu.org}
+    ports:
+      - '127.0.0.1:9202:3001'
     depends_on:
       postgres: { condition: service_healthy }
     deploy:
@@ -92,6 +121,8 @@ services:
     <<: *app-env
     image: little-ants-admin:${IMAGE_TAG:-latest}
     build: { <<: *build, target: admin }
+    ports:
+      - '127.0.0.1:9200:3000'
     deploy:
       resources:
         limits: { memory: 512m }
@@ -100,24 +131,29 @@ services:
     <<: *app-env
     image: little-ants-teacher:${IMAGE_TAG:-latest}
     build: { <<: *build, target: teacher }
+    ports:
+      - '127.0.0.1:9201:3002'
     deploy:
       resources:
         limits: { memory: 512m }
 
-  # Remotely managed tunnel: hostnames → services are set in the Cloudflare dashboard
-  # (la-api.passionedu.org → http://api:3001, la-admin… → http://admin:3000, la-teacher… → http://teacher:3002).
+  # Optional: run the tunnel in Docker instead of cloudflared on the host
+  # (add --profile tunnel). Its public hostnames then point at the container ports:
+  # http://admin:3000, http://teacher:3002 and http://api:3001.
   cloudflared:
     image: cloudflare/cloudflared:2026.10.2
     command: tunnel --no-autoupdate run
     environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN}
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     restart: unless-stopped
+    profiles: [tunnel]
     depends_on: [api, admin, teacher]
     networks: [internal]
 
   # Nightly pg_dump to R2, kept for BACKUP_RETENTION_DAYS days.
   backup:
     <<: *app-env
+    environment: *server-env
     build:
       context: backup-job
     depends_on:

@@ -5,7 +5,7 @@
 set -eu
 
 cd "$(dirname "$0")/.."
-COMPOSE="docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production"
+COMPOSE="docker compose -f infra/docker-compose.prod.yml --env-file .env.production"
 TAG="$(git rev-parse --short HEAD)"
 export IMAGE_TAG="$TAG"
 
