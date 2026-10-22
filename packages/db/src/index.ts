@@ -22,8 +22,15 @@ export function createPrismaClient(connectionString = process.env.DATABASE_URL):
     throw new Error('DATABASE_URL is not set');
   }
   const parts = splitSchemaParam(connectionString);
+  if (parts.schema && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(parts.schema)) {
+    throw new Error(`Invalid schema name: ${parts.schema}`);
+  }
   const adapter = new PrismaPg(
-    { connectionString: parts.connectionString },
+    // The adapter only qualifies generated queries; search_path sends raw SQL to the same schema.
+    {
+      connectionString: parts.connectionString,
+      options: parts.schema ? `-c search_path=${parts.schema}` : undefined,
+    },
     parts.schema ? { schema: parts.schema } : undefined,
   );
   return new PrismaClient({ adapter });
