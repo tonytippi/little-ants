@@ -36,22 +36,30 @@ $COMPOSE --profile tools run --rm migrate pnpm --filter @little-ants/db run seed
 
 The seed invites `sonnh273@gmail.com` with every staff role (pass `-e SEED_ADMIN_EMAIL=...` to the seed run for another email). Invite more staff from Admin, or with `$COMPOSE exec api node apps/api/dist/cli/invite-staff.js --email someone@example.com --roles TEACHER`.
 
-8. **Import the curriculum** from the shared Google Drive folder. First set `GOOGLE_DRIVE_FOLDER_ID` and `GOOGLE_DRIVE_API_KEY` in the production settings file (see [Google Drive access](#google-drive-access)).
+8. **Import the curriculum** from the shared Google Drive folder. First set up [Google Drive access](#google-drive-access), then in Admin open **Drive sync** and press **Sync from Google Drive**. The `import-worker` service carries out the request; the page shows its progress and report.
+
+## Curriculum sync from Google Drive
+
+While the curriculum is being finished, the Excel, Word and PDF files on Drive are the source of truth:
+
+- Edit content in the Drive files. Each sync re-imports **all units with their files** and replaces unit content changed in Admin. Files uploaded in Admin stay; draft layouts that are no longer on Drive are removed from their materials.
+- Every sync backs up the database to `infra/backup/` first and archives the Drive files it used to the private bucket under `sources/<time>/`, with `manifest.json` and the report. The data can be traced back to the exact Drive version even after the folder changes.
+- Teachers keep the last published version until a unit is published again in Admin.
+- If a request stays "Waiting", the worker is not running: `$COMPOSE logs import-worker`, then `$COMPOSE up -d import-worker`.
+
+The same importer can be run by hand (reports go to `infra/import-reports/`):
 
 ```bash
 $COMPOSE --profile tools run --rm import pnpm --filter @little-ants/importer run la-import --drive --all --dry-run   # check only
-$COMPOSE --profile tools run --rm import                                                                              # write + upload files
+$COMPOSE --profile tools run --rm import                                                                              # write + upload files (keeps Admin edits)
 ```
 
-The import backs up the database to `infra/backup/` first and writes its report to `infra/import-reports/`. It also archives the Excel, Word and PDF files it used to the private bucket under `sources/<time>/`, with `manifest.json` and the report. The data can then be traced back to the exact Drive version even after the folder changes.
-
-Review the report, fix data in Admin, then stop editing the Excel and Word files: Admin is the source of truth from now on. A later import skips units edited in Admin unless `--force` is passed, which turns them into new drafts from the files.
+When the content is final, stop syncing (`$COMPOSE stop import-worker`): Admin becomes the source of truth from then on.
 
 ### Google Drive access
 
-- **Folder shared by link (pilot):** in Google Cloud, enable the Google Drive API, create an API key, restrict it to the Google Drive API, and set `GOOGLE_DRIVE_API_KEY`.
-- **Private folder (recommended later):** create a service account and ask the folder owner to share the folder with its email as Viewer. Put its JSON key in `infra/secrets/` and set `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE=/repo/infra/secrets/<file>.json`. It replaces the API key.
-- Google temporarily refuses many downloads with an API key in a short time ("automated queries"). The importer waits and retries; if it still fails, wait an hour or use a service account.
+- **Service account (recommended):** in Google Cloud, enable the Google Drive API and create a service account with no project roles. Create a JSON key and ask the folder owner to share the folder with the account's email as Viewer. Put the key in `infra/secrets/` (`chmod 600`) and set `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE=/repo/infra/secrets/<file>.json`.
+- **API key (folder shared by link only):** create an API key restricted to the Google Drive API and set `GOOGLE_DRIVE_API_KEY`. Google temporarily refuses many anonymous downloads in a short time ("automated queries"); the importer waits and retries, but a service account avoids the problem.
 
 ## Deploying a new version
 

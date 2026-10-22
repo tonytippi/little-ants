@@ -11,6 +11,7 @@ const NAV = [
   { href: '/assets', label: 'Assets', adminOnly: false },
   { href: '/classes', label: 'Classes', adminOnly: true },
   { href: '/staff', label: 'Staff', adminOnly: true },
+  { href: '/imports', label: 'Drive sync', adminOnly: true },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

@@ -82,14 +82,20 @@ export function materialsForDesignFile<T extends { code: string; type: string }>
   return [];
 }
 
+/**
+ * Link each draft layout file to its materials. The source folder is the truth for the importer's own links:
+ * a draft the importer linked before that is no longer in the folder (or was replaced by a new version) is unlinked.
+ * Files people attached in Admin are never touched.
+ */
 export async function importDraftDesigns(
   prisma: PrismaClient,
   storage: ObjectStorage,
   unitId: string,
   files: string[],
-): Promise<{ linked: number; unmatched: string[] }> {
+): Promise<{ linked: number; removed: number; unmatched: string[] }> {
   const materials = await prisma.material.findMany({ where: { unitId }, select: { id: true, code: true, type: true } });
   const unmatched: string[] = [];
+  const current = new Map<string, Set<string>>(materials.map((material) => [material.id, new Set<string>()]));
   let linked = 0;
   for (const file of files) {
     const targets = materialsForDesignFile(file, materials);
@@ -104,10 +110,18 @@ export async function importDraftDesigns(
         update: {},
         create: { materialId: material.id, assetId: asset.id, role: 'draft-layout' },
       });
+      current.get(material.id)!.add(asset.id);
     }
     linked += 1;
   }
-  return { linked, unmatched };
+  let removed = 0;
+  for (const [materialId, assetIds] of current) {
+    const result = await prisma.materialAsset.deleteMany({
+      where: { materialId, role: 'draft-layout', asset: { source: 'import' }, assetId: { notIn: [...assetIds] } },
+    });
+    removed += result.count;
+  }
+  return { linked, removed, unmatched };
 }
 
 /** Character art files are named CHAR_01_Annie.png → character code CHAR_01. */

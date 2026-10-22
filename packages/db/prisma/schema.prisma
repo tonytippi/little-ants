@@ -128,6 +128,7 @@ model User {
   auditEntries   AuditLog[]
   lessonRuns     LessonRun[]         @relation("LessonRuns")
   observations   Observation[]       @relation("Observations")
+  importRuns     ImportRun[]         @relation("ImportRuns")
 
   @@map("user")
 }
@@ -580,6 +581,32 @@ model Revision {
   createdAt  DateTime @default(now())
 
   @@index([entityType, entityId, createdAt])
+}
+
+enum ImportRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+/// A curriculum sync from Google Drive requested in Admin and carried out by the import worker.
+model ImportRun {
+  id            String          @id @default(cuid())
+  status        ImportRunStatus @default(QUEUED)
+  requestedById String?
+  requestedBy   User?           @relation("ImportRuns", fields: [requestedById], references: [id])
+  createdAt     DateTime        @default(now())
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  /// Latest progress line while running; the error when it failed.
+  message       String          @default("")
+  /// Import report (Markdown) when it finished.
+  report        String?
+  /// Storage prefix of the archived Drive files.
+  archive       String?
+
+  @@index([status, createdAt])
 }
 
 /// Immutable, published bundle of a whole unit. The Teacher app reads only releases.

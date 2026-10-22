@@ -39,6 +39,8 @@ Each run backs up the database first and writes a report to `plans/reports/impor
 
 To read the source files straight from the shared Google Drive folder instead, add `--drive`. It needs `GOOGLE_DRIVE_FOLDER_ID` and either `GOOGLE_DRIVE_API_KEY` or `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE`. The files are downloaded to a temporary folder. On a real (not dry) run, a copy is archived to storage under `sources/<time>/` together with a `manifest.json` and the report, and the report names the Drive version that was used.
 
+The **Drive sync** page in Admin queues a sync; to carry it out locally, run the worker in another terminal: `pnpm --filter @little-ants/importer run la-import --worker`. It imports all units from Drive with their files and overwrites Admin edits.
+
 6. The seed invites `sonnh273@gmail.com` as admin (all staff roles); set `SEED_ADMIN_EMAIL` to invite someone else. To add more staff, or a development password, use `invite-staff`, then run everything:
 
 ```bash

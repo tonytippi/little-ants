@@ -285,3 +285,17 @@ export interface TeacherNote {
   teacher: { name: string };
   class: { name: string };
 }
+
+export type ImportRunStatus = 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED';
+
+export interface ImportRun {
+  id: string;
+  status: ImportRunStatus;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  message: string;
+  archive: string | null;
+  requestedBy: { id: string; name: string } | null;
+  report?: string | null;
+}

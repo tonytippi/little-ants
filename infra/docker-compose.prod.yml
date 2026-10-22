@@ -45,21 +45,36 @@ services:
       postgres: { condition: service_healthy }
 
   # Curriculum import from Google Drive (GOOGLE_DRIVE_FOLDER_ID): writes the database and uploads to R2.
+  # import-worker carries out "Sync from Google Drive" requests made in Admin (all units, overwriting Admin edits).
+  # The import service runs the same importer by hand:
   #   docker compose ... --profile tools run --rm import                      (all units, with files)
   #   docker compose ... --profile tools run --rm import pnpm --filter @little-ants/importer run la-import --drive --all --dry-run
-  # Database backups land in infra/backup/, reports in infra/import-reports/, and downloads are cached in
-  # infra/drive-cache/ so a second run only fetches changed files. A service account key, if used,
+  # Database backups land in infra/backup/, reports of manual runs in infra/import-reports/, and downloads are
+  # cached in infra/drive-cache/ so later runs only fetch changed files. A service account key, if used,
   # goes in infra/secrets/ (GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE=/repo/infra/secrets/<file>.json).
-  import:
+  import-worker:
     <<: *app-env
+    image: little-ants-importer:${IMAGE_TAG:-latest}
     build: { <<: *build, target: importer }
-    restart: 'no'
-    profiles: [tools]
-    volumes:
+    command: ['pnpm', '--filter', '@little-ants/importer', 'run', 'la-import', '--worker']
+    volumes: &import-volumes
       - ./backup:/repo/infra/backup
       - ./import-reports:/repo/plans/reports
       - ./drive-cache:/repo/infra/drive-cache
       - ./secrets:/repo/infra/secrets:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: { memory: 1g }
+
+  import:
+    <<: *app-env
+    image: little-ants-importer:${IMAGE_TAG:-latest}
+    build: { <<: *build, target: importer }
+    restart: 'no'
+    profiles: [tools]
+    volumes: *import-volumes
     depends_on:
       postgres: { condition: service_healthy }
 
