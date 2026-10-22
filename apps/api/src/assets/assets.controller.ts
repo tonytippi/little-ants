@@ -45,6 +45,7 @@ export class AssetsController {
     if (unitCode) {
       const unit = { code: unitCode.toUpperCase() };
       where.OR = [
+        { unitAssets: { some: { unit } } },
         { materialAssets: { some: { material: { unit } } } },
         { pageImages: { some: { material: { unit } } } },
         { pageAudio: { some: { material: { unit } } } },
@@ -150,12 +151,14 @@ export class AssetsController {
 
   private async moveLinks(tx: Prisma.TransactionClient, fromId: string, toId: string, authorId: string): Promise<void> {
     const note = 'file replaced by a new version';
-    const [links, imagePages, audioPages, words] = await Promise.all([
+    const [unitPictures, links, imagePages, audioPages, words] = await Promise.all([
+      tx.unitAsset.findMany({ where: { assetId: fromId }, select: { unitId: true } }),
       tx.materialAsset.findMany({ where: { assetId: fromId }, select: { materialId: true } }),
       tx.materialPage.findMany({ where: { imageAssetId: fromId }, select: { materialId: true } }),
       tx.materialPage.findMany({ where: { audioAssetId: fromId }, select: { materialId: true } }),
       tx.word.findMany({ where: { imageAssetId: fromId } }),
     ]);
+    await tx.unitAsset.updateMany({ where: { assetId: fromId }, data: { assetId: toId } });
     await tx.materialAsset.updateMany({ where: { assetId: fromId }, data: { assetId: toId } });
     await tx.materialPage.updateMany({ where: { imageAssetId: fromId }, data: { imageAssetId: toId } });
     await tx.materialPage.updateMany({ where: { audioAssetId: fromId }, data: { audioAssetId: toId } });
@@ -165,6 +168,11 @@ export class AssetsController {
       const current = await tx.material.findUniqueOrThrow({ where: { id: materialId } });
       const updated = await tx.material.update({ where: { id: materialId }, data: stateAfterEdit(current) });
       await writeRevision(tx, 'material', updated, { authorId, note });
+    }
+    for (const unitId of new Set(unitPictures.map((row) => row.unitId))) {
+      const current = await tx.unit.findUniqueOrThrow({ where: { id: unitId } });
+      const updated = await tx.unit.update({ where: { id: unitId }, data: stateAfterEdit(current) });
+      await writeRevision(tx, 'unit', updated, { authorId, note });
     }
     for (const word of words) {
       const updated = await tx.word.update({ where: { id: word.id }, data: { imageAssetId: toId, ...stateAfterEdit(word) } });

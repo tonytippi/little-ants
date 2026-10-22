@@ -42,10 +42,26 @@ The seed invites `sonnh273@gmail.com` with every staff role (pass `-e SEED_ADMIN
 
 While the curriculum is being finished, the Excel, Word and PDF files on Drive are the source of truth:
 
-- Edit content in the Drive files. Each sync re-imports **all units with their files** and replaces unit content changed in Admin. Files uploaded in Admin stay; draft layouts that are no longer on Drive are removed from their materials.
+- Edit content in the Drive files. Each sync re-imports **all units with their files** and replaces unit content changed in Admin. Files uploaded in Admin stay; layouts, pictures and recordings that are no longer on Drive are removed from their materials and word cards.
 - Every sync backs up the database to `infra/backup/` first and archives the Drive files it used to the private bucket under `sources/<time>/`, with `manifest.json` and the report. The data can be traced back to the exact Drive version even after the folder changes.
 - Teachers keep the last published version until a unit is published again in Admin.
 - If a request stays "Waiting", the worker is not running: `$COMPOSE logs import-worker`, then `$COMPOSE up -d import-worker`.
+
+Files are matched by name (the report lists every file it could not place, and why):
+
+| File on Drive | Becomes |
+|---|---|
+| `UnitNN_…/04_Design/DRAFT/U05_ST1_….pdf` (`U05_MD_…` = MD1, MD2…, `U05_POSTERS_…` = songs, chants, rhymes, routines) | Draft layout of the material |
+| `04_Design/FINAL/**/U05-WC-02_banana.png` | Picture of word card U05-02 (the name must match the word) |
+| `04_Design/FINAL/**/U05_SG1_panel3_….jpg` | Picture 3 of SG1 |
+| `04_Design/FINAL/**/U05_TS1_….jpg` | Picture of TS1 |
+| `04_Design/FINAL/**/U05-SG-….pdf` | Print file of SG1, SG2, … |
+| `04_Design/FINAL/**/U05_UC_….jpg` | Unit cover |
+| `04_Design/FINAL/**/U05_PLACE_kitchen.jpg` | Place picture "kitchen" (shown on the unit page in the Teacher app) |
+| `05_Audio-Video/U05_SG1_…_v1.1.mp3` | Recording of SG1 (highest version wins) |
+| `00_ROUTINES-AUDIO/LA2_RT1_…mp3` | Recording of RT1 in every unit |
+
+Pictures must be PNG or JPEG. When a picture exists both as a regular and a 4K copy (a folder name containing "4K"), the lighter regular copy is used.
 
 The same importer can be run by hand (reports go to `infra/import-reports/`):
 

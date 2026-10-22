@@ -72,6 +72,11 @@ export interface ReleaseWord {
   image: ReleaseMedia | null;
 }
 
+export interface ReleasePlace {
+  label: string;
+  image: ReleaseMedia;
+}
+
 export interface UnitReleasePayload {
   format: typeof RELEASE_FORMAT;
   version: number;
@@ -88,6 +93,10 @@ export interface UnitReleasePayload {
     sounds: { sound: string; words: string }[];
     keyLanguage: string[];
     parentMessage: string;
+    /** Missing in releases published before unit pictures existed. */
+    cover?: ReleaseMedia | null;
+    /** Pictures of the places the unit happens in, e.g. "garden". Missing in older releases. */
+    places?: ReleasePlace[];
   };
   canDoGoals: { order: number; text: string }[];
   words: ReleaseWord[];
@@ -102,6 +111,8 @@ export function releaseMedia(payload: UnitReleasePayload): ReleaseMedia[] {
     if (media) byId.set(media.id, media);
   };
   add(payload.unit.leadCharacter?.image ?? null);
+  add(payload.unit.cover ?? null);
+  for (const place of payload.unit.places ?? []) add(place.image);
   for (const word of payload.words) add(word.image);
   for (const material of payload.materials) {
     material.media.forEach(add);

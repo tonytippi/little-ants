@@ -351,6 +351,22 @@ model Unit {
   gateChecks GateCheck[]
   releases   UnitRelease[]
   classes    Class[]
+  pictures   UnitAsset[]
+}
+
+/// Unit-level pictures: the cover ("cover", one) and the places the unit happens in ("place", e.g. garden, market).
+model UnitAsset {
+  id      String @id @default(cuid())
+  unitId  String
+  unit    Unit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id])
+  role    String
+  /// Shown to teachers, e.g. "garden".
+  label   String @default("")
+  order   Int    @default(0)
+
+  @@unique([unitId, assetId, role])
 }
 
 model Word {
@@ -547,6 +563,7 @@ model Asset {
   pageImages     MaterialPage[]  @relation("PageImage")
   pageAudio      MaterialPage[]  @relation("PageAudio")
   materialAssets MaterialAsset[]
+  unitAssets     UnitAsset[]
 }
 
 /// One row per material × production stage (Master Sheet tab 9).

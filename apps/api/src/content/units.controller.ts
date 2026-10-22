@@ -1,6 +1,6 @@
-import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Put } from '@nestjs/common';
-import { editContent } from '@little-ants/db';
-import { canDoGoalsInput, gateCheckUpdate, statusChange, unitUpdate } from '@little-ants/shared';
+import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Patch, Post, Put } from '@nestjs/common';
+import { editContent, stateAfterEdit, writeRevision } from '@little-ants/db';
+import { canDoGoalsInput, gateCheckUpdate, statusChange, unitPicturesInput, unitUpdate } from '@little-ants/shared';
 import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators.js';
 import type { StaffUser } from '../auth/staff-access.js';
@@ -90,6 +90,7 @@ export class UnitsController {
           select: { id: true, number: true, week: true, stage: true, minutes: true, newToday: true, status: true, version: true },
         },
         canDoGoals: { orderBy: { order: 'asc' } },
+        pictures: { orderBy: [{ role: 'asc' }, { order: 'asc' }], include: { asset: true } },
         gateChecks: { orderBy: [{ gate: 'asc' }, { order: 'asc' }] },
         releases: { orderBy: { version: 'desc' }, select: { id: true, version: true, note: true, publishedAt: true, publishedBy: { select: { name: true } } } },
       },
@@ -102,6 +103,26 @@ export class UnitsController {
     const unit = await this.content.unitByCode(code);
     const { note, ...data } = body;
     return editContent(this.db, 'unit', unit.id, data, { authorId: user.id, note: note ?? 'edit unit' });
+  }
+
+  /** Set the unit's cover or its place pictures (replaces that role's pictures, in the order given). */
+  @Roles('AUTHOR', 'REVIEWER')
+  @Put(':code/pictures')
+  async setPictures(@CurrentUser() user: StaffUser, @Param('code') code: string, @Body(new ZodBody(unitPicturesInput)) body: z.infer<typeof unitPicturesInput>) {
+    const unit = await this.content.unitByCode(code);
+    const ids = body.items.map((item) => item.assetId);
+    const images = await this.db.asset.count({ where: { id: { in: ids }, kind: 'IMAGE' } });
+    if (images !== new Set(ids).size || ids.length !== new Set(ids).size) throw new BadRequestException('Unit pictures must be different image files');
+    return this.db.$transaction(async (tx) => {
+      const current = await tx.unit.findUniqueOrThrow({ where: { id: unit.id } });
+      await tx.unitAsset.deleteMany({ where: { unitId: unit.id, role: body.role } });
+      await tx.unitAsset.createMany({
+        data: body.items.map((item, order) => ({ unitId: unit.id, assetId: item.assetId, label: item.label, role: body.role, order })),
+      });
+      const updated = await tx.unit.update({ where: { id: unit.id }, data: stateAfterEdit(current) });
+      await writeRevision(tx, 'unit', updated, { authorId: user.id, note: `set ${body.role} pictures` });
+      return tx.unitAsset.findMany({ where: { unitId: unit.id }, include: { asset: true }, orderBy: [{ role: 'asc' }, { order: 'asc' }] });
+    });
   }
 
   @Roles('AUTHOR', 'REVIEWER')

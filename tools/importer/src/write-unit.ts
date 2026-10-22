@@ -56,6 +56,27 @@ function snapshot(row: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(row)) as Prisma.InputJsonValue;
 }
 
+/** The unit's materials: the Master Sheet materials plus deliverables only listed on the production tab (kept as OTHER). */
+export function materialRowsFor(sheet: ParsedUnit['sheet']): ParsedUnit['sheet']['materials'] {
+  const rows = [...sheet.materials];
+  for (const [code, label] of sheet.productionLabels) {
+    if (!rows.some((material) => material.code === code)) {
+      rows.push({
+        code,
+        type: materialTypeForCode(code) === 'OTHER' ? 'OTHER' : materialTypeForCode(code),
+        typeLabel: 'Deliverable',
+        title: label,
+        format: '',
+        targetLanguage: '',
+        fullText: '',
+        actions: '',
+        teacherNotes: '',
+      });
+    }
+  }
+  return rows;
+}
+
 /** Write one parsed unit. Re-running with the same input leaves the same rows (natural keys are upserted). */
 export async function writeUnit(prisma: PrismaClient, parsed: ParsedUnit): Promise<WriteResult> {
   const { sheet, plans, pages } = parsed;
@@ -116,23 +137,7 @@ export async function writeUnit(prisma: PrismaClient, parsed: ParsedUnit): Promi
         revisions.push({ entityType: 'word', entityId: row.id, version: row.version, snapshot: snapshot(row), note: IMPORT_NOTE });
       }
 
-      // Materials (plus non-material deliverables from the production tab, kept as OTHER)
-      const materialRows = [...sheet.materials];
-      for (const [code, label] of sheet.productionLabels) {
-        if (!materialRows.some((material) => material.code === code)) {
-          materialRows.push({
-            code,
-            type: materialTypeForCode(code) === 'OTHER' ? 'OTHER' : materialTypeForCode(code),
-            typeLabel: 'Deliverable',
-            title: label,
-            format: '',
-            targetLanguage: '',
-            fullText: '',
-            actions: '',
-            teacherNotes: '',
-          });
-        }
-      }
+      const materialRows = materialRowsFor(sheet);
       const firstLesson = new Map<string, number>();
       for (const lesson of [...plans.lessons].sort((a, b) => a.number - b.number)) {
         for (const step of lesson.steps) {

@@ -94,6 +94,7 @@ export interface UnitDetail {
   materials: MaterialSummary[];
   lessons: LessonSummary[];
   canDoGoals: { id: string; order: number; text: string }[];
+  pictures: UnitPicture[];
   gateChecks: { id: string; gate: number; order: number; text: string; signer: string; done: boolean; doneAt: string | null; notes: string }[];
   releases: { id: string; version: number; note: string; publishedAt: string; publishedBy: { name: string } | null }[];
 }
@@ -298,4 +299,13 @@ export interface ImportRun {
   archive: string | null;
   requestedBy: { id: string; name: string } | null;
   report?: string | null;
+}
+
+export interface UnitPicture {
+  id: string;
+  role: 'cover' | 'place';
+  label: string;
+  order: number;
+  assetId: string;
+  asset: Omit<Asset, 'url'> & { url?: string };
 }

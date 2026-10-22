@@ -134,6 +134,14 @@ export const materialAssetsInput = z.object({
   assetIds: z.array(id).max(30),
 });
 
+/** Unit pictures of one role: the cover (at most one) or the places, in order. */
+export const unitPicturesInput = z
+  .object({
+    role: z.enum(['cover', 'place']),
+    items: z.array(z.object({ assetId: id, label: z.string().trim().max(60).default('') })).max(20),
+  })
+  .refine((value) => value.role !== 'cover' || value.items.length <= 1, { message: 'A unit has one cover', path: ['items'] });
+
 export const lessonInput = z.object({
   week: z.number().int().min(1).max(12),
   stage: z.enum(LESSON_STAGES),

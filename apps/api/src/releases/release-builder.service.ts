@@ -30,6 +30,7 @@ export class ReleaseBuilder {
         level: true,
         leadCharacter: { include: { artAsset: true } },
         canDoGoals: { orderBy: { order: 'asc' } },
+        pictures: { orderBy: [{ role: 'asc' }, { order: 'asc' }], include: { asset: true } },
         words: { where: { status: NOT_ARCHIVED }, orderBy: [{ kind: 'asc' }, { order: 'asc' }], include: { imageAsset: true } },
         materials: {
           where: { status: NOT_ARCHIVED },
@@ -76,6 +77,7 @@ export class ReleaseBuilder {
       if (asset && asset.status !== 'APPROVED') unapproved.add(asset.fileName);
     };
     note(unit.leadCharacter?.artAsset ?? null);
+    unit.pictures.forEach((picture) => note(picture.asset));
     unit.words.forEach((word) => note(word.imageAsset));
     for (const material of unit.materials) {
       material.assets.forEach((link) => note(link.asset));
@@ -133,6 +135,13 @@ export class ReleaseBuilder {
         sounds: unit.soundDetails as { sound: string; words: string }[],
         keyLanguage: unit.keyLanguage,
         parentMessage: unit.parentMessage,
+        cover: media(unit.pictures.find((picture) => picture.role === 'cover')?.asset ?? null),
+        places: unit.pictures
+          .filter((picture) => picture.role === 'place')
+          .flatMap((picture) => {
+            const image = media(picture.asset);
+            return image ? [{ label: picture.label, image }] : [];
+          }),
       },
       canDoGoals: unit.canDoGoals.map((goal) => ({ order: goal.order, text: goal.text })),
       words: unit.words.map((word) => ({ cardId: word.cardId, text: word.text, kind: word.kind, group: word.group, image: media(word.imageAsset) })),

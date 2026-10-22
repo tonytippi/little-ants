@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { AssetKind, PrismaClient } from '@little-ants/db';
 import { assetStorageKey, type ObjectStorage } from '@little-ants/storage';
+import { IMPORTED_ROLES, type MediaPlan } from './media-plan.js';
 
 const MIME_TYPES: Record<string, { mime: string; kind: AssetKind }> = {
   '.pdf': { mime: 'application/pdf', kind: 'PDF' },
@@ -60,68 +61,82 @@ export async function importFileAsAsset(
   return { id: asset.id, created: true };
 }
 
-/** Draft layout PDFs are named like "U01_ST1_Who-Is-This_DRAFT.pdf"; the second part is the material code. */
-export function materialCodeFromDesignFile(file: string): string | null {
-  const parts = path.basename(file).split('_');
-  return parts.length > 2 ? (parts[1] ?? null) : null;
-}
-
-const POSTER_TYPES = new Set(['SONG', 'CHANT', 'RHYME', 'ROUTINE']);
-
-/**
- * Materials a draft file belongs to: one material ("U01_ST1_…"), every material of a family
- * ("U01_MD_Move-and-Do-Cards" → MD1, MD2, MD3) or every poster ("U01_POSTERS_…" → songs, chants, rhymes, routines).
- */
-export function materialsForDesignFile<T extends { code: string; type: string }>(file: string, materials: T[]): T[] {
-  const code = materialCodeFromDesignFile(file);
-  if (!code) return [];
-  if (code.toUpperCase() === 'POSTERS') return materials.filter((material) => POSTER_TYPES.has(material.type));
-  const exact = materials.filter((material) => material.code === code);
-  if (exact.length > 0) return exact;
-  if (/^[A-Z]{2}$/.test(code)) return materials.filter((material) => new RegExp(`^${code}\\d+$`).test(material.code));
-  return [];
+export interface UnitMediaResult {
+  /** Files linked, by role (word pictures under "word"). */
+  linked: Record<string, number>;
+  /** Earlier importer links no longer backed by a source file. */
+  removed: number;
 }
 
 /**
- * Link each draft layout file to its materials. The source folder is the truth for the importer's own links:
- * a draft the importer linked before that is no longer in the folder (or was replaced by a new version) is unlinked.
+ * Apply a media plan to a unit. The source folder is the truth for the importer's own files: links and word
+ * pictures the importer made before that are no longer in the plan (removed or replaced on the source) are undone.
  * Files people attached in Admin are never touched.
  */
-export async function importDraftDesigns(
-  prisma: PrismaClient,
-  storage: ObjectStorage,
-  unitId: string,
-  files: string[],
-): Promise<{ linked: number; removed: number; unmatched: string[] }> {
-  const materials = await prisma.material.findMany({ where: { unitId }, select: { id: true, code: true, type: true } });
-  const unmatched: string[] = [];
-  const current = new Map<string, Set<string>>(materials.map((material) => [material.id, new Set<string>()]));
-  let linked = 0;
-  for (const file of files) {
-    const targets = materialsForDesignFile(file, materials);
-    if (targets.length === 0) {
-      unmatched.push(path.basename(file));
-      continue;
-    }
-    const asset = await importFileAsAsset(prisma, storage, file);
-    for (const material of targets) {
-      await prisma.materialAsset.upsert({
-        where: { materialId_assetId_role: { materialId: material.id, assetId: asset.id, role: 'draft-layout' } },
-        update: {},
-        create: { materialId: material.id, assetId: asset.id, role: 'draft-layout' },
-      });
-      current.get(material.id)!.add(asset.id);
-    }
-    linked += 1;
+export async function importUnitMedia(prisma: PrismaClient, storage: ObjectStorage, unitId: string, plan: MediaPlan): Promise<UnitMediaResult> {
+  const materials = await prisma.material.findMany({ where: { unitId }, select: { id: true, code: true } });
+  const materialIds = new Map(materials.map((material) => [material.code, material.id]));
+  // Counted per file: one poster PDF linked to six materials is one file.
+  const files = new Map<string, Set<string>>();
+  const count = (key: string, file: string): void => {
+    files.set(key, (files.get(key) ?? new Set()).add(file));
+  };
+
+  const keep = new Map<string, Set<string>>(); // `${materialId}:${role}` → asset ids
+  for (const link of plan.links) {
+    const materialId = materialIds.get(link.materialCode);
+    if (!materialId) continue;
+    const asset = await importFileAsAsset(prisma, storage, link.file);
+    await prisma.materialAsset.upsert({
+      where: { materialId_assetId_role: { materialId, assetId: asset.id, role: link.role } },
+      update: { order: link.order },
+      create: { materialId, assetId: asset.id, role: link.role, order: link.order },
+    });
+    const key = `${materialId}:${link.role}`;
+    keep.set(key, (keep.get(key) ?? new Set()).add(asset.id));
+    count(link.role, link.file);
   }
   let removed = 0;
-  for (const [materialId, assetIds] of current) {
-    const result = await prisma.materialAsset.deleteMany({
-      where: { materialId, role: 'draft-layout', asset: { source: 'import' }, assetId: { notIn: [...assetIds] } },
+  for (const material of materials) {
+    for (const role of IMPORTED_ROLES) {
+      const result = await prisma.materialAsset.deleteMany({
+        where: { materialId: material.id, role, asset: { source: 'import' }, assetId: { notIn: [...(keep.get(`${material.id}:${role}`) ?? [])] } },
+      });
+      removed += result.count;
+    }
+  }
+
+  const keepPictures = new Map<string, Set<string>>(); // role → asset ids
+  for (const picture of plan.pictures) {
+    const asset = await importFileAsAsset(prisma, storage, picture.file);
+    await prisma.unitAsset.upsert({
+      where: { unitId_assetId_role: { unitId, assetId: asset.id, role: picture.role } },
+      update: { label: picture.label, order: picture.order },
+      create: { unitId, assetId: asset.id, role: picture.role, label: picture.label, order: picture.order },
+    });
+    keepPictures.set(picture.role, (keepPictures.get(picture.role) ?? new Set()).add(asset.id));
+    count(picture.role, picture.file);
+  }
+  for (const role of ['cover', 'place']) {
+    const result = await prisma.unitAsset.deleteMany({
+      where: { unitId, role, asset: { source: 'import' }, assetId: { notIn: [...(keepPictures.get(role) ?? [])] } },
     });
     removed += result.count;
   }
-  return { linked, removed, unmatched };
+
+  const pictured = new Set<string>();
+  for (const image of plan.words) {
+    const asset = await importFileAsAsset(prisma, storage, image.file);
+    await prisma.word.updateMany({ where: { unitId, cardId: image.cardId }, data: { imageAssetId: asset.id } });
+    pictured.add(image.cardId);
+    count('word', image.file);
+  }
+  const cleared = await prisma.word.updateMany({
+    where: { unitId, cardId: { notIn: [...pictured] }, imageAsset: { source: 'import' } },
+    data: { imageAssetId: null },
+  });
+  const linked = Object.fromEntries([...files].map(([key, set]) => [key, set.size]));
+  return { linked, removed: removed + cleared.count };
 }
 
 /** Character art files are named CHAR_01_Annie.png → character code CHAR_01. */

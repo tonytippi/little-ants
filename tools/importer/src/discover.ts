@@ -7,13 +7,17 @@ export interface UnitFiles {
   lessonPlans: string | null;
   contentTexts: string | null;
   draftDesigns: string[];
+  /** Everything under 04_Design/FINAL (finished pictures and print files). */
+  finalFiles: string[];
+  /** Recordings under 05_Audio-Video. */
+  audio: string[];
 }
 
 function isOfficeLockOrJunk(name: string): boolean {
   return name.startsWith('~$') || name.startsWith('.') || name.endsWith('.DS_Store');
 }
 
-function listFiles(dir: string, depth = 3): string[] {
+function listFiles(dir: string, depth = 6): string[] {
   if (depth < 0) return [];
   const result: string[] = [];
   for (const name of readdirSync(dir)) {
@@ -38,6 +42,8 @@ export function discoverUnit(folder: string): UnitFiles {
     lessonPlans: files.find((file) => /Lesson-Plans_L01-40.*\.docx$/i.test(file)) ?? null,
     contentTexts: files.find((file) => /Content-Texts.*\.docx$/i.test(file)) ?? null,
     draftDesigns: files.filter((file) => /[/\\]04_Design[^/\\]*[/\\]DRAFT[^/\\]*[/\\].+\.pdf$/i.test(file)),
+    finalFiles: files.filter((file) => /[/\\]04_Design[^/\\]*[/\\]FINAL[^/\\]*[/\\]/i.test(file)),
+    audio: files.filter((file) => /[/\\]05_Audio[^/\\]*[/\\].+\.mp3$/i.test(file)),
   };
 }
 
@@ -54,4 +60,12 @@ export function discoverUnitFolders(programFolder: string): string[] {
     .map((entry) => entry.name)
     .sort((a, b) => unitNumber(a)! - unitNumber(b)!)
     .map((name) => path.join(programFolder, name));
+}
+
+/** Recordings shared by every unit, e.g. the routine songs in "00_ROUTINES-AUDIO". */
+export function discoverProgramAudio(programFolder: string): string[] {
+  return readdirSync(programFolder, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && /AUDIO/i.test(entry.name) && unitNumber(entry.name) === null)
+    .flatMap((entry) => listFiles(path.join(programFolder, entry.name), 2))
+    .filter((file) => /\.mp3$/i.test(file));
 }

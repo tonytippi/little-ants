@@ -68,7 +68,7 @@ function Imports() {
       <Card className="mb-6 border-l-4 border-sun-400 text-sm">
         <ul className="list-disc space-y-1 pl-5 text-bark-700">
           <li>Edit unit content in the Drive files, not here: a sync replaces unit content changed in Admin.</li>
-          <li>Files uploaded in Admin stay; draft layouts that are no longer on Drive are removed from their materials.</li>
+          <li>Files uploaded in Admin stay; layouts, pictures and recordings that are no longer on Drive are removed from their materials and word cards.</li>
           <li>The database is backed up before every sync, and the Drive files used are archived with the report.</li>
           <li>Teachers keep the last published version until a unit is published again.</li>
         </ul>

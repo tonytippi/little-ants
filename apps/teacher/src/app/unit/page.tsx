@@ -9,6 +9,7 @@ import { AppShell } from '../../components/app-shell';
 import { DownloadButton } from '../../components/download-button';
 import { LessonList } from '../../components/lesson-list';
 import { ReleaseGate } from '../../components/release-gate';
+import { UnitPictures } from '../../components/unit-pictures';
 import { links } from '../../lib/links';
 import { useDownloadedVersions, usePublishedUnits, useTeachClasses } from '../../lib/queries';
 import { RequireStaff } from '../../lib/session';
@@ -61,6 +62,7 @@ function Unit() {
                 ) : null}
               </div>
             </div>
+            <UnitPictures unit={payload.unit} />
             <LessonList
               payload={payload}
               highlight={klass?.currentUnit?.code === payload.unit.code ? klass.nextLesson : undefined}

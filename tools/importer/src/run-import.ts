@@ -5,13 +5,14 @@ import { backupDatabase } from '@little-ants/db/backup';
 import { createPrismaClient } from '@little-ants/db';
 import type { LevelRules } from '@little-ants/shared';
 import { createStorageFromEnv, type ObjectStorage } from '@little-ants/storage';
-import { importCharacterArt, importDraftDesigns } from './assets.js';
-import { discoverUnit, discoverUnitFolders, unitNumber } from './discover.js';
+import { importCharacterArt, importUnitMedia, type UnitMediaResult } from './assets.js';
+import { discoverProgramAudio, discoverUnit, discoverUnitFolders, unitNumber } from './discover.js';
 import { DriveClient, downloadFolder, driveAuthFromEnv, findProgramFolder } from './drive.js';
+import { planUnitMedia, type MediaPlan } from './media-plan.js';
 import { parseUnit } from './parse-unit.js';
 import { renderReport, type UnitReport } from './report.js';
 import { archivePrefix, archiveSources, sourceSummary } from './source-archive.js';
-import { hasManualEdits, writeUnit } from './write-unit.js';
+import { hasManualEdits, materialRowsFor, writeUnit } from './write-unit.js';
 
 export const repoRoot = path.resolve(import.meta.dirname, '../../..');
 
@@ -120,6 +121,8 @@ async function importUnits(
     if (levels.length === 0) throw new Error('Levels are missing. Run the database seed first.');
     const rulesForLevel = (number: number): LevelRules => (levels.find((level) => level.number === number)?.rules ?? {}) as LevelRules;
 
+    const programAudio = discoverProgramAudio(sourceFolder);
+
     if (!dryRun) {
       const file = backupDatabase('before-import');
       log(`Backup: ${path.relative(repoRoot, file)}`);
@@ -142,7 +145,18 @@ async function importUnits(
       reports.push(report);
       const errors = parsed.issues.filter((issue) => issue.level === 'error').length;
       log(`${report.unit}: ${parsed.plans.lessons.length} lessons, ${parsed.issues.length} findings (${errors} errors)`);
-      if (dryRun) continue;
+      const plan = planUnitMedia({
+        unitCode: code,
+        draftDesigns: parsed.files.draftDesigns,
+        finalFiles: parsed.files.finalFiles,
+        audio: [...parsed.files.audio, ...programAudio],
+        materials: materialRowsFor(parsed.sheet),
+        words: parsed.sheet.words,
+      });
+      if (dryRun) {
+        report.notes.push(...mediaNotes(plannedCounts(plan), plan, folder, 'Files to link'));
+        continue;
+      }
       if (errors > 0) {
         report.notes.push('Not written: fix the errors first.');
         continue;
@@ -155,10 +169,8 @@ async function importUnits(
       report.counts = result.counts;
       report.notes.push('Written to the database.');
       if (storage) {
-        const designs = await importDraftDesigns(prisma, storage, result.unitId, parsed.files.draftDesigns);
-        report.notes.push(`Draft layouts linked: ${designs.linked}.`);
-        if (designs.removed) report.notes.push(`Draft layouts no longer on the source removed from materials: ${designs.removed}.`);
-        if (designs.unmatched.length) report.notes.push(`Draft files with no matching material: ${designs.unmatched.join(', ')}`);
+        const media = await importUnitMedia(prisma, storage, result.unitId, plan);
+        report.notes.push(...mediaNotes(media, plan, folder, 'Files linked'));
       }
     }
 
@@ -171,4 +183,37 @@ async function importUnits(
     await prisma.$disconnect();
   }
   return reports;
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  'draft-layout': 'draft layouts',
+  poster: 'pictures',
+  audio: 'recordings',
+  print: 'print files',
+  word: 'word pictures',
+  cover: 'unit cover',
+  place: 'place pictures',
+};
+
+/** Report lines for a unit's files: what was linked, what was undone, and which files were left out and why. */
+function mediaNotes(media: UnitMediaResult, plan: MediaPlan, unitFolder: string, heading: string): string[] {
+  const linked = Object.entries(media.linked).map(([role, count]) => `${count} ${ROLE_LABELS[role] ?? role}`);
+  const notes = [`${heading}: ${linked.length ? linked.join(', ') : 'none'}.`];
+  if (media.removed) notes.push(`Files no longer on the source removed: ${media.removed}.`);
+  const lighter = plan.ignored.filter((item) => /lighter copy/.test(item.reason)).length;
+  if (lighter) notes.push(`4K copies not used (a lighter copy of the same picture is linked): ${lighter}.`);
+  for (const item of plan.ignored.filter((entry) => !/lighter copy/.test(entry.reason))) {
+    notes.push(`Not used: ${path.relative(unitFolder, item.file).split(path.sep).join('/')} (${item.reason}).`);
+  }
+  return notes;
+}
+
+/** What a dry run would link, in the same shape as a real import's result. */
+function plannedCounts(plan: MediaPlan): UnitMediaResult {
+  const files = new Map<string, Set<string>>();
+  for (const link of plan.links) files.set(link.role, (files.get(link.role) ?? new Set()).add(link.file));
+  const linked: Record<string, number> = Object.fromEntries([...files].map(([role, set]) => [role, set.size]));
+  if (plan.words.length) linked.word = plan.words.length;
+  for (const picture of plan.pictures) linked[picture.role] = (linked[picture.role] ?? 0) + 1;
+  return { linked, removed: 0 };
 }

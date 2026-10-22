@@ -84,15 +84,17 @@ export class ContentService {
     );
   }
 
-  /** Assets used anywhere in a unit (material files, page images and audio, word pictures, lead character art). */
+  /** Assets used anywhere in a unit (unit pictures, material files, page images and audio, word pictures, lead character art). */
   async unitAssetIds(tx: Prisma.TransactionClient | PrismaService['client'], unitId: string): Promise<string[]> {
-    const [materialAssets, pages, words, unit] = await Promise.all([
+    const [unitPictures, materialAssets, pages, words, unit] = await Promise.all([
+      tx.unitAsset.findMany({ where: { unitId }, select: { assetId: true } }),
       tx.materialAsset.findMany({ where: { material: { unitId } }, select: { assetId: true } }),
       tx.materialPage.findMany({ where: { material: { unitId } }, select: { imageAssetId: true, audioAssetId: true } }),
       tx.word.findMany({ where: { unitId }, select: { imageAssetId: true } }),
       tx.unit.findUniqueOrThrow({ where: { id: unitId }, select: { leadCharacter: { select: { artAssetId: true } } } }),
     ]);
     const ids = new Set<string>();
+    unitPictures.forEach((row) => ids.add(row.assetId));
     materialAssets.forEach((row) => ids.add(row.assetId));
     for (const page of pages) {
       if (page.imageAssetId) ids.add(page.imageAssetId);

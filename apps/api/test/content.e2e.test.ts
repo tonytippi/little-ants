@@ -12,6 +12,7 @@ describe('content editing, review, publishing and teaching', () => {
   let reviewer: StaffUser;
   let teacher: StaffUser;
   let materialId: string;
+  let posterAssetId: string;
   let lessonId: string;
   let classId: string;
   let studentId: string;
@@ -197,10 +198,33 @@ describe('content editing, review, publishing and teaching', () => {
     await request(server()).post(`/api/assets/${replace.body.assetId}/complete`).set(as(author)).expect(201);
     expect((await ctx.prisma.asset.findUniqueOrThrow({ where: { id: replace.body.assetId } })).previousId).toBe(start.body.assetId);
 
+    posterAssetId = start.body.assetId;
     // Put the approved version back so the release below has a public file.
     await request(server()).put(`/api/content/materials/${materialId}/assets`).set(as(author)).send({ role: 'poster', assetIds: [start.body.assetId] }).expect(200);
     await request(server()).post(`/api/content/materials/${materialId}/status`).set(as(author)).send({ status: 'REVIEW' }).expect(201);
     await request(server()).post(`/api/content/materials/${materialId}/status`).set(as(reviewer)).send({ status: 'APPROVED' }).expect(201);
+  });
+
+  it('sets the unit cover and place pictures, which sends the unit back to draft', async () => {
+    await request(server())
+      .put(`/api/content/units/${UNIT}/pictures`)
+      .set(as(author))
+      .send({ role: 'cover', items: [{ assetId: posterAssetId }, { assetId: posterAssetId }] })
+      .expect(400);
+    await request(server()).put(`/api/content/units/${UNIT}/pictures`).set(as(teacher)).send({ role: 'cover', items: [] }).expect(403);
+    await request(server()).put(`/api/content/units/${UNIT}/pictures`).set(as(author)).send({ role: 'cover', items: [{ assetId: posterAssetId }] }).expect(200);
+    const places = await request(server())
+      .put(`/api/content/units/${UNIT}/pictures`)
+      .set(as(author))
+      .send({ role: 'place', items: [{ assetId: posterAssetId, label: 'garden' }] })
+      .expect(200);
+    expect(places.body.map((row: { role: string; label: string }) => `${row.role}:${row.label}`)).toEqual(['cover:', 'place:garden']);
+    const unit = await request(server()).get(`/api/content/units/${UNIT}`).set(as(author)).expect(200);
+    expect(unit.body.status).toBe('DRAFT');
+    expect(unit.body.pictures).toHaveLength(2);
+
+    await request(server()).post(`/api/content/units/${UNIT}/status`).set(as(author)).send({ status: 'REVIEW' }).expect(201);
+    await request(server()).post(`/api/content/units/${UNIT}/status`).set(as(reviewer)).send({ status: 'APPROVED' }).expect(201);
   });
 
   it('publishes the unit and serves the release to teachers', async () => {
@@ -216,6 +240,8 @@ describe('content editing, review, publishing and teaching', () => {
     expect(payload.lessons[0]!.steps.map((step) => step.materialCode)).toEqual([null, 'SG1']);
     expect(payload.materials[0]!.media[0]).toMatchObject({ role: 'poster', kind: 'IMAGE' });
     expect(payload.canDoGoals).toEqual([{ order: 1, text: 'say hello' }]);
+    expect(payload.unit.cover).toMatchObject({ id: posterAssetId, kind: 'IMAGE' });
+    expect(payload.unit.places).toEqual([{ label: 'garden', image: expect.objectContaining({ id: posterAssetId }) }]);
   });
 
   it('syncs offline records once, moves the class on and ignores children from other classes', async () => {

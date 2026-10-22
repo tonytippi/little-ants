@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPrismaClient, editContent, seedBaseData, type PrismaClient } from '@little-ants/db';
 import { resetTestDatabase } from '@little-ants/db/testing';
 import type { LevelRules } from '@little-ants/shared';
-import { materialsForDesignFile } from '../src/assets.js';
+import { materialsForDesignFile } from '../src/media-plan.js';
 import { discoverUnit } from '../src/discover.js';
 import { parseUnit, type ParsedUnit } from '../src/parse-unit.js';
 import { hasManualEdits, writeUnit } from '../src/write-unit.js';
