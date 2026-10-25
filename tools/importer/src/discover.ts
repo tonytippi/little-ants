@@ -76,7 +76,10 @@ function finalFolderVersion(name: string): number | null {
   return match ? Number(match[1] ?? 1) : null;
 }
 
-/** Character art (CHAR_*.png) in the newest 01_BRAND/Characters/(v<N>_)FINAL folder; empty when there is none. */
+/**
+ * Character art (CHAR_*.png) anywhere in the newest 01_BRAND/Characters/(v<N>_)FINAL folder,
+ * e.g. v2_FINAL/front/CHAR_01_Annie_front_v2.png; empty when there is none.
+ */
 export function discoverCharacterArt(programFolder: string): string[] {
   const charactersFolder = path.join(programFolder, '01_BRAND', 'Characters');
   let entries;
@@ -89,8 +92,7 @@ export function discoverCharacterArt(programFolder: string): string[] {
     .filter((entry) => entry.isDirectory() && finalFolderVersion(entry.name) !== null)
     .sort((a, b) => finalFolderVersion(b.name)! - finalFolderVersion(a.name)!)[0];
   if (!newest) return [];
-  const artFolder = path.join(charactersFolder, newest.name);
-  return readdirSync(artFolder)
-    .filter((name) => /^CHAR_.*\.png$/i.test(name))
-    .map((name) => path.join(artFolder, name));
+  return listFiles(path.join(charactersFolder, newest.name), 2).filter((file) =>
+    /^CHAR_.*\.png$/i.test(path.basename(file)),
+  );
 }

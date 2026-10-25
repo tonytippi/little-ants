@@ -60,4 +60,17 @@ describe('character art', () => {
     addArt('v10_FINAL', ['CHAR_05_Grandma.png']);
     expect(artNames()).toEqual([path.join('v10_FINAL', 'CHAR_05_Grandma.png')]);
   });
+
+  it('finds art in subfolders and skips character sheets', () => {
+    addArt(path.join('v11_FINAL', 'front'), [
+      'CHAR_01_Annie_front_v2.png',
+      'CHAR_12b_Pip-Butterfly_front_v2.png',
+    ]);
+    addArt(path.join('v11_FINAL', 'sheets'), ['CHAR-SHEET_01_Annie_v2.png']);
+    addArt('v11_FINAL', ['LA2_v2_ALL-CHARACTERS_front-grid.png']);
+    expect(artNames()).toEqual([
+      path.join('v11_FINAL', 'front', 'CHAR_01_Annie_front_v2.png'),
+      path.join('v11_FINAL', 'front', 'CHAR_12b_Pip-Butterfly_front_v2.png'),
+    ]);
+  });
 });

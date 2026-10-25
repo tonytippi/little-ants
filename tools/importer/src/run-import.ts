@@ -197,7 +197,7 @@ async function importUnits(
     if (storage) {
       const files = discoverCharacterArt(sourceFolder);
       if (files.length) log(`Character art linked: ${await importCharacterArt(prisma, storage, files)}`);
-      else log('Character art not linked: no CHAR_*.png in 01_BRAND/Characters/FINAL or v<N>_FINAL');
+      else log('Character art not linked: no CHAR_*.png under 01_BRAND/Characters/FINAL or v<N>_FINAL');
     }
   } finally {
     await prisma.$disconnect();
