@@ -69,3 +69,28 @@ export function discoverProgramAudio(programFolder: string): string[] {
     .flatMap((entry) => listFiles(path.join(programFolder, entry.name), 2))
     .filter((file) => /\.mp3$/i.test(file));
 }
+
+/** Version of a finished-art folder: "FINAL" is 1, "v2_FINAL" is 2; null for other folders. */
+function finalFolderVersion(name: string): number | null {
+  const match = /^(?:v(\d+)_)?FINAL$/i.exec(name);
+  return match ? Number(match[1] ?? 1) : null;
+}
+
+/** Character art (CHAR_*.png) in the newest 01_BRAND/Characters/(v<N>_)FINAL folder; empty when there is none. */
+export function discoverCharacterArt(programFolder: string): string[] {
+  const charactersFolder = path.join(programFolder, '01_BRAND', 'Characters');
+  let entries;
+  try {
+    entries = readdirSync(charactersFolder, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const newest = entries
+    .filter((entry) => entry.isDirectory() && finalFolderVersion(entry.name) !== null)
+    .sort((a, b) => finalFolderVersion(b.name)! - finalFolderVersion(a.name)!)[0];
+  if (!newest) return [];
+  const artFolder = path.join(charactersFolder, newest.name);
+  return readdirSync(artFolder)
+    .filter((name) => /^CHAR_.*\.png$/i.test(name))
+    .map((name) => path.join(artFolder, name));
+}

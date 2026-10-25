@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { backupDatabase } from '@little-ants/db/backup';
@@ -6,7 +6,13 @@ import { createPrismaClient } from '@little-ants/db';
 import type { LevelRules } from '@little-ants/shared';
 import { createStorageFromEnv, type ObjectStorage } from '@little-ants/storage';
 import { importCharacterArt, importUnitMedia, type UnitMediaResult } from './assets.js';
-import { discoverProgramAudio, discoverUnit, discoverUnitFolders, unitNumber } from './discover.js';
+import {
+  discoverCharacterArt,
+  discoverProgramAudio,
+  discoverUnit,
+  discoverUnitFolders,
+  unitNumber,
+} from './discover.js';
 import { DriveClient, downloadFolder, driveAuthFromEnv, findProgramFolder } from './drive.js';
 import { planUnitMedia, type MediaPlan } from './media-plan.js';
 import { parseUnit } from './parse-unit.js';
@@ -189,11 +195,9 @@ async function importUnits(
     }
 
     if (storage) {
-      const artFolder = path.join(sourceFolder, '01_BRAND', 'Characters', 'FINAL');
-      const files = readdirSync(artFolder)
-        .filter((name) => /^CHAR_.*\.png$/i.test(name))
-        .map((name) => path.join(artFolder, name));
-      log(`Character art linked: ${await importCharacterArt(prisma, storage, files)}`);
+      const files = discoverCharacterArt(sourceFolder);
+      if (files.length) log(`Character art linked: ${await importCharacterArt(prisma, storage, files)}`);
+      else log('Character art not linked: no CHAR_*.png in 01_BRAND/Characters/FINAL or v<N>_FINAL');
     }
   } finally {
     await prisma.$disconnect();
