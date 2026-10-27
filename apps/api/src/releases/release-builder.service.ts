@@ -231,7 +231,7 @@ export class ReleaseBuilder {
    */
   async publish(
     unitId: string,
-    publishedById: string,
+    publishedById: string | null,
     note: string,
   ): Promise<{ version: number } | ReleaseCheck> {
     return this.content.db.$transaction(

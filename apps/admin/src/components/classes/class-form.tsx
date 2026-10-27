@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { schoolYearOf } from '@little-ants/shared';
 import { Button } from '@little-ants/ui/button';
 import { Field, Select, TextInput } from '@little-ants/ui/field';
 import { fieldErrors } from '../../lib/hooks';
@@ -20,13 +21,6 @@ export interface ClassFormValues {
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-function defaultSchoolYear(): string {
-  const now = new Date();
-  // The school year starts in August.
-  const start = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
-  return `${start}-${start + 1}`;
-}
-
 interface ClassFormProps {
   campuses: Campus[];
   levels: LevelOption[];
@@ -44,7 +38,7 @@ export function ClassForm({ campuses, levels, initial, submitLabel, busy, error,
     levelId: initial?.levelId ?? levels[0]?.id ?? '',
     currentUnitId: initial?.currentUnitId ?? null,
     nextLesson: initial?.nextLesson ?? 1,
-    schoolYear: initial?.schoolYear ?? defaultSchoolYear(),
+    schoolYear: initial?.schoolYear ?? schoolYearOf(),
     lessonDays: initial?.lessonDays ?? [1, 2, 3, 4],
     active: initial?.active ?? true,
   }));

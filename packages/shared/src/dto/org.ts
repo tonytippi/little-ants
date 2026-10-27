@@ -21,6 +21,12 @@ export const campusInput = campusBase.extend({
 });
 export const campusUpdate = campusBase.partial();
 
+/** School year a date falls in, e.g. "2026-2027"; the school year starts in August. */
+export function schoolYearOf(date = new Date()): string {
+  const start = date.getMonth() >= 7 ? date.getFullYear() : date.getFullYear() - 1;
+  return `${start}-${start + 1}`;
+}
+
 const classBase = z.object({
   campusId: id,
   name,

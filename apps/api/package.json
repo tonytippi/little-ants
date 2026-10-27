@@ -8,6 +8,7 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "invite-staff": "node dist/cli/invite-staff.js",
+    "seed-test": "node dist/cli/seed-test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src test",
     "test": "vitest run"

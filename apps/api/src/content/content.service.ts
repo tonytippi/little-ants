@@ -14,6 +14,9 @@ import { assertCanSetStatus } from './content-access.js';
 
 const ACTIVE = { not: 'ARCHIVED' as const };
 
+/** Who changes content: a signed-in staff member, or a command-line task without an account (id null). */
+export type ContentActor = Pick<StaffUser, 'roles'> & { id: string | null };
+
 /** The Prisma client or an open transaction. */
 export type Db = Prisma.TransactionClient;
 
@@ -49,7 +52,7 @@ export class ContentService {
    * Used for "submit unit for review" and "approve unit".
    */
   async setUnitStatus(
-    user: StaffUser,
+    user: ContentActor,
     unitId: string,
     from: ContentStatus,
     to: ContentStatus,
