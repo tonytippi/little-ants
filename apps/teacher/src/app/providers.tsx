@@ -2,6 +2,8 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
+// Loaded first so the browser's install prompt is caught even before a screen with the Install button mounts.
+import '../lib/install';
 import { startOutbox } from '../lib/outbox';
 
 export function Providers({ children }: { children: ReactNode }) {

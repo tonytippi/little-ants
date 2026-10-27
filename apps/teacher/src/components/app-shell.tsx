@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { Button } from '@little-ants/ui/button';
+import { isIos, isStandalone } from '../lib/install';
 import { flushOutbox, discardFailed } from '../lib/outbox';
+import { InstallButton, InstallSteps } from './install-button';
 import { useOnline, useOutboxState } from '../lib/hooks';
 import { useMe, useSignOut } from '../lib/session';
 
@@ -56,44 +58,45 @@ function StatusPills() {
 /** Tells iPad/iPhone users to add the app to the Home Screen so Safari keeps the offline data. */
 function shouldShowInstallHint(): boolean {
   if (typeof window === 'undefined') return false;
-  const ios =
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const standalone =
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone;
   try {
     if (localStorage.getItem('la-install-hint') === 'dismissed') return false;
   } catch {
     /* storage blocked */
   }
-  return ios && !standalone;
+  return isIos() && !isStandalone();
 }
 
 function InstallHint() {
   // AppShell only renders in the browser (after the session check), so reading navigator here is safe.
   const [show, setShow] = useState(shouldShowInstallHint);
+  const [steps, setSteps] = useState(false);
   if (!show) return null;
   return (
-    <div className="flex items-start justify-between gap-4 bg-sun-100 px-4 py-3 text-sm text-bark-900">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-sun-100 px-4 py-3 text-sm text-bark-900">
       <p>
-        <strong>Using an iPad?</strong> Tap <span aria-label="Share">Share</span> →{' '}
-        <em>Add to Home Screen</em>. Downloaded lessons then stay on the iPad and work without Wi-Fi.
+        <strong>Using an iPad?</strong> Add Little Ants to the Home Screen. Downloaded lessons then stay on
+        the iPad and work without Wi-Fi.
       </p>
-      <button
-        type="button"
-        className="shrink-0 font-semibold text-bark-700 underline"
-        onClick={() => {
-          try {
-            localStorage.setItem('la-install-hint', 'dismissed');
-          } catch {
-            /* ignore */
-          }
-          setShow(false);
-        }}
-      >
-        Got it
-      </button>
+      <div className="flex shrink-0 items-center gap-3">
+        <Button size="sm" onClick={() => setSteps(true)}>
+          Show me how
+        </Button>
+        <button
+          type="button"
+          className="font-semibold text-bark-700 underline"
+          onClick={() => {
+            try {
+              localStorage.setItem('la-install-hint', 'dismissed');
+            } catch {
+              /* ignore */
+            }
+            setShow(false);
+          }}
+        >
+          Not now
+        </button>
+      </div>
+      <InstallSteps open={steps} mode="steps-ios" onClose={() => setSteps(false)} />
     </div>
   );
 }
@@ -126,6 +129,7 @@ export function AppShell({
           ) : null}
           <div className="ml-auto flex flex-wrap items-center gap-3">
             <StatusPills />
+            <InstallButton />
             <span className="hidden text-sm text-bark-500 sm:inline">{user.name}</span>
             {offline ? null : (
               <Button variant="ghost" size="sm" onClick={() => void signOut()}>

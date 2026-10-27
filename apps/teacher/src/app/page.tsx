@@ -47,9 +47,7 @@ function ClassCard({
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-ant-600">{unit.code}</p>
               <p className="font-display text-3xl font-extrabold leading-none text-ant-500">{unit.title}</p>
-              <p className="mt-2 font-semibold text-leaf-700">
-                Next: Lesson {klass.nextLesson} of 40
-              </p>
+              <p className="mt-2 font-semibold text-leaf-700">Next: Lesson {klass.nextLesson} of 40</p>
             </div>
             <UnitArt picture={unit.picture} className="aspect-video h-auto max-h-44 w-full" />
           </div>

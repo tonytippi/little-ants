@@ -125,4 +125,4 @@ Create the scratch database once with `$COMPOSE exec postgres createdb -U little
 ## Classroom tips
 
 - Teachers should open the Teacher app and download the week's unit the day before; lessons then run without the internet.
-- On iPad, use Share → **Add to Home Screen**, otherwise Safari may clear downloaded lessons after a week without use.
+- Install the Teacher app with **Install app** in its header: Chrome, Edge and Android open their install prompt, and other browsers show the steps for the device. On iPad this is Safari's Share → **Add to Home Screen**; without it Safari may clear downloaded lessons after a week without use. The installed app keeps its own sign-in, so sign in once more after installing.
