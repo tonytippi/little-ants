@@ -153,7 +153,9 @@ function RunRow({
           {waitingLong ? (
             <p className="mt-1 text-ant-700">Still waiting: is the import worker running?</p>
           ) : null}
-          {run.archive ? <p className="mt-1 text-bark-500">Drive files archived in {run.archive}/</p> : null}
+          {run.archive ? (
+            <p className="mt-1 text-bark-500">Drive file versions listed in {run.archive}/manifest.json</p>
+          ) : null}
         </td>
         <td className="px-4 py-3 text-right">
           {run.status === 'SUCCEEDED' ? (

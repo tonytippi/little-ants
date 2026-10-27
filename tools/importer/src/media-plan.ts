@@ -16,6 +16,13 @@ export interface WordImage {
   file: string;
 }
 
+/** Picture of one page of a story, book or Tiny Tracks ("U05_ST1_p3.png" → page 3 of ST1). */
+export interface PageImage {
+  materialCode: string;
+  number: number;
+  file: string;
+}
+
 /** Unit-level picture: the cover or a place ("garden"). */
 export interface UnitPicture {
   role: 'cover' | 'place';
@@ -28,6 +35,7 @@ export interface MediaPlan {
   links: MaterialLink[];
   words: WordImage[];
   pictures: UnitPicture[];
+  pages: PageImage[];
   /** Files left out, with the reason (shown in the import report). */
   ignored: { file: string; reason: string }[];
 }
@@ -96,7 +104,8 @@ function audioVersion(file: string): number {
 /**
  * Decide which material or word each source file belongs to, from its name:
  * - `U05-WC-02_banana.png` → picture of word card U05-02 (only when the name matches the word)
- * - `U05_SG1_panel3_peel.jpg` → picture 3 of SG1; `U05_TS1_At-the-Market.jpg` → picture of TS1
+ * - `U05_SG1_panel3_peel.jpg`, `U05_MD1_card3_….png` → picture 3 of SG1 / MD1; `U05_TS1_At-the-Market.jpg` → picture of TS1
+ * - `U05_ST1_p3.png` → picture of page 3 of ST1; `U05_ST1_p0-cover.png` → its cover (picture 0); `…_p2_alt.png` is left out
  * - `U05_UC_Cover.jpg` → unit cover; `U05_PLACE_kitchen.jpg` → place picture "kitchen"
  * - `U05_SG1_…_audio_v1.0.mp3`, `LA2_RT1_…mp3` → audio of SG1 / RT1 (highest version wins)
  * - a PDF in FINAL (`U05-SG-LA….pdf`) → print file of SG1, SG2, …; a DRAFT PDF → draft layout
@@ -107,7 +116,7 @@ export function planUnitMedia(sources: MediaSources): MediaPlan {
   const wordsByCard = new Map(sources.words.map((word) => [word.cardId, word]));
 
   // One file per slot; the preferred candidate wins and the others are reported.
-  type Target = { link?: MaterialLink; word?: WordImage; picture?: UnitPicture };
+  type Target = { link?: MaterialLink; word?: WordImage; picture?: UnitPicture; page?: PageImage };
   const slots = new Map<string, { file: string; score: number } & Target>();
   const offer = (key: string, file: string, score: number, target: Target, loserReason: string): void => {
     const current = slots.get(key);
@@ -182,13 +191,29 @@ export function planUnitMedia(sources: MediaSources): MediaPlan {
       );
       continue;
     }
-    const picture = /^U\d+_([A-Z]+\d+)_(?:panel(\d+))?/i.exec(name);
+    const picture = /^U\d+_([A-Z]+\d*)_(.*)$/i.exec(name);
     const code = picture?.[1]?.toUpperCase();
     if (!code || !materialCodes.has(code)) {
       ignored.push({ file, reason: 'no matching material or word card' });
       continue;
     }
-    const order = Number(picture?.[2] ?? 0);
+    const rest = picture![2]!;
+    if (/^p\d+_alt\b/i.test(rest)) {
+      ignored.push({ file, reason: 'alternative picture' });
+      continue;
+    }
+    const page = Number(/^p(\d+)(?=[-_.])/i.exec(rest)?.[1] ?? 0);
+    if (page > 0) {
+      offer(
+        `page:${code}:${page}`,
+        file,
+        score,
+        { page: { materialCode: code, number: page, file } },
+        `a lighter copy is used for ${code} page ${page}`,
+      );
+      continue;
+    }
+    const order = Number(/^(?:panel|card)(\d+)/i.exec(rest)?.[1] ?? 0);
     offer(
       `poster:${code}:${order}`,
       file,
@@ -218,8 +243,10 @@ export function planUnitMedia(sources: MediaSources): MediaPlan {
 
   const words: WordImage[] = [];
   const pictures: UnitPicture[] = [];
+  const pages: PageImage[] = [];
   for (const slot of slots.values()) {
     if (slot.link) links.push(slot.link);
+    if (slot.page) pages.push(slot.page);
     if (slot.word) words.push(slot.word);
     if (slot.picture) pictures.push(slot.picture);
   }
@@ -228,5 +255,5 @@ export function planUnitMedia(sources: MediaSources): MediaPlan {
     .filter((picture) => picture.role === 'place')
     .sort((a, b) => a.label.localeCompare(b.label))
     .forEach((picture, index) => (picture.order = index));
-  return { links, words, pictures, ignored };
+  return { links, words, pictures, pages, ignored };
 }

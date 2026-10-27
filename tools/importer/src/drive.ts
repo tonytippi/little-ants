@@ -1,5 +1,14 @@
 import { createSign } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  rmdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { unitNumber } from './discover.js';
 
@@ -17,6 +26,12 @@ const EXPORTS: Record<string, { mime: string; extension: string }> = {
     mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     extension: '.docx',
   },
+};
+
+/** Google files exported as text for reading on the command line. */
+const TEXT_EXPORTS: Record<string, string> = {
+  'application/vnd.google-apps.document': 'text/plain',
+  'application/vnd.google-apps.spreadsheet': 'text/csv',
 };
 
 export interface DriveFile {
@@ -164,6 +179,18 @@ export class DriveClient {
     return new Uint8Array(await (await this.request(url)).arrayBuffer());
   }
 
+  /** Readable text of a file: Google Docs as plain text, Sheets as CSV (first sheet), other files as UTF-8. */
+  async text(file: DriveFile): Promise<string> {
+    const exported = TEXT_EXPORTS[file.mimeType];
+    const url = new URL(exported ? `${API}/files/${file.id}/export` : `${API}/files/${file.id}`);
+    if (exported) url.searchParams.set('mimeType', exported);
+    else {
+      url.searchParams.set('alt', 'media');
+      url.searchParams.set('supportsAllDrives', 'true');
+    }
+    return (await this.request(url)).text();
+  }
+
   /** GET with credentials; retries rate limits and server errors with backoff. */
   private async request(url: URL, attempt = 0): Promise<Response> {
     const headers = await this.auth.authorize(url);
@@ -239,29 +266,61 @@ export async function findProgramFolder(
   return program;
 }
 
-/**
- * Cache file name for one version of a Drive file. Binary files change md5 when edited;
- * Google Sheets/Docs have no md5, so their modified time stands in.
- */
-function cacheName(file: DriveFile): string | null {
-  const version = file.md5Checksum ?? file.modifiedTime;
-  return version ? `${file.id}-${version.replaceAll(/[^a-z0-9]/gi, '')}` : null;
+/** Drive files for AI tools working in the Drive folder, not curriculum content. */
+const NOT_CONTENT = new Set(['CLAUDE.md']);
+
+/** Kept in the mirror folder: the Drive file each local file was synced from, and the file it wrote. */
+export const SYNC_STATE_FILE = '.drive-sync.json';
+
+interface SyncedFile {
+  id: string;
+  /** md5 for binary files; modified time for Google Sheets/Docs, which have no md5. */
+  version: string;
+  size: number;
+  mtimeMs: number;
+}
+
+export interface SyncResult extends DownloadResult {
+  /** Files fetched from Drive in this run (new, changed on Drive, or changed or missing locally). */
+  downloaded: number;
+  /** Files deleted because they are no longer on Drive. */
+  removed: string[];
+}
+
+function readSyncState(target: string): Record<string, SyncedFile> {
+  try {
+    return JSON.parse(readFileSync(path.join(target, SYNC_STATE_FILE), 'utf8')) as Record<string, SyncedFile>;
+  } catch {
+    return {};
+  }
+}
+
+/** Delete empty folders left behind by removed files, from `dir` up to (not including) `root`. */
+function pruneEmptyFolders(dir: string, root: string): void {
+  for (let current = dir; current.startsWith(root) && current !== root; current = path.dirname(current)) {
+    try {
+      rmdirSync(current);
+    } catch {
+      return;
+    }
+  }
 }
 
 /**
- * Download a Drive folder tree into `target`, a few files at a time.
- * With `cacheDir`, files whose Drive version was downloaded before are copied from there instead.
+ * Mirror a Drive folder tree into `target`, a few files at a time. Only files that are new or changed on Drive,
+ * or changed or missing locally, are downloaded; files synced before that are gone from Drive are deleted.
+ * Local files the sync did not write are left alone. Drive items named ".something" (tool folders) and CLAUDE.md
+ * (instructions for AI tools working in the Drive folder) are skipped.
  */
-export async function downloadFolder(
+export async function syncFolder(
   client: DriveClient,
   folderId: string,
   target: string,
   options: {
     concurrency?: number;
-    cacheDir?: string;
-    onFile?: (entry: ManifestEntry & { cached: boolean }) => void;
+    onFile?: (entry: ManifestEntry & { downloaded: boolean }) => void;
   } = {},
-): Promise<DownloadResult> {
+): Promise<SyncResult> {
   const pending: { file: DriveFile; relative: string }[] = [];
   const skipped: string[] = [];
 
@@ -269,6 +328,7 @@ export async function downloadFolder(
     mkdirSync(path.join(target, relative), { recursive: true });
     const taken = new Set<string>();
     for (const child of await client.list(id)) {
+      if (child.name.startsWith('.') || NOT_CONTENT.has(child.name)) continue;
       let item = child;
       if (child.mimeType === SHORTCUT && child.shortcutDetails) {
         item = { ...(await client.get(child.shortcutDetails.targetId)), name: child.name };
@@ -291,27 +351,37 @@ export async function downloadFolder(
   };
   await walk(folderId, '');
 
+  const previous = readSyncState(target);
+  const state: Record<string, SyncedFile> = {};
   const files: ManifestEntry[] = [];
+  let downloaded = 0;
   let next = 0;
   const worker = async (): Promise<void> => {
     while (next < pending.length) {
       const { file, relative } = pending[next++]!;
+      const key = relative.split(path.sep).join('/');
       const destination = path.join(target, relative);
-      const cached =
-        options.cacheDir && cacheName(file) ? path.join(options.cacheDir, cacheName(file)!) : null;
-      const hit = cached !== null && existsSync(cached);
-      if (hit) copyFileSync(cached, destination);
-      else {
-        writeFileSync(destination, await client.content(file));
-        if (cached) {
-          mkdirSync(options.cacheDir!, { recursive: true });
-          // Write then rename, so an interrupted run never leaves a half file in the cache.
-          copyFileSync(destination, `${cached}.part`);
-          renameSync(`${cached}.part`, cached);
-        }
+      const version = file.md5Checksum ?? file.modifiedTime ?? '';
+      const before = previous[key];
+      const local = existsSync(destination) ? statSync(destination) : null;
+      const current =
+        before !== undefined &&
+        version !== '' &&
+        before.id === file.id &&
+        before.version === version &&
+        local !== null &&
+        local.size === before.size &&
+        Math.trunc(local.mtimeMs) === Math.trunc(before.mtimeMs);
+      if (!current) {
+        // Write then rename, so an interrupted run never leaves a half file behind.
+        writeFileSync(`${destination}.part`, await client.content(file));
+        renameSync(`${destination}.part`, destination);
+        downloaded += 1;
       }
+      const written = statSync(destination);
+      state[key] = { id: file.id, version, size: written.size, mtimeMs: written.mtimeMs };
       const entry: ManifestEntry = {
-        path: relative.split(path.sep).join('/'),
+        path: key,
         id: file.id,
         mimeType: file.mimeType,
         modifiedTime: file.modifiedTime ?? null,
@@ -319,10 +389,27 @@ export async function downloadFolder(
         exportedAs: EXPORTS[file.mimeType]?.extension ?? null,
       };
       files.push(entry);
-      options.onFile?.({ ...entry, cached: hit });
+      options.onFile?.({ ...entry, downloaded: !current });
     }
   };
-  await Promise.all(Array.from({ length: options.concurrency ?? 2 }, worker));
+
+  const removed: string[] = [];
+  let finished = false;
+  try {
+    await Promise.all(Array.from({ length: options.concurrency ?? 2 }, worker));
+    for (const key of Object.keys(previous)) {
+      if (state[key]) continue;
+      const local = path.join(target, ...key.split('/'));
+      rmSync(local, { force: true });
+      pruneEmptyFolders(path.dirname(local), target);
+      removed.push(key);
+    }
+    finished = true;
+  } finally {
+    // After a failure, files not reached yet keep their earlier record (they were not touched).
+    const record = finished ? state : { ...previous, ...state };
+    writeFileSync(path.join(target, SYNC_STATE_FILE), JSON.stringify(record, null, 2));
+  }
   files.sort((a, b) => a.path.localeCompare(b.path));
-  return { files, skipped };
+  return { files, skipped, downloaded, removed: removed.sort() };
 }

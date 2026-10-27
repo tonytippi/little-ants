@@ -5,16 +5,16 @@ import { createPrismaClient, editContent, seedBaseData, type PrismaClient } from
 import { resetTestDatabase } from '@little-ants/db/testing';
 import type { LevelRules } from '@little-ants/shared';
 import { materialsForDesignFile } from '../src/media-plan.js';
-import { discoverUnit } from '../src/discover.js';
+import { discoverUnit, discoverUnitFolders, unitNumber } from '../src/discover.js';
 import { parseUnit, type ParsedUnit } from '../src/parse-unit.js';
 import { hasManualEdits, writeUnit } from '../src/write-unit.js';
 
-// The curriculum source files are local-only (not in git), so this suite runs where they exist.
-const unitFolder = path.resolve(
-  import.meta.dirname,
-  '../../../docs/Little Ants English/LA 3-6/Unit 1_Hello Little Ants_',
-);
-const hasSource = existsSync(unitFolder);
+// The curriculum source files are local-only (the Drive mirror, not in git), so this suite runs where they exist.
+const programFolder = path.resolve(import.meta.dirname, '../../../docs/Little Ants English/LA 3-6');
+const unitFolder = existsSync(programFolder)
+  ? discoverUnitFolders(programFolder).find((folder) => unitNumber(path.basename(folder)) === 1)
+  : undefined;
+const hasSource = unitFolder !== undefined;
 
 describe('materialsForDesignFile', () => {
   const materials = [
@@ -50,7 +50,7 @@ describe.skipIf(!hasSource)('Unit 1 import', () => {
     const levels = await prisma.level.findMany();
     const rulesFor = (n: number): LevelRules =>
       (levels.find((level) => level.number === n)?.rules ?? {}) as LevelRules;
-    parsed = await parseUnit(discoverUnit(unitFolder), rulesFor);
+    parsed = await parseUnit(discoverUnit(unitFolder!), rulesFor);
   });
 
   afterAll(async () => {
@@ -131,7 +131,7 @@ describe.skipIf(!hasSource)('re-importing after review', () => {
     await seedBaseData(prisma);
     const levels = await prisma.level.findMany();
     parsed = await parseUnit(
-      discoverUnit(unitFolder),
+      discoverUnit(unitFolder!),
       (n) => (levels.find((level) => level.number === n)?.rules ?? {}) as LevelRules,
     );
     await writeUnit(prisma, parsed);

@@ -27,7 +27,7 @@ pnpm db:migrate          # applies migrations
 pnpm --filter @little-ants/db build && pnpm db:seed   # program, levels, characters, default admin invite
 ```
 
-5. Import the curriculum (the source files live in `docs/Little Ants English/`, which is not in git):
+5. Import the curriculum. The source files live in `docs/Little Ants English/LA 3-6/`, a local mirror of the shared Google Drive folder that is not in git:
 
 ```bash
 pnpm turbo build --filter=@little-ants/importer...
@@ -37,9 +37,25 @@ pnpm --filter @little-ants/importer run la-import --all --assets    # write + up
 
 Each run backs up the database first and writes a report to `plans/reports/import-*.md`. Units already edited in Admin are skipped unless you pass `--force`.
 
-To read the source files straight from the shared Google Drive folder instead, add `--drive`. It needs `GOOGLE_DRIVE_FOLDER_ID` and either `GOOGLE_DRIVE_API_KEY` or `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE`. The files are downloaded to a temporary folder. On a real (not dry) run, a copy is archived to storage under `sources/<time>/` together with a `manifest.json` and the report, and the report names the Drive version that was used.
+Add `--drive` to bring the mirror up to date with Drive first (the first run downloads everything; later runs only files changed on Drive, or changed or missing locally, and files removed from Drive are deleted). It needs `GOOGLE_DRIVE_FOLDER_ID` and either `GOOGLE_DRIVE_API_KEY` or `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE`; `.drive-sync.json` in the mirror records what was synced, and Drive folders named `.something` and `CLAUDE.md` are skipped. On a real (not dry) run, a `manifest.json` of the Drive file versions and the report are stored under `sources/<time>/`.
+
+To look at the Drive folder without importing, use the read-only browse commands. Paths are relative to the program folder ("LA 3-6"), whose `README.md` describes the layout:
+
+```bash
+pnpm --filter @little-ants/importer run la-import --drive-list . --depth 0       # top level
+pnpm --filter @little-ants/importer run la-import --drive-list 01_BRAND/Characters --depth 2
+pnpm --filter @little-ants/importer run la-import --drive-cat README.md          # Google Docs print as text
+```
 
 The **Drive sync** page in Admin queues a sync; to carry it out locally, run the worker in another terminal: `pnpm --filter @little-ants/importer run la-import --worker`. It imports all units from Drive with their files and overwrites Admin edits.
+
+**Test data.** While the program is being tested, `seed-test` approves every imported unit as it is (its files become public), publishes it, and creates the **Mio Lingo** campus with a **Unit 5** class taught by every teacher, with eight test children. Run it after the import. A sync turns approved content back into drafts, so with `TEST_DATA_AFTER_SYNC=true` the worker runs it after every sync and adds its output to the sync report; otherwise run it again yourself, because the Teacher app keeps the last release until the next run. Running it again keeps the class's lesson progress and children, and publishes only units that changed.
+
+```bash
+pnpm --filter @little-ants/api run seed-test
+```
+
+After `seed-test`, a manual `la-import` skips approved units as "edited in Admin" unless you pass `--force`; the Drive sync page always overwrites.
 
 6. The seed invites `sonnh273@gmail.com` as admin (all staff roles); set `SEED_ADMIN_EMAIL` to invite someone else. To add more staff, or a development password, use `invite-staff`, then run everything:
 
@@ -54,6 +70,7 @@ pnpm dev
 | Variable | Used by | Notes |
 |---|---|---|
 | `DATABASE_URL` | api, db, importer | PostgreSQL connection string |
+| `TEST_DATA_AFTER_SYNC` | importer worker | `true` during testing: every Drive sync also runs `seed-test` |
 | `GOOGLE_DRIVE_FOLDER_ID` | importer | Shared Drive folder for `la-import --drive` ("Little Ants English" or its "LA 3-6" folder) |
 | `GOOGLE_DRIVE_API_KEY` | importer | Google API key restricted to the Drive API; reads folders shared by link |
 | `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE` | importer | Path to a service account JSON key; used instead of the API key, for folders shared with that account |
@@ -64,7 +81,7 @@ pnpm dev
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | api | Enables "Continue with Google"; redirect URI `<API_PUBLIC_URL>/api/auth/callback/google` |
 | `AUTH_COOKIE_DOMAIN` | api | e.g. `.passionedu.org` so la-admin/la-teacher/la-api share the session |
 | `AUTH_DEV_PASSWORD_LOGIN` | api | `true` enables email + password sign-in for invited staff. Refused in production |
-| `STORAGE_DRIVER` | api, importer | `local` (default, files in `infra/storage/`) or `s3` |
+| `STORAGE_DRIVER` | api, importer | `local` (default for development and testing on this machine, files in `infra/storage/`) or `s3` |
 | `S3_*`, `MEDIA_PUBLIC_BASE_URL` | api, importer | R2 settings when `STORAGE_DRIVER=s3`: `S3_BUCKET` is private (all uploads), `S3_PUBLIC_BUCKET` holds approved copies behind the media domain. Production must use `s3` |
 | `NEXT_PUBLIC_API_URL` | admin, teacher | API URL baked into the browser bundle |
 | `NEXT_PUBLIC_TEACHER_APP_URL` | admin | Used for "Preview in Teacher app" links |

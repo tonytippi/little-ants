@@ -107,3 +107,53 @@ describe('planUnitMedia', () => {
     });
   });
 });
+
+describe('planUnitMedia pages and cards', () => {
+  const PICS = `${FINAL}/U05_1_AI-Pictures`;
+  const plan = planUnitMedia({
+    unitCode: 'U05',
+    draftDesigns: [],
+    finalFiles: [
+      `${PICS}/07_Stories/U05_ST1_p0-cover.png`,
+      `${PICS}/07_Stories/U05_ST1_p1.png`,
+      `${PICS}/07_Stories/U05_ST1_p2.png`,
+      `${PICS}/08_Books/U05_BB1_p2_alt.png`,
+      `${PICS}/08_Books/U05_BB1_p2.png`,
+      `${PICS}/09_Move-and-Do/U05_MD1_card1_wash-your-hands.png`,
+      `${PICS}/09_Move-and-Do/U05_MD1_card2_pick-an-apple.png`,
+      `${PICS}/10_Sound-Tracks-Home/U05_TT_p1_garden-path.png`,
+      `${PICS}/10_Sound-Tracks-Home/U05_HH_header.png`,
+      `${PICS}/10_Sound-Tracks-Home/U05_ST-card_ant.png`,
+    ],
+    audio: [],
+    materials: ['ST1', 'BB1', 'MD1', 'TT', 'HH'].map((code) => ({ code, type: 'OTHER' })),
+    words: [],
+  });
+
+  it('gives story, book and Tiny Tracks pages their pictures', () => {
+    expect(plan.pages.map((page) => `${page.materialCode} ${page.number} ${name(page.file)}`).sort()).toEqual(
+      [
+        'BB1 2 08_Books/U05_BB1_p2.png',
+        'ST1 1 07_Stories/U05_ST1_p1.png',
+        'ST1 2 07_Stories/U05_ST1_p2.png',
+        'TT 1 10_Sound-Tracks-Home/U05_TT_p1_garden-path.png',
+      ],
+    );
+  });
+
+  it('uses page 0 as the cover picture and keeps every numbered card', () => {
+    expect(plan.links.map((link) => `${link.materialCode} ${link.order} ${name(link.file)}`).sort()).toEqual([
+      'HH 0 10_Sound-Tracks-Home/U05_HH_header.png',
+      'MD1 1 09_Move-and-Do/U05_MD1_card1_wash-your-hands.png',
+      'MD1 2 09_Move-and-Do/U05_MD1_card2_pick-an-apple.png',
+      'ST1 0 07_Stories/U05_ST1_p0-cover.png',
+    ]);
+  });
+
+  it('leaves out alternative pictures and names that match no material', () => {
+    expect(plan.ignored.map((item) => `${name(item.file)}: ${item.reason}`)).toEqual([
+      '08_Books/U05_BB1_p2_alt.png: alternative picture',
+      '10_Sound-Tracks-Home/U05_ST-card_ant.png: no matching material or word card',
+    ]);
+  });
+});

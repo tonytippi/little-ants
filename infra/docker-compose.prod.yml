@@ -66,20 +66,28 @@ services:
   # import-worker carries out "Sync from Google Drive" requests made in Admin (all units, overwriting Admin edits).
   # The import service runs the same importer by hand:
   #   docker compose ... --profile tools run --rm import                      (all units, with files)
-  #   docker compose ... --profile tools run --rm import pnpm --filter @little-ants/importer run la-import --drive --all --dry-run
-  # Database backups land in infra/backup/, reports of manual runs in infra/import-reports/, and downloads are
-  # cached in infra/drive-cache/ so later runs only fetch changed files. A service account key, if used,
-  # goes in infra/secrets/ (GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE=/repo/infra/secrets/<file>.json).
+  #   docker compose ... --profile tools run --rm import node tools/importer/dist/cli.js --drive --all --dry-run
+  # Each sync first updates the Drive mirror in docs/Little Ants English/LA 3-6 (only changed files are downloaded)
+  # and imports from it. Database backups land in infra/backup/ and reports of manual runs in infra/import-reports/.
+  # A service account key, if used, goes in infra/secrets/ (GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE=/repo/infra/secrets/<file>.json).
+  # Both run as the host user (HOST_UID, default 1000), so the files they write stay editable on the host.
   import-worker:
     <<: *app-env
-    environment: *server-env
+    environment: &import-env
+      <<: *server-env
+      # seed-test (run after each sync below) loads the API settings.
+      API_PUBLIC_URL: https://${API_HOST:-la-api.passionedu.org}
+      # Testing phase: every sync also approves and publishes the units as imported. Set to false before go-live.
+      TEST_DATA_AFTER_SYNC: 'true'
     image: little-ants-importer:${IMAGE_TAG:-latest}
     build: { <<: *build, target: importer }
-    command: ['pnpm', '--filter', '@little-ants/importer', 'run', 'la-import', '--worker']
+    user: '${HOST_UID:-1000}:${HOST_GID:-1000}'
+    working_dir: /repo
+    command: ['node', 'tools/importer/dist/cli.js', '--worker']
     volumes: &import-volumes
       - ./backup:/repo/infra/backup
       - ./import-reports:/repo/plans/reports
-      - ./drive-cache:/repo/infra/drive-cache
+      - '../docs/Little Ants English:/repo/docs/Little Ants English'
       - ./secrets:/repo/infra/secrets:ro
     depends_on:
       postgres: { condition: service_healthy }
@@ -89,9 +97,11 @@ services:
 
   import:
     <<: *app-env
-    environment: *server-env
+    environment: *import-env
     image: little-ants-importer:${IMAGE_TAG:-latest}
     build: { <<: *build, target: importer }
+    user: '${HOST_UID:-1000}:${HOST_GID:-1000}'
+    working_dir: /repo
     restart: 'no'
     profiles: [tools]
     volumes: *import-volumes

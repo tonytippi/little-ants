@@ -40,12 +40,18 @@ The seed invites `sonnh273@gmail.com` with every staff role (pass `-e SEED_ADMIN
 
 8. **Import the curriculum** from the shared Google Drive folder. First set up [Google Drive access](#google-drive-access), then in Admin open **Drive sync** and press **Sync from Google Drive**. The `import-worker` service carries out the request; the page shows its progress and report.
 
+9. **Test data** (testing phase only): approve and publish the imported units as they are and create the Mio Lingo campus with its Unit 5 class. The compose file sets `TEST_DATA_AFTER_SYNC: 'true'` on `import-worker`, so every sync does this; set it to `'false'` before go-live. To run it by hand (see [development](../development.md)):
+
+```bash
+$COMPOSE exec api node apps/api/dist/cli/seed-test.js
+```
+
 ## Curriculum sync from Google Drive
 
 While the curriculum is being finished, the Excel, Word and PDF files on Drive are the source of truth:
 
 - Edit content in the Drive files. Each sync re-imports **all units with their files** and replaces unit content changed in Admin. Files uploaded in Admin stay; layouts, pictures and recordings that are no longer on Drive are removed from their materials and word cards.
-- Every sync backs up the database to `infra/backup/` first and archives the Drive files it used to the private bucket under `sources/<time>/`, with `manifest.json` and the report. The data can be traced back to the exact Drive version even after the folder changes.
+- Every sync backs up the database to `infra/backup/` first and writes `manifest.json` (every Drive file with its id and version) and the report to the private bucket under `sources/<time>/`. Drive is the source of truth and keeps the file history, so the files themselves are not copied; the manifest ties the data to the exact Drive versions.
 - Teachers keep the last published version until a unit is published again in Admin.
 - If a request stays "Waiting", the worker is not running: `$COMPOSE logs import-worker`, then `$COMPOSE up -d import-worker`.
 
@@ -65,11 +71,13 @@ Files are matched by name (the report lists every file it could not place, and w
 
 Pictures must be PNG or JPEG. When a picture exists both as a regular and a 4K copy (a folder name containing "4K"), the lighter regular copy is used.
 
+Every sync first updates the Drive mirror in `docs/Little Ants English/LA 3-6/` on the host (only changed files are downloaded) and imports from it, so the files can be read on the host. The import services run as the host user (`HOST_UID`/`HOST_GID`, default 1000) to keep the mirror, reports and backups editable there. Production media stay in R2 (`STORAGE_DRIVER=s3`); local storage is for development and testing only.
+
 The same importer can be run by hand (reports go to `infra/import-reports/`):
 
 ```bash
-$COMPOSE --profile tools run --rm import pnpm --filter @little-ants/importer run la-import --drive --all --dry-run   # check only
-$COMPOSE --profile tools run --rm import                                                                              # write + upload files (keeps Admin edits)
+$COMPOSE --profile tools run --rm import node tools/importer/dist/cli.js --drive --all --dry-run   # check only
+$COMPOSE --profile tools run --rm import                                                            # write + upload files (keeps Admin edits)
 ```
 
 When the content is final, stop syncing (`$COMPOSE stop import-worker`): Admin becomes the source of truth from then on.

@@ -36,6 +36,8 @@ infra/backup/*.dump
 # Production import output and credentials on the VPS
 infra/import-reports/
 infra/drive-cache/
+# Local mirror of the curriculum Drive folder (la-import --drive)
+docs/Little Ants English/
 infra/secrets/
 
 # Agent tooling installed by AgentKit (reinstall instead of committing)

@@ -1,5 +1,3 @@
-import { mkdtempSync, rmSync } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { backupDatabase } from '@little-ants/db/backup';
 import { createPrismaClient } from '@little-ants/db';
@@ -13,11 +11,12 @@ import {
   discoverUnitFolders,
   unitNumber,
 } from './discover.js';
-import { DriveClient, downloadFolder, driveAuthFromEnv, findProgramFolder } from './drive.js';
+import { syncFolder } from './drive.js';
+import { openProgramFolder } from './drive-browse.js';
 import { planUnitMedia, type MediaPlan } from './media-plan.js';
 import { parseUnit } from './parse-unit.js';
 import { renderReport, type UnitReport } from './report.js';
-import { archivePrefix, archiveSources, sourceSummary } from './source-archive.js';
+import { archivePrefix, sourceSummary, writeSourceManifest } from './source-archive.js';
 import { hasManualEdits, materialRowsFor, writeUnit } from './write-unit.js';
 
 export const repoRoot = path.resolve(import.meta.dirname, '../../..');
@@ -25,7 +24,7 @@ export const repoRoot = path.resolve(import.meta.dirname, '../../..');
 export interface ImportOptions {
   /** Read the source files from Google Drive (GOOGLE_DRIVE_FOLDER_ID) instead of `source`. */
   drive: boolean;
-  /** Local program folder; defaults to docs/Little Ants English/LA 3-6. */
+  /** Local program folder; defaults to the Drive mirror, docs/Little Ants English/LA 3-6. */
   source?: string;
   /** Unit numbers to import, or "all". */
   units: number[] | 'all';
@@ -42,9 +41,12 @@ export interface ImportResult {
   startedAt: Date;
   /** Markdown report. */
   report: string;
-  /** Storage prefix of the archived Drive files (Drive runs that write). */
+  /** Storage prefix of the source manifest and report (Drive runs that write). */
   archive: string | null;
 }
+
+/** Local mirror of the Drive program folder ("LA 3-6"); also the default source of a local import. */
+export const SOURCE_MIRROR = path.join(repoRoot, 'docs', 'Little Ants English', 'LA 3-6');
 
 /** Parse the Master Sheets and Word files, write them to the database and upload their files. */
 export async function runImport(options: ImportOptions): Promise<ImportResult> {
@@ -52,71 +54,45 @@ export async function runImport(options: ImportOptions): Promise<ImportResult> {
   const startedAt = new Date();
   const storage =
     !options.dryRun && (options.assets || options.drive) ? createStorageFromEnv(process.env, repoRoot) : null;
-  const download = options.drive ? await downloadFromDrive(startedAt, storage, log) : null;
-  try {
-    const sourceFolder =
-      download?.folder ??
-      path.resolve(options.source ?? path.join(repoRoot, 'docs', 'Little Ants English', 'LA 3-6'));
-    const reports = await importUnits(options, sourceFolder, options.assets ? storage : null, log);
-    const report = renderReport(reports, {
-      dryRun: options.dryRun,
-      startedAt,
-      source: download?.summary ?? [],
-    });
-    if (download?.archive && storage) {
-      await storage.put(`${download.archive}/report.md`, new TextEncoder().encode(report), 'text/markdown');
-    }
-    return { startedAt, report, archive: download?.archive ?? null };
-  } finally {
-    if (download) rmSync(download.root, { recursive: true, force: true });
+  const synced = options.drive ? await syncFromDrive(startedAt, storage, log) : null;
+  const sourceFolder = path.resolve(options.source ?? SOURCE_MIRROR);
+  const reports = await importUnits(options, sourceFolder, options.assets ? storage : null, log);
+  const report = renderReport(reports, {
+    dryRun: options.dryRun,
+    startedAt,
+    source: synced?.summary ?? [],
+  });
+  if (synced?.archive && storage) {
+    await storage.put(`${synced.archive}/report.md`, new TextEncoder().encode(report), 'text/markdown');
   }
+  return { startedAt, report, archive: synced?.archive ?? null };
 }
 
-/** Earlier downloads, so repeated runs only fetch files that changed on Drive (Google limits bursts of downloads). */
-function driveCacheDir(): string {
-  return path.resolve(
-    process.env.GOOGLE_DRIVE_CACHE_DIR?.trim() || path.join(repoRoot, 'infra', 'drive-cache'),
-  );
-}
-
-/** Download the Drive folder to a temporary folder and archive a copy (not on dry runs). */
-async function downloadFromDrive(
+/** Bring the local mirror up to date with Drive and record which file versions will be imported (not on dry runs). */
+async function syncFromDrive(
   startedAt: Date,
   storage: ObjectStorage | null,
   log: (message: string) => void,
-): Promise<{ root: string; folder: string; archive: string | null; summary: string[] }> {
-  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID?.trim();
-  if (!folderId) throw new Error('Set GOOGLE_DRIVE_FOLDER_ID to the shared Drive folder');
-  const client = new DriveClient(driveAuthFromEnv(process.env));
-  const program = await findProgramFolder(client, folderId);
-  const root = mkdtempSync(path.join(os.tmpdir(), 'la-drive-'));
-  try {
-    const folder = path.join(root, 'program');
-    log(`Downloading "${program.name}" from Google Drive…`);
-    let count = 0;
-    let reused = 0;
-    const result = await downloadFolder(client, program.id, folder, {
-      cacheDir: driveCacheDir(),
-      onFile: (file) => {
-        count += 1;
-        if (file.cached) reused += 1;
-        if (count % 50 === 0) log(`Downloading from Google Drive: ${count} files`);
-      },
-    });
-    log(
-      `Got ${result.files.length} files (${result.files.length - reused} downloaded, ${reused} unchanged since the last run).`,
-    );
-    let archive: string | null = null;
-    if (storage) {
-      archive = archivePrefix(startedAt);
-      await archiveSources(storage, archive, folder, { folderId: program.id, ...result });
-      log(`Archived the source files to ${archive}/`);
-    }
-    return { root, folder, archive, summary: sourceSummary({ folderId: program.id, ...result, archive }) };
-  } catch (error) {
-    rmSync(root, { recursive: true, force: true });
-    throw error;
+): Promise<{ archive: string | null; summary: string[] }> {
+  const { client, program } = await openProgramFolder(process.env);
+  log(`Syncing "${program.name}" from Google Drive to ${path.relative(repoRoot, SOURCE_MIRROR)}…`);
+  let count = 0;
+  const result = await syncFolder(client, program.id, SOURCE_MIRROR, {
+    onFile: () => {
+      count += 1;
+      if (count % 100 === 0) log(`Syncing from Google Drive: ${count} files checked`);
+    },
+  });
+  log(
+    `Got ${result.files.length} files (${result.downloaded} downloaded, ${result.files.length - result.downloaded} unchanged, ${result.removed.length} removed).`,
+  );
+  let archive: string | null = null;
+  if (storage) {
+    archive = archivePrefix(startedAt);
+    await writeSourceManifest(storage, archive, { folderId: program.id, ...result });
+    log(`Source manifest written to ${archive}/manifest.json`);
   }
+  return { archive, summary: sourceSummary({ folderId: program.id, ...result, archive }) };
 }
 
 async function importUnits(
@@ -213,6 +189,7 @@ const ROLE_LABELS: Record<string, string> = {
   word: 'word pictures',
   cover: 'unit cover',
   place: 'place pictures',
+  page: 'page pictures',
 };
 
 /** Report lines for a unit's files: what was linked, what was undone, and which files were left out and why. */
@@ -239,5 +216,6 @@ function plannedCounts(plan: MediaPlan): UnitMediaResult {
   );
   if (plan.words.length) linked.word = plan.words.length;
   for (const picture of plan.pictures) linked[picture.role] = (linked[picture.role] ?? 0) + 1;
+  if (plan.pages.length) linked.page = plan.pages.length;
   return { linked, removed: 0 };
 }

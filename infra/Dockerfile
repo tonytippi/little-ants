@@ -34,7 +34,7 @@ RUN pnpm turbo run build --filter=@little-ants/api... --filter=@little-ants/admi
 FROM build AS migrate
 CMD ["pnpm", "--filter", "@little-ants/db", "run", "migrate:deploy"]
 
-# One-off curriculum import: Google Drive → database + R2. It backs up the database first,
+# Curriculum import: Google Drive → local mirror → database + R2. It backs up the database first,
 # so it needs pg_dump matching the server (PostgreSQL 17).
 FROM build AS importer
 RUN apt-get update \
@@ -46,7 +46,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends postgresql-client-17 \
   && rm -rf /var/lib/apt/lists/*
 RUN pnpm turbo run build --filter=@little-ants/importer...
-CMD ["pnpm", "--filter", "@little-ants/importer", "run", "la-import", "--drive", "--all", "--assets"]
+CMD ["node", "tools/importer/dist/cli.js", "--drive", "--all", "--assets"]
 
 FROM build AS api-prune
 RUN pnpm prune --prod --ignore-scripts

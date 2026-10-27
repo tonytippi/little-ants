@@ -86,6 +86,13 @@ export async function parseUnit(
     }
   }
 
+  // Stories and books written as "1. …", "2. …" without "Page N:" lines: each number is a page.
+  for (const material of sheet.materials) {
+    if (!PAGED_TYPES.has(material.type) || pages.has(material.code)) continue;
+    const numbered = numberedPages(material.fullText);
+    if (numbered.length > 1) pages.set(material.code, numbered);
+  }
+
   // Shared content rules (same checks as the Admin validation panel).
   const findings = checkUnitRules({
     unitCode: code,
@@ -136,4 +143,17 @@ export async function parseUnit(
   }
 
   return { files, sheet, plans, contentTexts, pages, issues };
+}
+
+const PAGED_TYPES = new Set<string>(['STORY', 'BOOK']);
+
+/** "1. Annie has a basket.\n   'Let's go!'\n2. …" → pages 1, 2, …; lines before the first number are left out. */
+export function numberedPages(fullText: string): { number: number; text: string }[] {
+  const pages: { number: number; text: string }[] = [];
+  for (const line of fullText.split('\n')) {
+    const start = /^\s*(\d+)\.\s+(.*)$/.exec(line);
+    if (start) pages.push({ number: Number(start[1]), text: start[2]!.trim() });
+    else if (pages.length > 0 && line.trim()) pages[pages.length - 1]!.text += `\n${line.trim()}`;
+  }
+  return pages;
 }

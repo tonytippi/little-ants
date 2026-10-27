@@ -116,6 +116,19 @@ export async function importUnitMedia(
     }
   }
 
+  // Pages are rebuilt on every import, so earlier page pictures are already gone.
+  for (const page of plan.pages) {
+    const materialId = materialIds.get(page.materialCode);
+    if (!materialId) continue;
+    const asset = await importFileAsAsset(prisma, storage, page.file);
+    await prisma.materialPage.upsert({
+      where: { materialId_number: { materialId, number: page.number } },
+      update: { imageAssetId: asset.id },
+      create: { materialId, number: page.number, imageAssetId: asset.id },
+    });
+    count('page', page.file);
+  }
+
   const keepPictures = new Map<string, Set<string>>(); // role → asset ids
   for (const picture of plan.pictures) {
     const asset = await importFileAsAsset(prisma, storage, picture.file);

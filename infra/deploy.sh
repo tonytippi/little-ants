@@ -20,6 +20,8 @@ echo "Applying database migrations"
 $COMPOSE --profile tools run --rm migrate
 
 echo "Starting services"
+# The import services mount the Drive mirror; create it as the host user, not as root by Docker.
+mkdir -p "docs/Little Ants English"
 $COMPOSE up -d --remove-orphans
 
 echo "Waiting for the API to report healthy"
