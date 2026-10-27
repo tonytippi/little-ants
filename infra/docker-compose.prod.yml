@@ -24,6 +24,14 @@ x-server-env: &server-env
   # Use a URL-safe POSTGRES_PASSWORD (e.g. openssl rand -hex 32): it is embedded in this URL.
   DATABASE_URL: postgresql://${POSTGRES_USER:-little_ants}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-little_ants}
 
+# API settings, shared by the api service and by seed-test, which import-worker runs after each sync.
+x-api-env: &api-env
+  <<: *server-env
+  API_PUBLIC_URL: https://${API_HOST:-la-api.passionedu.org}
+  CORS_ORIGINS: https://${ADMIN_HOST:-la-admin.passionedu.org},https://${TEACHER_HOST:-la-teacher.passionedu.org}
+  # Shares the session cookie between the admin, teacher and api hosts.
+  AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.passionedu.org}
+
 services:
   postgres:
     image: postgres:17-bookworm
@@ -74,9 +82,7 @@ services:
   import-worker:
     <<: *app-env
     environment: &import-env
-      <<: *server-env
-      # seed-test (run after each sync below) loads the API settings.
-      API_PUBLIC_URL: https://${API_HOST:-la-api.passionedu.org}
+      <<: *api-env
       # Testing phase: every sync also approves and publishes the units as imported. Set to false before go-live.
       TEST_DATA_AFTER_SYNC: 'true'
     image: little-ants-importer:${IMAGE_TAG:-latest}
@@ -113,12 +119,8 @@ services:
     image: little-ants-api:${IMAGE_TAG:-latest}
     build: { <<: *build, target: api }
     environment:
-      <<: *server-env
+      <<: *api-env
       API_PORT: 3001
-      API_PUBLIC_URL: https://${API_HOST:-la-api.passionedu.org}
-      CORS_ORIGINS: https://${ADMIN_HOST:-la-admin.passionedu.org},https://${TEACHER_HOST:-la-teacher.passionedu.org}
-      # Shares the session cookie between the admin, teacher and api hosts.
-      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.passionedu.org}
     ports:
       - '127.0.0.1:9202:3001'
     depends_on:
