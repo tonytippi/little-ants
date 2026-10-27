@@ -26,7 +26,7 @@ export function LessonList({
     <div className="flex flex-col gap-6">
       {[...weeks.entries()].map(([week, lessons]) => (
         <section key={week} aria-label={`Week ${week}`}>
-          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-bark-500">Week {week}</h2>
+          <h2 className="mb-2 font-display text-xl font-extrabold text-bark-900">Week {week}</h2>
           <ul className="divide-y divide-cream-200 rounded-[var(--radius-card)] border border-cream-200 bg-white">
             {lessons.map((lesson) => (
               <li

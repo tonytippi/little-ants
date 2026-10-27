@@ -1,31 +1,36 @@
 /*
- * Little Ants design tokens (from the logo and brand guide).
+ * Little Ants design tokens, from Brand Guidelines v2.1 (01_BRAND/Guidelines on Drive).
+ * Named brand colours: Ant Red #B5543A (ant-500), Ant Red Deep #9C4530 (ant-600, small text), Leaf Green #4F7F32
+ * (leaf-600), Leaf Green Deep #3F6B28 (leaf-700, small text), Grass #6E9A45 (leaf-500), Sun Yellow #F2C14E
+ * (sun-400, never for text), Paper Cream #FBF2DA (cream-100), Soil Ink #4A2E20 (bark-900). Other steps are tints.
  * Apps import this after `@import 'tailwindcss';` and add `@source` for this package.
  */
 @theme {
-  --color-leaf-50: #eef7ee;
-  --color-leaf-100: #d6ecd6;
-  --color-leaf-500: #3d9142;
-  --color-leaf-600: #2e7d32;
-  --color-leaf-700: #23632a;
-  --color-ant-50: #fbefe9;
-  --color-ant-100: #f5d6c8;
-  --color-ant-500: #c2532e;
-  --color-ant-600: #a64424;
-  --color-ant-700: #85361d;
-  --color-sun-100: #fff1c7;
-  --color-sun-400: #ffc93c;
-  --color-sun-500: #f2b400;
-  --color-cream-50: #fdfaf4;
-  --color-cream-100: #f7f1e6;
-  --color-cream-200: #f0e7d8;
+  --color-leaf-50: #f0f5ea;
+  --color-leaf-100: #dce8d0;
+  --color-leaf-500: #6e9a45;
+  --color-leaf-600: #4f7f32;
+  --color-leaf-700: #3f6b28;
+  --color-ant-50: #f9ede8;
+  --color-ant-100: #f1d5ca;
+  --color-ant-500: #b5543a;
+  --color-ant-600: #9c4530;
+  --color-ant-700: #7e3726;
+  --color-sun-100: #fcf0cf;
+  --color-sun-400: #f2c14e;
+  --color-sun-500: #dba73a;
+  --color-cream-50: #fffdf8;
+  --color-cream-100: #fbf2da;
+  --color-cream-200: #f3ebd6;
   --color-bark-500: #7a5a48;
-  --color-bark-700: #4e3628;
-  --color-bark-900: #3e2a20;
+  --color-bark-700: #5a3c2b;
+  --color-bark-900: #4a2e20;
 
   --font-sans: var(--font-nunito), ui-rounded, 'Segoe UI', system-ui, sans-serif;
   /* Andika is the brand font for anything children read. */
   --font-child: var(--font-andika), 'Andika', 'Century Gothic', var(--font-sans);
+  /* Baloo 2 is for big display words only: unit titles and the class TV screen. */
+  --font-display: var(--font-baloo), 'Baloo 2', var(--font-sans);
 
   --radius-card: 0.875rem;
 }

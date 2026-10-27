@@ -8,7 +8,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { syncInput } from '@little-ants/shared';
+import { syncInput, type ReleaseMedia } from '@little-ants/shared';
 import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators.js';
 import { canAccessClass, hasRole, type StaffUser } from '../auth/staff-access.js';
@@ -51,12 +51,32 @@ export class TeachController {
         },
       },
     });
+    const pictures = await this.releasePictures();
     return classes.map(({ currentUnit, ...rest }) => ({
       ...rest,
       currentUnit: currentUnit
-        ? { code: currentUnit.code, title: currentUnit.title, release: currentUnit.releases[0] ?? null }
+        ? {
+            code: currentUnit.code,
+            title: currentUnit.title,
+            release: currentUnit.releases[0] ?? null,
+            picture: pictures.get(currentUnit.code) ?? null,
+          }
         : null,
     }));
+  }
+
+  /**
+   * The picture that stands for each published unit (its cover, else its lead character's art), read from the
+   * latest release so it is always an approved, public file. Only these two fields are read from the payload.
+   */
+  private async releasePictures(): Promise<Map<string, ReleaseMedia>> {
+    const rows = await this.db.$queryRaw<{ code: string; picture: ReleaseMedia | null }[]>`
+      SELECT DISTINCT ON (r."unitId") u.code AS code,
+             COALESCE(NULLIF(r.payload->'unit'->'cover', 'null'::jsonb),
+                      r.payload->'unit'->'leadCharacter'->'image') AS picture
+      FROM "UnitRelease" r JOIN "Unit" u ON u.id = r."unitId"
+      ORDER BY r."unitId", r.version DESC`;
+    return new Map(rows.flatMap((row) => (row.picture ? [[row.code, row.picture] as const] : [])));
   }
 
   /** Published units a teacher can open (the latest version of each). */
@@ -73,7 +93,12 @@ export class TeachController {
         releases: { orderBy: { version: 'desc' }, take: 1, select: { version: true, publishedAt: true } },
       },
     });
-    return units.map(({ releases, ...unit }) => ({ ...unit, release: releases[0]! }));
+    const pictures = await this.releasePictures();
+    return units.map(({ releases, ...unit }) => ({
+      ...unit,
+      release: releases[0]!,
+      picture: pictures.get(unit.code) ?? null,
+    }));
   }
 
   @Get('units/:code/release')

@@ -56,7 +56,7 @@ function Prepare({
     <>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-bold uppercase tracking-wide text-ant-500">
+          <p className="text-sm font-bold uppercase tracking-wide text-ant-600">
             {payload.unit.code} · Week {lesson.week} · {stageLabel(lesson.stage)}
           </p>
           <h1 className="text-3xl font-extrabold text-bark-900">Prepare lesson {lesson.number}</h1>
@@ -130,7 +130,7 @@ function Prepare({
                 return (
                   <section key={material.code} className="rounded-xl bg-cream-100 p-3">
                     <p className="font-bold">
-                      <span className="mr-2 text-xs text-ant-500">{material.code}</span>
+                      <span className="mr-2 text-xs text-ant-600">{material.code}</span>
                       {material.title}
                     </p>
                     {material.format ? <p className="text-sm text-bark-500">{material.format}</p> : null}

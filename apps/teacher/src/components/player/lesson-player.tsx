@@ -275,7 +275,7 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
           >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-ant-500">Step {stepIndex + 1}</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-ant-600">Step {stepIndex + 1}</p>
                 <h2 className="font-extrabold text-bark-900">{step?.title}</h2>
               </div>
               <button

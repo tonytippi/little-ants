@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { ReleaseMaterial, ReleaseStep, UnitReleasePayload } from '@little-ants/shared';
 import type { StageView } from '../../lib/presenter';
+import { fadeClass } from '../storybook';
 import { PdfPage } from './pdf-page';
 import {
   clampPage,
@@ -23,11 +24,17 @@ interface StageProps {
   presenter?: boolean;
 }
 
-function Picture({ src, alt }: { src: string; alt: string }) {
+/** `fade` softens the edges into the page, for character art drawn on paper (brand storybook look). */
+function Picture({ src, alt, fade = false }: { src: string; alt: string; fade?: boolean }) {
   // Plain <img>: media comes from the offline cache / media domain, not the Next image optimizer.
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} className="max-h-full max-w-full rounded-2xl object-contain" draggable={false} />
+    <img
+      src={src}
+      alt={alt}
+      className={`max-h-full max-w-full object-contain ${fade ? fadeClass : 'rounded-2xl'}`}
+      draggable={false}
+    />
   );
 }
 
@@ -171,7 +178,7 @@ function StepCard({
     <div className="flex h-full flex-col items-center justify-center gap-6">
       {lead ? (
         <div className="flex max-h-[60%] min-h-0 items-center justify-center">
-          <Picture src={lead} alt={leadName} />
+          <Picture src={lead} alt={leadName} fade />
         </div>
       ) : null}
       <ChildText size="xl">{title}</ChildText>

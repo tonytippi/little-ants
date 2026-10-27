@@ -391,8 +391,12 @@ describe('content editing, review, publishing and teaching', () => {
     const classes = await request(server()).get('/api/teach/classes').set(as(teacher)).expect(200);
     expect(classes.body[0]).toMatchObject({
       name: 'Bees',
-      currentUnit: { code: UNIT, release: { version: 1 } },
+      currentUnit: { code: UNIT, release: { version: 1 }, picture: { id: posterAssetId, kind: 'IMAGE' } },
     });
+    const units = await request(server()).get('/api/teach/units').set(as(teacher)).expect(200);
+    expect(units.body).toEqual([
+      expect.objectContaining({ code: UNIT, picture: expect.objectContaining({ id: posterAssetId }) }),
+    ]);
 
     const release = await request(server())
       .get(`/api/teach/units/${UNIT}/release`)

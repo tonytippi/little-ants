@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Andika, Nunito } from 'next/font/google';
+import { Andika, Baloo_2, Nunito } from 'next/font/google';
 import type { ReactNode } from 'react';
 import './globals.css';
 import { Providers } from './providers';
@@ -10,6 +10,7 @@ const andika = Andika({
   weight: ['400', '700'],
   variable: '--font-andika',
 });
+const baloo = Baloo_2({ subsets: ['latin', 'vietnamese'], weight: ['700', '800'], variable: '--font-baloo' });
 
 export const metadata: Metadata = {
   title: { default: 'Little Ants Teacher', template: '%s · Little Ants Teacher' },
@@ -20,14 +21,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#2e7d32',
+  themeColor: '#4f7f32',
   width: 'device-width',
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${nunito.variable} ${andika.variable}`}>
+    <html lang="en" className={`${nunito.variable} ${andika.variable} ${baloo.variable}`}>
       <body className="min-h-screen antialiased">
         <Providers>{children}</Providers>
       </body>

@@ -30,7 +30,7 @@ export default function PrintWordsPage() {
       <PrintToolbar title={`${unit.code} · Word list`} back={`/units/${unit.code}?tab=words`} />
       <article className="mx-auto max-w-[190mm] px-6 py-8 print:px-0 print:py-0">
         <header className="border-b-2 border-leaf-600 pb-2">
-          <p className="text-[9pt] font-bold uppercase tracking-wider text-ant-500">
+          <p className="text-[9pt] font-bold uppercase tracking-wider text-ant-600">
             {unit.code} · Level {unit.level.number} {unit.level.name}
           </p>
           <h1 className="text-2xl font-extrabold">{unit.title} — word list</h1>

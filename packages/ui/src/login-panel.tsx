@@ -63,7 +63,7 @@ export function LoginPanel({ appName, api, auth, callbackUrl, onSignedIn }: Logi
   return (
     <main className="flex min-h-screen items-center justify-center bg-cream-100 p-6">
       <div className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-sm ring-1 ring-cream-200">
-        <p className="text-sm font-bold uppercase tracking-wider text-ant-500">Little Ants English</p>
+        <p className="text-sm font-bold uppercase tracking-wider text-ant-600">Little Ants English</p>
         <h1 className="mt-1 text-2xl font-extrabold text-leaf-700">{appName}</h1>
         <p className="mt-2 text-sm text-bark-500">Sign in with the Google account your school invited.</p>
 

@@ -7,6 +7,7 @@ import { Spinner } from '@little-ants/ui/feedback';
 import { Stage } from '../../components/player/stage';
 import { clampPage } from '../../components/player/stage-content';
 import { ReleaseGate } from '../../components/release-gate';
+import { UnitArt } from '../../components/storybook';
 import {
   isPresenterMessage,
   presenterChannelName,
@@ -70,10 +71,14 @@ function TvStage({
           onPageCount={onPageCount}
         />
       ) : (
-        <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon-512.png" alt="" className="size-40 rounded-3xl" />
-          <p className="font-child text-4xl font-bold text-leaf-700">{payload.unit.title}</p>
+        <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+          <UnitArt
+            picture={payload.unit.cover ?? payload.unit.leadCharacter?.image}
+            className="h-[55vh] w-full max-w-5xl"
+          />
+          <p className="font-display text-[clamp(3rem,7vw,6rem)] font-extrabold leading-none text-ant-500">
+            {payload.unit.title}
+          </p>
           <p className="text-lg text-bark-500">
             {ended ? 'The teacher window was closed.' : 'Waiting for the teacher window…'}
           </p>

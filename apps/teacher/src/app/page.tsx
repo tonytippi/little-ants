@@ -6,6 +6,7 @@ import { Badge } from '@little-ants/ui/badge';
 import { EmptyState, ErrorNotice, Spinner } from '@little-ants/ui/feedback';
 import { AppShell } from '../components/app-shell';
 import { DownloadButton } from '../components/download-button';
+import { UnitArt, ctaClass } from '../components/storybook';
 import { links } from '../lib/links';
 import { useDownloadedVersions, usePublishedUnits, useTeachClasses } from '../lib/queries';
 import { RequireStaff, useMe } from '../lib/session';
@@ -29,7 +30,7 @@ function ClassCard({
     <article className="flex flex-col gap-4 rounded-[var(--radius-card)] border border-cream-200 bg-white p-5 shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-xl font-extrabold text-bark-900">{klass.name}</h2>
+          <h2 className="font-display text-2xl font-extrabold leading-tight text-bark-900">{klass.name}</h2>
           <p className="text-sm text-bark-500">
             {klass.campus.name} · Level {klass.level.number} {klass.level.name} · {klass.students.length}{' '}
             children
@@ -42,17 +43,20 @@ function ClassCard({
 
       {unit ? (
         <>
-          <div className="rounded-xl bg-cream-100 px-4 py-3">
-            <p className="text-xs font-bold uppercase tracking-wide text-ant-500">{unit.code}</p>
-            <p className="text-lg font-bold text-bark-900">{unit.title}</p>
-            <p className="text-sm text-bark-700">
-              Next: <strong>Lesson {klass.nextLesson}</strong> of 40
-            </p>
+          <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-ant-600">{unit.code}</p>
+              <p className="font-display text-3xl font-extrabold leading-none text-ant-500">{unit.title}</p>
+              <p className="mt-2 font-semibold text-leaf-700">
+                Next: Lesson {klass.nextLesson} of 40
+              </p>
+            </div>
+            <UnitArt picture={unit.picture} className="aspect-video h-auto max-h-44 w-full" />
           </div>
           {unit.release || local ? (
             <>
-              <div className="flex flex-wrap gap-2">
-                <Link href={links.teach(lesson)} className={buttonClass('primary', 'lg')}>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link href={links.teach(lesson)} className={ctaClass}>
                   ▶ Teach lesson {klass.nextLesson}
                 </Link>
                 <Link href={links.prepare(lesson)} className={buttonClass('secondary', 'lg')}>
@@ -99,7 +103,7 @@ function Today() {
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-extrabold text-bark-900">Hello, {user.name.split(' ')[0]}!</h1>
+      <h1 className="font-display text-4xl font-extrabold text-ant-500">Hello, {user.name.split(' ')[0]}!</h1>
       {classes.data?.stale ? (
         <p className="mt-1 text-sm text-bark-500">
           Offline: showing your classes from the last time you were online.
@@ -125,7 +129,7 @@ function Today() {
       </section>
 
       <section className="mt-10" aria-labelledby="units-heading">
-        <h2 id="units-heading" className="text-lg font-extrabold text-bark-900">
+        <h2 id="units-heading" className="font-display text-2xl font-extrabold text-bark-900">
           All published units
         </h2>
         <p className="text-sm text-bark-500">
@@ -133,28 +137,34 @@ function Today() {
         </p>
         {units.isPending ? <Spinner label="Loading units" /> : null}
         {units.error ? <ErrorNotice error={units.error} /> : null}
-        <ul className="mt-4 divide-y divide-cream-200 rounded-[var(--radius-card)] border border-cream-200 bg-white">
+        <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {units.data?.data.map((unit) => (
-            <li key={unit.code} className="flex flex-wrap items-center gap-3 px-4 py-3">
-              <Link
-                href={links.unit(unit.code)}
-                className="min-w-56 flex-1 font-semibold text-bark-900 hover:text-leaf-700"
-              >
-                <span className="mr-2 text-xs font-bold text-ant-500">{unit.code}</span>
-                {unit.title}
-                <span className="ml-2 text-xs font-normal text-bark-500">Level {unit.level.number}</span>
+            <li
+              key={unit.code}
+              className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-cream-200 bg-white p-4"
+            >
+              <Link href={links.unit(unit.code)} className="group flex flex-col gap-2">
+                <UnitArt picture={unit.picture} className="aspect-video h-auto w-full bg-cream-50" />
+                <span className="text-xs font-bold uppercase tracking-wide text-ant-600">
+                  {unit.code} · Level {unit.level.number}
+                </span>
+                <span className="font-display text-xl font-bold leading-tight text-bark-900 group-hover:text-ant-500">
+                  {unit.title}
+                </span>
               </Link>
-              <DownloadButton
-                compact
-                code={unit.code}
-                localVersion={downloaded[unit.code]?.version}
-                latestVersion={unit.release.version}
-                mediaBytes={downloaded[unit.code]?.mediaBytes}
-              />
+              <div className="mt-auto">
+                <DownloadButton
+                  compact
+                  code={unit.code}
+                  localVersion={downloaded[unit.code]?.version}
+                  latestVersion={unit.release.version}
+                  mediaBytes={downloaded[unit.code]?.mediaBytes}
+                />
+              </div>
             </li>
           ))}
           {units.data && units.data.data.length === 0 ? (
-            <li className="px-4 py-6 text-sm text-bark-500">No units are published yet.</li>
+            <li className="text-sm text-bark-500">No units are published yet.</li>
           ) : null}
         </ul>
       </section>

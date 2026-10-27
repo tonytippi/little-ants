@@ -64,7 +64,7 @@ function MaterialCard({ material }: { material: MaterialSummary }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-bold text-ant-500">{material.code}</p>
+          <p className="text-xs font-bold text-ant-600">{material.code}</p>
           <p className="truncate font-semibold">{material.title}</p>
         </div>
         <StatusBadge status={material.status} />

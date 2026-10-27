@@ -15,7 +15,7 @@ export function LessonPrint({ lesson }: { lesson: LessonDetail }) {
   return (
     <article className="mx-auto max-w-[190mm] px-6 py-8 print:break-after-page print:px-0 print:py-0">
       <header className="border-b-2 border-leaf-600 pb-2">
-        <p className="text-[9pt] font-bold uppercase tracking-wider text-ant-500">
+        <p className="text-[9pt] font-bold uppercase tracking-wider text-ant-600">
           {lesson.unit.code} · {lesson.unit.title} · Level {lesson.unit.level.number} {lesson.unit.level.name}
         </p>
         <h1 className="text-2xl font-extrabold">Lesson {lesson.number}</h1>

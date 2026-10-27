@@ -90,7 +90,7 @@ function Grid({
                   scope="col"
                   className="min-w-40 px-2 py-3 text-left align-bottom font-semibold text-bark-700"
                 >
-                  <span className="text-xs font-bold text-ant-500">Goal {goal.order}</span>
+                  <span className="text-xs font-bold text-ant-600">Goal {goal.order}</span>
                   <span className="block text-xs leading-snug">{goal.text}</span>
                 </th>
               ))}
@@ -154,7 +154,7 @@ function Observe() {
           {(payload) => (
             <>
               <div className="mb-5">
-                <p className="text-sm font-bold uppercase tracking-wide text-ant-500">
+                <p className="text-sm font-bold uppercase tracking-wide text-ant-600">
                   {payload.unit.code} · {klass.name}
                   {lesson ? ` · Lesson ${lesson}` : ''}
                 </p>

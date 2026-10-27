@@ -106,7 +106,7 @@ function ProductionLine({
   return (
     <tr className="border-t border-cream-200">
       <th scope="row" className="px-3 py-2 text-left font-normal">
-        <span className="font-bold text-ant-500">{material.code}</span>{' '}
+        <span className="font-bold text-ant-600">{material.code}</span>{' '}
         <span className="font-semibold">{material.title}</span>
       </th>
       {PRODUCTION_STAGES.map((stage) => {

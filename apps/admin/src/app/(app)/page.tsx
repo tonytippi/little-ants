@@ -43,7 +43,7 @@ function UnitCard({ unit }: { unit: UnitSummary }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-xs font-bold text-ant-500">{unit.code}</p>
+          <p className="text-xs font-bold text-ant-600">{unit.code}</p>
           <p className="font-bold leading-tight">{unit.title}</p>
           <p className="text-xs text-bark-500">{unit.leadCharacter}</p>
         </div>

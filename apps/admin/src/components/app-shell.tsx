@@ -32,7 +32,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="no-print flex shrink-0 flex-col border-b border-cream-200 bg-white md:sticky md:top-0 md:h-screen md:w-56 md:border-r md:border-b-0">
         <div className="px-5 py-4">
-          <p className="text-xs font-bold uppercase tracking-wider text-ant-500">Little Ants</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-ant-600">Little Ants</p>
           <p className="text-lg font-extrabold text-leaf-700">Admin</p>
         </div>
         <nav aria-label="Main" className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:pb-0">
