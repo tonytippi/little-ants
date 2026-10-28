@@ -11,6 +11,9 @@ export IMAGE_TAG="$TAG"
 
 echo "Building images for $TAG"
 $COMPOSE build
+# The migrate service sits in the tools profile, which a plain build skips: without this, new migrations
+# would never reach the database.
+$COMPOSE --profile tools build migrate
 
 echo "Backing up the database before migrating"
 $COMPOSE up -d postgres
