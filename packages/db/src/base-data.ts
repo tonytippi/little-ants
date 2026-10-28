@@ -73,7 +73,7 @@ export async function seedBaseData(prisma: PrismaClient): Promise<void> {
 
 /** The first admin, invited by the seed so a fresh database can be signed into. */
 export const DEFAULT_ADMIN_EMAIL = 'sonnh273@gmail.com';
-const ADMIN_ROLES = ['ADMIN', 'AUTHOR', 'REVIEWER', 'TEACHER'] as const;
+const ADMIN_ROLES = ['ADMIN', 'AUTHOR', 'REVIEWER'] as const;
 
 /**
  * Invite the default admin, or give an existing account every staff role (keeping roles it already has).

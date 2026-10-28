@@ -4,6 +4,7 @@ import { DEFAULT_ADMIN_EMAIL } from '@little-ants/db';
 import { AppModule } from '../app.module.js';
 import { loadEnv } from '../config/env.js';
 import { ContentService } from '../content/content.service.js';
+import { OrgService } from '../org/org.service.js';
 import { ReleaseBuilder } from '../releases/release-builder.service.js';
 import { seedTestData } from './test-data.js';
 
@@ -11,7 +12,7 @@ import { seedTestData } from './test-data.js';
  * Usage: pnpm --filter @little-ants/api run seed-test
  *
  * For testing only: approves and publishes every imported unit as it is and creates the
- * "Mio Lingo" campus with a "Unit 5" class. Run it after the curriculum import (and after every reset).
+ * test school's "Mio Lingo" campus with a "Unit 5" class. Run it after the curriculum import (and after every reset).
  */
 async function main(): Promise<void> {
   loadEnv();
@@ -24,8 +25,14 @@ async function main(): Promise<void> {
     await seedTestData(
       content,
       app.get(ReleaseBuilder),
+      app.get(OrgService),
       { id: admin?.id ?? null, roles: ['ADMIN'] },
       (line) => console.log(line),
+      // Comma-separated Google emails that may sign in to the student app as test parents.
+      (process.env.SEED_TEST_PARENT_EMAILS ?? '')
+        .split(',')
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean),
     );
   } finally {
     await app.close();

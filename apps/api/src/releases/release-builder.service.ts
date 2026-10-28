@@ -1,6 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Asset, Prisma } from '@little-ants/db';
-import { RELEASE_FORMAT, type ReleaseMedia, type UnitReleasePayload } from '@little-ants/shared';
+import {
+  RELEASE_FORMAT,
+  buildListeningPlan,
+  type ListeningBridge,
+  type ReleaseMedia,
+  type UnitReleasePayload,
+} from '@little-ants/shared';
 import type { ObjectStorage } from '@little-ants/storage';
 import { ContentService, type Db } from '../content/content.service.js';
 import { OBJECT_STORAGE } from '../storage/storage.tokens.js';
@@ -11,6 +17,18 @@ export interface ReleaseCheck {
 }
 
 const NOT_ARCHIVED = { not: 'ARCHIVED' as const };
+
+const SONG_TYPES = new Set(['SONG', 'CHANT']);
+
+/** The song's recording in a release: its "audio" file, else any audio file of the material. */
+function songAudio(material: UnitReleasePayload['materials'][number]): ReleaseMedia | null {
+  const audio =
+    material.media.find((item) => item.role === 'audio' && item.kind === 'AUDIO') ??
+    material.media.find((item) => item.kind === 'AUDIO');
+  if (!audio) return null;
+  const { role: _role, ...media } = audio;
+  return media;
+}
 
 @Injectable()
 export class ReleaseBuilder {
@@ -129,7 +147,7 @@ export class ReleaseBuilder {
       };
     };
 
-    return {
+    const payload: UnitReleasePayload = {
       format: RELEASE_FORMAT,
       version,
       publishedAt: publishedAt.toISOString(),
@@ -222,6 +240,40 @@ export class ReleaseBuilder {
         homeLink: lesson.homeLink,
       })),
     };
+    const lookBack = await this.lookBackSongs(unit.number, unit.level.programId, db);
+    payload.listening = buildListeningPlan(payload, lookBack);
+    return payload;
+  }
+
+  /**
+   * Songs of the previous unit (number - 1, same program) from its latest release: its SG1 is the
+   * bridge song, its other songs and chants are the favourites. None when it was never published.
+   */
+  private async lookBackSongs(
+    unitNumber: number,
+    programId: string,
+    db: Db,
+  ): Promise<{ bridge: ListeningBridge | null; favourites: ListeningBridge[] }> {
+    const none = { bridge: null, favourites: [] };
+    if (unitNumber <= 1) return none;
+    const release = await db.unitRelease.findFirst({
+      where: { unit: { number: unitNumber - 1, level: { programId } } },
+      orderBy: [{ publishedAt: 'desc' }, { version: 'desc' }],
+      select: { payload: true },
+    });
+    const previous = release?.payload as Partial<UnitReleasePayload> | null | undefined;
+    if (!previous?.unit?.code || !Array.isArray(previous.materials)) return none;
+    const unitCode = previous.unit.code;
+    const songs = previous.materials
+      .filter((material) => SONG_TYPES.has(material.type))
+      .map((material) => ({
+        unitCode,
+        materialCode: material.code,
+        title: material.title,
+        audio: songAudio(material),
+      }));
+    const bridge = songs.find((song) => song.materialCode === 'SG1') ?? songs[0] ?? null;
+    return { bridge, favourites: songs.filter((song) => song !== bridge) };
   }
 
   /**

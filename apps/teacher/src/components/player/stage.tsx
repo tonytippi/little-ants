@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { ReleaseMaterial, ReleaseStep, UnitReleasePayload } from '@little-ants/shared';
 import type { StageView } from '../../lib/presenter';
-import { fadeClass } from '../storybook';
+import { fadeClass } from '@little-ants/ui/storybook';
 import { PdfPage } from './pdf-page';
 import {
   clampPage,

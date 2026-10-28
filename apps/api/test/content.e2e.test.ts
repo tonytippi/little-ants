@@ -2,7 +2,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { UnitReleasePayload } from '@little-ants/shared';
 import type { StaffUser } from '../src/auth/staff-access.js';
-import { TEST_USER_HEADER, createStaff, createTestApp, type TestApp } from './test-app.js';
+import { TEST_USER_HEADER, createSchool, createStaff, createTestApp, type TestApp } from './test-app.js';
 
 const UNIT = 'U90';
 
@@ -16,6 +16,7 @@ describe('content editing, review, publishing and teaching', () => {
   let lessonId: string;
   let classId: string;
   let studentId: string;
+  let schoolId: string;
   const as = (user: StaffUser) => ({ [TEST_USER_HEADER]: user.id });
   const server = () => ctx.app.getHttpServer();
 
@@ -23,7 +24,9 @@ describe('content editing, review, publishing and teaching', () => {
     ctx = await createTestApp({ headerAuth: true });
     author = await createStaff(ctx.prisma, ['AUTHOR'], 'Author');
     reviewer = await createStaff(ctx.prisma, ['REVIEWER'], 'Reviewer');
-    teacher = await createStaff(ctx.prisma, ['TEACHER'], 'Teacher');
+    const school = await createSchool(ctx.prisma, 'Content test school');
+    schoolId = school.schoolId;
+    teacher = await createStaff(ctx.prisma, [], 'Teacher', [{ schoolId, role: 'TEACHER' }]);
 
     const level = await ctx.prisma.level.findFirstOrThrow({ where: { number: 1 } });
     const unit = await ctx.prisma.unit.create({
@@ -62,10 +65,9 @@ describe('content editing, review, publishing and teaching', () => {
       data: { unitId: unit.id, cardId: `${UNIT}-01`, order: 1, text: 'hello', pictureBrief: 'waving ant' },
     });
 
-    const campus = await ctx.prisma.campus.create({ data: { name: 'Content test campus' } });
     const klass = await ctx.prisma.class.create({
       data: {
-        campusId: campus.id,
+        campusId: school.campusId,
         name: 'Bees',
         levelId: level.id,
         schoolYear: '2026-2027',
@@ -74,7 +76,11 @@ describe('content editing, review, publishing and teaching', () => {
       },
     });
     classId = klass.id;
-    studentId = (await ctx.prisma.student.create({ data: { classId, displayName: 'Bé Na' } })).id;
+    studentId = (
+      await ctx.prisma.student.create({
+        data: { displayName: 'Bé Na', enrollments: { create: { classId, startedOn: new Date() } } },
+      })
+    ).id;
   });
 
   afterAll(async () => {
@@ -394,9 +400,9 @@ describe('content editing, review, publishing and teaching', () => {
       currentUnit: { code: UNIT, release: { version: 1 }, picture: { id: posterAssetId, kind: 'IMAGE' } },
     });
     const units = await request(server()).get('/api/teach/units').set(as(teacher)).expect(200);
-    expect(units.body).toEqual([
+    expect(units.body).toContainEqual(
       expect.objectContaining({ code: UNIT, picture: expect.objectContaining({ id: posterAssetId }) }),
-    ]);
+    );
 
     const release = await request(server())
       .get(`/api/teach/units/${UNIT}/release`)
@@ -411,6 +417,12 @@ describe('content editing, review, publishing and teaching', () => {
     expect(payload.unit.places).toEqual([
       { label: 'garden', image: expect.objectContaining({ id: posterAssetId }) },
     ]);
+    // Listening Time: 40 leaves; no bridge song because the previous unit was never published.
+    expect(payload.listening?.leaves).toHaveLength(40);
+    expect(payload.listening?.bridge).toBeNull();
+    expect(payload.listening?.leaves[0]!.items).toContainEqual(
+      expect.objectContaining({ kind: 'material', code: 'SG1' }),
+    );
   });
 
   it('syncs offline records once, moves the class on and ignores children from other classes', async () => {
@@ -434,12 +446,15 @@ describe('content editing, review, publishing and teaching', () => {
       observedAt: new Date().toISOString(),
     };
     const level = await ctx.prisma.level.findFirstOrThrow();
-    const elsewhere = await ctx.prisma.campus.create({ data: { name: 'Elsewhere' } });
+    const elsewhere = await createSchool(ctx.prisma, 'Elsewhere');
     const otherClass = await ctx.prisma.class.create({
-      data: { campusId: elsewhere.id, name: 'X', levelId: level.id, schoolYear: '2026-2027' },
+      data: { campusId: elsewhere.campusId, name: 'X', levelId: level.id, schoolYear: '2026-2027' },
     });
     const outsider = await ctx.prisma.student.create({
-      data: { displayName: 'Other', classId: otherClass.id },
+      data: {
+        displayName: 'Other',
+        enrollments: { create: { classId: otherClass.id, startedOn: new Date() } },
+      },
     });
     const body = {
       lessonRuns: [run],
@@ -476,7 +491,7 @@ describe('content editing, review, publishing and teaching', () => {
   });
 
   it('stops other teachers syncing into a class that is not theirs, record by record', async () => {
-    const stranger = await createStaff(ctx.prisma, ['TEACHER'], 'Stranger');
+    const stranger = await createStaff(ctx.prisma, [], 'Stranger', [{ schoolId, role: 'TEACHER' }]);
     const clientId = crypto.randomUUID();
     const response = await request(server())
       .post('/api/teach/sync')

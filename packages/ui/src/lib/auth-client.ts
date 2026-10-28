@@ -15,7 +15,17 @@ export interface StaffUser {
   email: string;
   name: string;
   image: string | null;
-  roles: ('ADMIN' | 'AUTHOR' | 'REVIEWER' | 'TEACHER')[];
+  /** Little Ants HQ roles. */
+  roles: ('ADMIN' | 'AUTHOR' | 'REVIEWER')[];
+  /** Schools the person works at, with their role there. */
+  schools: { schoolId: string; role: 'SCHOOL_ADMIN' | 'TEACHER' }[];
+}
+
+/** HQ admins and school admins: may run schools (HQ admins every school). */
+export function runsSchools(user: Pick<StaffUser, 'roles' | 'schools'> | null | undefined): boolean {
+  return (
+    !!user && (user.roles.includes('ADMIN') || user.schools.some((school) => school.role === 'SCHOOL_ADMIN'))
+  );
 }
 
 export function hasRole(

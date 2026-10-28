@@ -99,11 +99,11 @@ enum ProductionState {
 // People (Better Auth compatible user table; auth tables are added with login)
 // ---------------------------------------------------------------------------
 
+/// Little Ants HQ roles. Teaching is a school role (SchoolStaff), not one of these.
 enum Role {
   ADMIN
   AUTHOR
   REVIEWER
-  TEACHER
 }
 
 model User {
@@ -129,6 +129,8 @@ model User {
   lessonRuns     LessonRun[]         @relation("LessonRuns")
   observations   Observation[]       @relation("Observations")
   importRuns     ImportRun[]         @relation("ImportRuns")
+  schools        SchoolStaff[]
+  listeningRuns  ClassListeningRun[] @relation("ClassListeningRuns")
 
   @@map("user")
 }
@@ -183,14 +185,18 @@ model Verification {
 }
 
 /// Staff can sign in only after an admin invites their email.
+/// An email allowed to sign up, with the HQ roles and/or the school role it gets on first sign-in.
 model StaffInvite {
-  id          String    @id @default(cuid())
-  email       String    @unique
-  roles       Role[]
+  id          String      @id @default(cuid())
+  email       String      @unique
+  roles       Role[]      @default([])
+  schoolId    String?
+  school      School?     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolRole  SchoolRole?
   invitedById String?
-  invitedBy   User?     @relation("InvitedBy", fields: [invitedById], references: [id])
+  invitedBy   User?       @relation("InvitedBy", fields: [invitedById], references: [id])
   acceptedAt  DateTime?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime    @default(now())
 }
 
 model AuditLog {
@@ -210,15 +216,58 @@ model AuditLog {
 // Schools and classes
 // ---------------------------------------------------------------------------
 
+/// A school (customer). HQ admins create schools; school admins run their own campuses, classes and children.
+model School {
+  id        String        @id @default(cuid())
+  name      String        @unique
+  active    Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  campuses  Campus[]
+  staff     SchoolStaff[]
+  invites   StaffInvite[]
+}
+
+enum SchoolRole {
+  /// Runs the school: campuses, classes, children, parent emails, teachers.
+  SCHOOL_ADMIN
+  /// Teaches the classes they are assigned to.
+  TEACHER
+}
+
+model SchoolStaff {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schoolId  String
+  school    School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  role      SchoolRole
+  createdAt DateTime   @default(now())
+
+  @@unique([userId, schoolId])
+  @@index([schoolId])
+}
+
 model Campus {
   id        String   @id @default(cuid())
-  name      String   @unique
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  name      String
   address   String   @default("")
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   classes   Class[]
+
+  @@unique([schoolId, name])
 }
 
+enum ClassStatus {
+  ACTIVE
+  /// Its children moved to `mergedInto`.
+  MERGED
+  STOPPED
+}
+
+/// A group of children that works through units one after another (one unit at a time).
 model Class {
   id            String              @id @default(cuid())
   campusId      String
@@ -226,6 +275,7 @@ model Class {
   name          String
   levelId       String
   level         Level               @relation(fields: [levelId], references: [id])
+  /// The unit of the open `ClassUnitRun` (kept in step with it), for quick reads.
   currentUnitId String?
   currentUnit   Unit?               @relation(fields: [currentUnitId], references: [id])
   /// Next lesson number in the current unit (1–40).
@@ -233,35 +283,139 @@ model Class {
   schoolYear    String
   /// ISO weekdays with an English lesson (1 = Monday … 7 = Sunday).
   lessonDays    Int[]               @default([1, 2, 3, 4])
-  active        Boolean             @default(true)
+  status        ClassStatus         @default(ACTIVE)
+  endedAt       DateTime?
+  mergedIntoId  String?
+  mergedInto    Class?              @relation("ClassMerge", fields: [mergedIntoId], references: [id])
+  mergedFrom    Class[]             @relation("ClassMerge")
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
-  students      Student[]
+  unitRuns      ClassUnitRun[]
+  enrollments   Enrollment[]
   teachers      TeacherAssignment[]
   lessonRuns    LessonRun[]
   observations  Observation[]
+  listeningRuns ClassListeningRun[]
 
   @@unique([campusId, name, schoolYear])
 }
 
-enum StudentStatus {
-  ACTIVE
-  LEFT
+/// The units a class has worked on and when. At most one open run (endedOn null) per class: enforced by the
+/// partial unique index "ClassUnitRun_one_open_per_class" (SQL in migration 20261028040000). Prisma cannot
+/// express it; if a generated migration drops it, remove that statement.
+model ClassUnitRun {
+  id        String    @id @default(cuid())
+  classId   String
+  class     Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  unitId    String
+  unit      Unit      @relation(fields: [unitId], references: [id])
+  startedOn DateTime  @db.Date
+  endedOn   DateTime? @db.Date
+
+  @@index([classId])
 }
 
-/// Minimal child record (Decree 13/2023): display name and birth year only, staff access only.
+/// Minimal child record (Decree 13/2023): display name and birth year only. A child belongs to no school by
+/// itself: enrollments say where and when they learn, so a child can continue at another campus or school.
 model Student {
-  id           String        @id @default(cuid())
-  classId      String
-  class        Class         @relation(fields: [classId], references: [id])
+  id           String          @id @default(cuid())
   displayName  String
   birthYear    Int?
-  status       StudentStatus @default(ACTIVE)
   /// Date the parent consent form was received.
   consentAt    DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  enrollments  Enrollment[]
   observations Observation[]
+  parents      StudentParent[]
+  listening    ListeningLog[]
+}
+
+enum EnrollmentEnd {
+  LEFT
+  MOVED
+  MERGED
+  CLASS_STOPPED
+}
+
+/// A child in a class from `startedOn` until `endedOn` (null = now). At most one open enrollment per child:
+/// partial unique index "Enrollment_one_open_per_student" (migration 20261028040000; keep it as above).
+model Enrollment {
+  id        String         @id @default(cuid())
+  studentId String
+  student   Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId   String
+  class     Class          @relation(fields: [classId], references: [id])
+  startedOn DateTime       @db.Date
+  endedOn   DateTime?      @db.Date
+  endReason EnrollmentEnd?
+  createdAt DateTime       @default(now())
+
+  @@index([classId])
+  @@index([studentId])
+}
+
+// ---------------------------------------------------------------------------
+// Parents (separate from staff: own Google sign-in and sessions for the student app)
+// ---------------------------------------------------------------------------
+
+/// A parent the school registered by email. Signs in with Google using that email; never self-registers.
+model Parent {
+  id           String          @id @default(cuid())
+  /// Lower-case email the school entered.
+  email        String          @unique
+  /// Google account id, bound on first sign-in; a different Google account with the same email is refused.
+  googleSub    String?         @unique
+  name         String          @default("")
+  createdAt    DateTime        @default(now())
+  lastSignInAt DateTime?
+  children     StudentParent[]
+  sessions     ParentSession[]
+}
+
+model StudentParent {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parentId     String
+  parent       Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  /// e.g. "Mother", optional.
+  relationship String   @default("")
+  createdAt    DateTime @default(now())
+
+  @@unique([studentId, parentId])
+  @@index([parentId])
+}
+
+/// One signed-in device of a parent (at most two). The cookie holds a random token; only its hash is stored.
+model ParentSession {
+  id          String   @id @default(cuid())
+  parentId    String
+  parent      Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  tokenHash   String   @unique
+  /// e.g. "iPhone · Safari", shown when the parent has to sign a device out.
+  deviceLabel String
+  createdAt   DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([parentId])
+}
+
+/// A Google sign-in in progress: state/nonce for the redirect, then (when two devices are already signed in)
+/// the verified parent waiting to choose which device to sign out.
+model ParentSignIn {
+  id               String    @id @default(cuid())
+  stateHash        String    @unique
+  correlationHash  String
+  nonce            String
+  redirect         String
+  expiresAt        DateTime
+  consumedAt       DateTime?
+  parentId         String?
+  pendingTokenHash String?   @unique
+  deviceLabel      String    @default("")
+  createdAt        DateTime  @default(now())
 }
 
 model TeacherAssignment {
@@ -351,6 +505,7 @@ model Unit {
   gateChecks GateCheck[]
   releases   UnitRelease[]
   classes    Class[]
+  classRuns  ClassUnitRun[]
   pictures   UnitAsset[]
 }
 
@@ -688,4 +843,45 @@ model Observation {
 
   @@index([classId, unitCode])
   @@index([studentId, unitCode, goalOrder, observedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Listening Time
+// ---------------------------------------------------------------------------
+
+/// A child finished a leaf at home (recorded on the device, synced later; clientId makes retries safe).
+model ListeningLog {
+  id          String   @id @default(cuid())
+  clientId    String   @unique
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  unitCode    String
+  leaf        Int
+  /// The device's local date, which counts for "days this week" and "2 new leaves a day".
+  playedOn    DateTime @db.Date
+  completedAt DateTime
+  /// Item keys heard, e.g. "SG1", "SN:a", "WC:fruit", for "times heard".
+  itemsHeard  String[] @default([])
+  /// The device session that recorded it.
+  sessionId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([studentId, unitCode])
+  @@index([studentId, playedOn])
+}
+
+/// A leaf played in class (At school), recorded by the teacher's device.
+model ClassListeningRun {
+  id        String   @id @default(cuid())
+  clientId  String   @unique
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  unitCode  String
+  leaf      Int
+  playedAt  DateTime
+  teacherId String
+  teacher   User     @relation("ClassListeningRuns", fields: [teacherId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([classId, unitCode])
 }

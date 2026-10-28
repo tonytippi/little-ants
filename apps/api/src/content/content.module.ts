@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ParentsModule } from '../parents/parents.module.js';
 import { AssetUrls } from '../assets/asset-urls.service.js';
 import { AssetsController } from '../assets/assets.controller.js';
 import { ReleaseBuilder } from '../releases/release-builder.service.js';
@@ -9,6 +10,7 @@ import { ItemsController } from './items.controller.js';
 import { UnitsController } from './units.controller.js';
 
 @Module({
+  imports: [ParentsModule],
   controllers: [
     UnitsController,
     ItemsController,

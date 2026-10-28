@@ -25,7 +25,7 @@ const envSchema = z
     DATABASE_URL: z.string().min(1),
     CORS_ORIGINS: z
       .string()
-      .default('http://localhost:3000,http://localhost:3002')
+      .default('http://localhost:3000,http://localhost:3002,http://localhost:3003')
       .transform((value) =>
         value
           .split(',')
@@ -35,6 +35,8 @@ const envSchema = z
     BETTER_AUTH_SECRET: z.string().min(32).optional(),
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+    /** The student (Listening Time) app, where parent sign-in returns to. */
+    STUDENT_APP_URL: z.string().url().default('http://localhost:3003'),
     /** Parent domain shared by admin./teacher./api. hosts, e.g. ".littleants.vn". */
     AUTH_COOKIE_DOMAIN: z.string().min(1).optional(),
     /** Development only: allow email + password sign-in for invited staff. */
@@ -51,6 +53,13 @@ const envSchema = z
         code: 'custom',
         path: ['AUTH_DEV_PASSWORD_LOGIN'],
         message: 'Must be false in production',
+      });
+    }
+    if (!env.STUDENT_APP_URL.startsWith('https://')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['STUDENT_APP_URL'],
+        message: 'Must be an https URL in production',
       });
     }
     if (!env.API_PUBLIC_URL.startsWith('https://')) {

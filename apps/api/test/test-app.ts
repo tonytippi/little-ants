@@ -2,11 +2,11 @@ import 'reflect-metadata';
 import { Injectable, type INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import type { PrismaClient, Role } from '@little-ants/db';
+import type { PrismaClient, Role, SchoolRole } from '@little-ants/db';
 import { AppModule } from '../src/app.module.js';
 import type { AuthedRequest } from '../src/auth/decorators.js';
 import { SessionResolver } from '../src/auth/session-resolver.js';
-import type { StaffUser } from '../src/auth/staff-access.js';
+import { loadStaffUser, type StaffUser } from '../src/auth/staff-access.js';
 import { configureApp } from '../src/bootstrap.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
@@ -22,13 +22,7 @@ class HeaderSessionResolver extends SessionResolver {
   async resolve(request: AuthedRequest): Promise<StaffUser | null> {
     const id = request.headers[TEST_USER_HEADER];
     if (typeof id !== 'string') return null;
-    const user = await this.prisma.client.user.findUnique({
-      where: { id },
-      select: { id: true, email: true, name: true, image: true, roles: true, active: true },
-    });
-    if (!user?.active) return null;
-    const { active: _active, ...staff } = user;
-    return staff;
+    return loadStaffUser(this.prisma.client, id);
   }
 }
 
@@ -37,9 +31,12 @@ export interface TestApp {
   prisma: PrismaClient;
 }
 
-export async function createTestApp(options: { headerAuth?: boolean } = {}): Promise<TestApp> {
+export async function createTestApp(
+  options: { headerAuth?: boolean; providers?: [token: unknown, value: unknown][] } = {},
+): Promise<TestApp> {
   const builder = Test.createTestingModule({ imports: [AppModule] });
   if (options.headerAuth) builder.overrideProvider(SessionResolver).useClass(HeaderSessionResolver);
+  for (const [token, value] of options.providers ?? []) builder.overrideProvider(token).useValue(value);
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bodyParser: false });
   configureApp(app);
@@ -49,14 +46,37 @@ export async function createTestApp(options: { headerAuth?: boolean } = {}): Pro
 
 let counter = 0;
 
+/** A staff account with HQ roles and, optionally, roles at schools. */
 export async function createStaff(
   prisma: PrismaClient,
   roles: Role[],
   name = 'Test user',
+  schools: { schoolId: string; role: SchoolRole }[] = [],
 ): Promise<StaffUser> {
   counter += 1;
-  return prisma.user.create({
-    data: { name, email: `staff${counter}-${Date.now()}@example.com`, roles },
-    select: { id: true, email: true, name: true, image: true, roles: true },
+  const user = await prisma.user.create({
+    data: {
+      name,
+      email: `staff${counter}-${Date.now()}@example.com`,
+      roles,
+      schools: { create: schools },
+    },
   });
+  return (await loadStaffUser(prisma, user.id))!;
+}
+
+/** A school with one campus, for tests that need classes. */
+export async function createSchool(
+  prisma: PrismaClient,
+  name = 'Test school',
+): Promise<{ schoolId: string; campusId: string }> {
+  counter += 1;
+  const school = await prisma.school.create({
+    data: {
+      name: `${name} ${counter}-${Date.now()}`,
+      campuses: { create: { name: 'Main campus' } },
+    },
+    include: { campuses: true },
+  });
+  return { schoolId: school.id, campusId: school.campuses[0]!.id };
 }

@@ -3,9 +3,9 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * Installing the Teacher app to the Home Screen / desktop. Chrome, Edge and Android offer an install prompt
+ * Installing a Little Ants app to the Home Screen / desktop. Chrome, Edge and Android offer an install prompt
  * (`beforeinstallprompt`); Safari has none, so the app shows the steps instead. The prompt can fire before any
- * screen mounts, so it is captured as soon as this module loads.
+ * screen mounts, so it is captured as soon as this module loads: import this module from the app's providers.
  */
 
 interface InstallPromptEvent extends Event {

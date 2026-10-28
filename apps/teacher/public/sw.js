@@ -10,7 +10,17 @@ const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const SHELL_CACHE = `la-shell-${VERSION}`;
 const STATIC_CACHE = `la-static-${VERSION}`;
 const MEDIA_CACHE = 'la-media-v1';
-const ROUTES = ['/', '/unit', '/teach', '/prepare', '/observe', '/present', '/print', '/preview'];
+const ROUTES = [
+  '/',
+  '/unit',
+  '/teach',
+  '/prepare',
+  '/observe',
+  '/present',
+  '/print',
+  '/preview',
+  '/listening',
+];
 const FILES = ['/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png', '/pdf.worker.min.mjs'];
 
 async function cacheShell() {

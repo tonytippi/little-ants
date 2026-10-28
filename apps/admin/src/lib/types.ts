@@ -1,7 +1,11 @@
 /** Response shapes of the Little Ants API used by Admin. */
 
 export type ContentStatus = 'DRAFT' | 'REVIEW' | 'APPROVED' | 'ARCHIVED';
-export type Role = 'ADMIN' | 'AUTHOR' | 'REVIEWER' | 'TEACHER';
+/** Little Ants HQ roles. Teaching is a role at a school. */
+export type Role = 'ADMIN' | 'AUTHOR' | 'REVIEWER';
+export type SchoolRole = 'SCHOOL_ADMIN' | 'TEACHER';
+export type ClassStatus = 'ACTIVE' | 'MERGED' | 'STOPPED';
+export type EnrollmentEnd = 'LEFT' | 'MOVED' | 'MERGED' | 'CLASS_STOPPED';
 
 export interface UnitSummary {
   id: string;
@@ -246,34 +250,95 @@ export interface LevelOption {
   units: { id: string; code: string; title: string }[];
 }
 
-export interface ClassSummary {
+export interface School {
+  id: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  /** The signed-in person's role here; HQ admins act as school admins everywhere. */
+  myRole: SchoolRole | null;
+  _count: { campuses: number; staff: number };
+}
+
+export interface SchoolStaffMember {
+  role: SchoolRole;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+    active: boolean;
+    /** Active classes of this school the person teaches. */
+    assignments: { class: { id: string; name: string } }[];
+  };
+}
+
+export interface SchoolInvite {
+  id: string;
+  email: string;
+  schoolRole: SchoolRole | null;
+  createdAt: string;
+}
+
+export interface SchoolStaff {
+  members: SchoolStaffMember[];
+  invites: SchoolInvite[];
+}
+
+interface ClassBase {
   id: string;
   name: string;
   schoolYear: string;
-  active: boolean;
+  status: ClassStatus;
+  endedAt: string | null;
+  mergedIntoId: string | null;
   nextLesson: number;
   lessonDays: number[];
   campusId: string;
   levelId: string;
   currentUnitId: string | null;
-  campus: { id: string; name: string };
   level: { id: string; number: number; name: string };
   currentUnit: { id: string; code: string; title: string } | null;
   teachers: { user: { id: string; name: string; email: string } }[];
-  _count?: { students: number };
 }
 
+export interface ClassSummary extends ClassBase {
+  campus: { id: string; name: string };
+  /** Open enrollments: children in the class now. */
+  _count: { enrollments: number };
+}
+
+/** A child. Children are not tied to one class; their classes over time are enrollments. */
 export interface Student {
   id: string;
-  classId: string;
   displayName: string;
   birthYear: number | null;
-  status: 'ACTIVE' | 'LEFT';
   consentAt: string | null;
 }
 
-export interface ClassDetail extends ClassSummary {
-  students: Student[];
+export interface Enrollment {
+  id: string;
+  /** Date columns: midnight UTC of the day. */
+  startedOn: string;
+  endedOn: string | null;
+  endReason: EnrollmentEnd | null;
+  student: Student;
+}
+
+export interface ClassUnitRun {
+  id: string;
+  startedOn: string;
+  endedOn: string | null;
+  unit: { code: string; title: string };
+}
+
+export interface ClassDetail extends ClassBase {
+  campus: { id: string; name: string; school: { id: string; name: string } };
+  mergedInto: { id: string; name: string } | null;
+  /** Newest first. */
+  unitRuns: ClassUnitRun[];
+  /** Open enrollments first. */
+  enrollments: Enrollment[];
 }
 
 export interface StaffMember {
@@ -291,6 +356,9 @@ export interface StaffInvite {
   id: string;
   email: string;
   roles: Role[];
+  /** Set when a school invited the person. */
+  schoolId: string | null;
+  schoolRole: SchoolRole | null;
   createdAt: string;
 }
 
@@ -329,4 +397,10 @@ export interface UnitPicture {
   order: number;
   assetId: string;
   asset: Omit<Asset, 'url'> & { url?: string };
+}
+
+/** A parent email linked to a child; parents sign in to the Listening Time app with it. */
+export interface StudentParent {
+  relationship: string;
+  parent: { id: string; email: string; name: string; lastSignInAt: string | null };
 }

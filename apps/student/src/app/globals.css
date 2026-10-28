@@ -1,0 +1,80 @@
+@import 'tailwindcss';
+@import '@little-ants/ui/styles.css';
+
+@source '../../../../packages/ui/src';
+
+/* The Listening app uses Poppins for interface text (design: U05 Listening App); Baloo 2 and Andika as everywhere. */
+@theme {
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, 'Segoe UI', sans-serif;
+  --animate-bob: bob 1.6s ease-in-out infinite;
+
+  @keyframes bob {
+    50% {
+      translate: 0 -4px;
+    }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-sun-400);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+}
+
+@layer components {
+  /* A leaf: rounded on three corners, pointed on one, tilted like the design's path leaves. */
+  .leaf-shape {
+    border-radius: 50% 50% 50% 8%;
+    rotate: -45deg;
+  }
+  .leaf-shape > * {
+    rotate: 45deg;
+  }
+  /* The small leaves of the weekly goal. */
+  .leaf-dot {
+    border-radius: 0 70% 0 70%;
+    rotate: -10deg;
+  }
+  /* The dashed trail behind a week of leaves. */
+  .leaf-trail::before {
+    content: '';
+    position: absolute;
+    left: 6%;
+    right: 6%;
+    top: 50%;
+    height: 6px;
+    margin-top: -3px;
+    border-radius: 6px;
+    background: repeating-linear-gradient(90deg, #e8dcc0 0 14px, transparent 14px 22px);
+  }
+  /* Pictures fade into the page (no frames), as in the storybook look. */
+  .fade-soft {
+    mask-image: radial-gradient(ellipse at center, #000 62%, transparent 80%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

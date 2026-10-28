@@ -8,8 +8,10 @@ import { ErrorNotice, Spinner } from '@little-ants/ui/feedback';
 import { LoginPanel } from '@little-ants/ui/login-panel';
 import { api, auth } from './api';
 
-interface Me {
+export interface Me {
   user: StaffUser;
+  /** Schools the person works at (HQ admins may run others too, see useCurrentSchool). */
+  schools: { id: string; name: string; role: 'SCHOOL_ADMIN' | 'TEACHER' }[];
   classes: { id: string; name: string; schoolYear: string; campus: { name: string } }[];
 }
 

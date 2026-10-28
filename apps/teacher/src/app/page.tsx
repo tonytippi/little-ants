@@ -6,7 +6,7 @@ import { Badge } from '@little-ants/ui/badge';
 import { EmptyState, ErrorNotice, Spinner } from '@little-ants/ui/feedback';
 import { AppShell } from '../components/app-shell';
 import { DownloadButton } from '../components/download-button';
-import { UnitArt, ctaClass } from '../components/storybook';
+import { UnitArt, ctaClass } from '@little-ants/ui/storybook';
 import { links } from '../lib/links';
 import { useDownloadedVersions, usePublishedUnits, useTeachClasses } from '../lib/queries';
 import { RequireStaff, useMe } from '../lib/session';
@@ -68,6 +68,9 @@ function ClassCard({
                 </Link>
                 <Link href={links.unit(unit.code, klass.id)} className={buttonClass('ghost', 'lg')}>
                   All lessons
+                </Link>
+                <Link href={links.listening(klass.id)} className={buttonClass('ghost', 'lg')}>
+                  Home listening
                 </Link>
               </div>
               <DownloadButton

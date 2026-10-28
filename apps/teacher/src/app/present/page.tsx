@@ -7,7 +7,7 @@ import { Spinner } from '@little-ants/ui/feedback';
 import { Stage } from '../../components/player/stage';
 import { clampPage } from '../../components/player/stage-content';
 import { ReleaseGate } from '../../components/release-gate';
-import { UnitArt } from '../../components/storybook';
+import { UnitArt } from '@little-ants/ui/storybook';
 import {
   isPresenterMessage,
   presenterChannelName,

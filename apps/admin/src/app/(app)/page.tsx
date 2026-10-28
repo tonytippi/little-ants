@@ -2,11 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { StatusBadge } from '@little-ants/ui/badge';
 import { EmptyState, ErrorNotice, Spinner } from '@little-ants/ui/feedback';
 import { PageHeader } from '../../components/page-header';
-import { api } from '../../lib/api';
-import { formatDate } from '../../lib/hooks';
+import { TEACHER_APP_URL, api } from '../../lib/api';
+import { formatDate, usePermissions } from '../../lib/hooks';
 import type { ContentStatus, UnitSummary } from '../../lib/types';
 
 const STATUS_ORDER: ContentStatus[] = ['DRAFT', 'REVIEW', 'APPROVED', 'ARCHIVED'];
@@ -70,7 +72,31 @@ function UnitCard({ unit }: { unit: UnitSummary }) {
   );
 }
 
-export default function UnitsDashboard() {
+/** '/' is the Units page for HQ staff; people who only run schools start on Classes. */
+export default function HomePage() {
+  const { hasHqRole, runsSchools } = usePermissions();
+  if (hasHqRole) return <UnitsDashboard />;
+  if (runsSchools) return <GoToClasses />;
+  return (
+    <EmptyState title="Nothing to manage here">
+      Teachers work in the{' '}
+      <a href={TEACHER_APP_URL} className="font-semibold text-leaf-700 hover:underline">
+        Teacher app
+      </a>
+      .
+    </EmptyState>
+  );
+}
+
+function GoToClasses() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/classes');
+  }, [router]);
+  return <Spinner label="Opening classes" />;
+}
+
+function UnitsDashboard() {
   const query = useQuery({
     queryKey: ['units'],
     queryFn: () => api.get<{ units: UnitSummary[] }>('/content/units'),

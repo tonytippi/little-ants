@@ -3,6 +3,12 @@
  * the Teacher app downloads it (and its media) for offline teaching.
  */
 
+import type { ListeningBridge, ListeningLeaf } from './listening-plan.js';
+
+/**
+ * Bump only for breaking changes. New optional fields (such as `listening`) keep format 1, so
+ * releases published before them stay readable.
+ */
 export const RELEASE_FORMAT = 1;
 
 export type MediaKind = 'IMAGE' | 'AUDIO' | 'VIDEO' | 'PDF';
@@ -102,6 +108,8 @@ export interface UnitReleasePayload {
   words: ReleaseWord[];
   materials: ReleaseMaterial[];
   lessons: ReleaseLesson[];
+  /** Listening Time: the 40 leaves of the unit. Missing in releases published before it existed. */
+  listening?: { leaves: ListeningLeaf[]; bridge: ListeningBridge | null };
 }
 
 /** Every media file a release needs, without duplicates (for offline download). */
@@ -121,5 +129,8 @@ export function releaseMedia(payload: UnitReleasePayload): ReleaseMedia[] {
       add(page.audio);
     }
   }
+  add(payload.listening?.bridge?.audio ?? null);
+  for (const leaf of payload.listening?.leaves ?? [])
+    for (const item of leaf.items) if (item.kind === 'lookBack') add(item.audio);
   return [...byId.values()];
 }

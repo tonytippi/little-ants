@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { Button } from '@little-ants/ui/button';
-import { isIos, isStandalone } from '../lib/install';
+import { isIos, isStandalone } from '@little-ants/ui/lib/install';
 import { flushOutbox, discardFailed } from '../lib/outbox';
-import { InstallButton, InstallSteps } from './install-button';
+import { InstallButton, InstallSteps, type InstallCopy } from '@little-ants/ui/install-button';
 import { useOnline, useOutboxState } from '../lib/hooks';
 import { useMe, useSignOut } from '../lib/session';
 
@@ -55,6 +55,12 @@ function StatusPills() {
   );
 }
 
+const INSTALL_COPY: InstallCopy = {
+  appName: 'Little Ants',
+  description:
+    'The app then opens from its own icon, full screen, and keeps downloaded units safely for teaching without Wi-Fi.',
+};
+
 /** Tells iPad/iPhone users to add the app to the Home Screen so Safari keeps the offline data. */
 function shouldShowInstallHint(): boolean {
   if (typeof window === 'undefined') return false;
@@ -96,7 +102,7 @@ function InstallHint() {
           Not now
         </button>
       </div>
-      <InstallSteps open={steps} mode="steps-ios" onClose={() => setSteps(false)} />
+      <InstallSteps open={steps} mode="steps-ios" onClose={() => setSteps(false)} {...INSTALL_COPY} />
     </div>
   );
 }
@@ -129,7 +135,7 @@ export function AppShell({
           ) : null}
           <div className="ml-auto flex flex-wrap items-center gap-3">
             <StatusPills />
-            <InstallButton />
+            <InstallButton {...INSTALL_COPY} />
             <span className="hidden text-sm text-bark-500 sm:inline">{user.name}</span>
             {offline ? null : (
               <Button variant="ghost" size="sm" onClick={() => void signOut()}>

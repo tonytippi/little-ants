@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import type { ReleaseMedia } from '@little-ants/shared';
 
 /**
  * The storybook look from Brand Guidelines v2.1 and the Listening App design: crayon pictures that fade into the
@@ -24,7 +23,8 @@ export function UnitArt({
   alt = '',
   className = '',
 }: {
-  picture: ReleaseMedia | null | undefined;
+  /** A release picture (only its URL is used). */
+  picture: { url: string } | null | undefined;
   alt?: string;
   className?: string;
 }) {

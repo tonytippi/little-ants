@@ -3,7 +3,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Auth } from './auth.js';
 import type { AuthedRequest } from './decorators.js';
-import type { StaffUser } from './staff-access.js';
+import { loadStaffUser, type StaffUser } from './staff-access.js';
 
 export const AUTH = Symbol('AUTH');
 
@@ -24,12 +24,6 @@ export class BetterAuthSessionResolver extends SessionResolver {
   async resolve(request: AuthedRequest): Promise<StaffUser | null> {
     const session = await this.auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
     if (!session) return null;
-    const user = await this.prisma.client.user.findUnique({
-      where: { id: session.user.id },
-      select: { id: true, email: true, name: true, image: true, roles: true, active: true },
-    });
-    if (!user?.active) return null;
-    const { active: _active, ...staff } = user;
-    return staff;
+    return loadStaffUser(this.prisma.client, session.user.id);
   }
 }

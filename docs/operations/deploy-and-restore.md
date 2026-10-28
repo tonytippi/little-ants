@@ -3,7 +3,7 @@
 One VPS runs everything with Docker Compose. Cloudflare Tunnel is the only way in; media comes straight from R2.
 
 ```
-Browser ─► Cloudflare ─► Tunnel (cloudflared) ─► 127.0.0.1:9200-9202 ─► admin · teacher · api · postgres · backup
+Browser ─► Cloudflare ─► Tunnel (cloudflared) ─► 127.0.0.1:9200-9202, 9204 ─► admin · teacher · api · student · postgres · backup
         └► la-media.passionedu.org ─► R2 bucket (approved files, cached for a year)
 ```
 
@@ -20,13 +20,14 @@ Files: [`infra/docker-compose.prod.yml`](../../infra/docker-compose.prod.yml), [
    - Connect a custom domain `la-media.passionedu.org` to the **media** bucket only. Never make the files bucket public: drafts must stay private.
    - Apply `infra/r2-cors.json` to both the files and the media bucket (change the origins to your domains). Admin uploads to the files bucket directly, and the Teacher app downloads from both.
    - Create an R2 API token with read/write on all three buckets.
-3. **Google sign-in**: create an OAuth web client. Authorised redirect URI: `https://la-api.passionedu.org/api/auth/callback/google`.
+3. **Google sign-in**: create an OAuth web client. Authorised redirect URIs: `https://la-api.passionedu.org/api/auth/callback/google` (staff) and `https://la-api.passionedu.org/api/parent/auth/google/callback` (parents in the student app).
 4. **Tunnel**: in Zero Trust → Networks → Tunnels, add public hostnames to the tunnel whose `cloudflared` runs on this server:
    - `la-admin.passionedu.org` → `http://localhost:9200`
    - `la-teacher.passionedu.org` → `http://localhost:9201`
    - `la-api.passionedu.org` → `http://localhost:9202` (the browser apps and Google sign-in call the API directly)
+   - `la-student.passionedu.org` → `http://localhost:9204` (Listening Time for children and parents)
 
-   The containers listen on `127.0.0.1` only. PostgreSQL is also published on `127.0.0.1:9203` for `psql` and the importer; do not add it to the tunnel. To run the tunnel in Docker instead, set `CLOUDFLARE_TUNNEL_TOKEN`, add `--profile tunnel` to the compose commands, and point the hostnames at `http://admin:3000`, `http://teacher:3002` and `http://api:3001`.
+   The containers listen on `127.0.0.1` only. PostgreSQL is also published on `127.0.0.1:9203` for `psql` and the importer; do not add it to the tunnel. To run the tunnel in Docker instead, set `CLOUDFLARE_TUNNEL_TOKEN`, add `--profile tunnel` to the compose commands, and point the hostnames at `http://admin:3000`, `http://teacher:3002`, `http://student:3003` and `http://api:3001`.
 5. **Settings**: `cp infra/env.production.example .env.production` at the repository root and fill in every value. The compose file sets `NODE_ENV`, `DATABASE_URL` (the `postgres` container), the public URLs and `CORS_ORIGINS` itself. Changing a hostname needs a rebuild, because the URLs are baked into the browser bundles.
 6. **First deploy**: `infra/deploy.sh`.
 7. **Seed and first admin** (once):
@@ -36,11 +37,11 @@ COMPOSE="docker compose -f infra/docker-compose.prod.yml --env-file .env.product
 $COMPOSE --profile tools run --rm migrate pnpm --filter @little-ants/db run seed
 ```
 
-The seed invites `sonnh273@gmail.com` with every staff role (pass `-e SEED_ADMIN_EMAIL=...` to the seed run for another email). Invite more staff from Admin, or with `$COMPOSE exec api node apps/api/dist/cli/invite-staff.js --email someone@example.com --roles TEACHER`.
+The seed invites `sonnh273@gmail.com` with every HQ role (pass `-e SEED_ADMIN_EMAIL=...` to the seed run for another email). Create schools in Admin → **Schools**; school admins then add their teachers in **School staff**. From the command line: `$COMPOSE exec api node apps/api/dist/cli/invite-staff.js --email someone@example.com --school "School name" --school-role TEACHER` (or `--roles AUTHOR` for HQ staff).
 
 8. **Import the curriculum** from the shared Google Drive folder. First set up [Google Drive access](#google-drive-access), then in Admin open **Drive sync** and press **Sync from Google Drive**. The `import-worker` service carries out the request; the page shows its progress and report.
 
-9. **Test data** (testing phase only): approve and publish the imported units as they are and create the Mio Lingo campus with its Unit 5 class. The compose file sets `TEST_DATA_AFTER_SYNC: 'true'` on `import-worker`, so every sync does this; set it to `'false'` before go-live. To run it by hand (see [development](../development.md)):
+9. **Test data** (testing phase only): approve and publish the imported units as they are and create the Little Ants Test School with its Mio Lingo campus and Unit 5 class. Set `SEED_TEST_PARENT_EMAILS` in `.env.production` to Google accounts that may sign in to the student app as test parents. The compose file sets `TEST_DATA_AFTER_SYNC: 'true'` on `import-worker`, so every sync does this; set it to `'false'` before go-live. To run it by hand (see [development](../development.md)):
 
 ```bash
 $COMPOSE exec api node apps/api/dist/cli/seed-test.js
@@ -121,6 +122,12 @@ Create the scratch database once with `$COMPOSE exec postgres createdb -U little
 - Point an uptime checker (Cloudflare health checks or UptimeRobot) at `https://la-api.passionedu.org/health`.
 - Logs: `$COMPOSE logs -f api` (Docker rotates logs with the default json-file driver; set `max-size` in `/etc/docker/daemon.json`).
 - Error tracking (e.g. Sentry) is not set up yet.
+
+## Listening Time (student app)
+
+- Parents open `https://la-student.passionedu.org` (the Teacher app's **Home listening** page shows the link and a QR code) and sign in with the Google account whose email the school entered for their child (Admin → class → child → **Parents**). Two devices per parent; a third asks which one to sign out.
+- When a child leaves (or their class is stopped), the parents lose access at once; moving to another class or school keeps the child's progress and studied units.
+- Teachers signed in to the Teacher app can switch the student app to **At school** to play the lesson's leaf on the classroom screen.
 
 ## Classroom tips
 

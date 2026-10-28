@@ -12,6 +12,7 @@ import { StatusActions } from '../../../../components/status-actions';
 import { Tabs } from '../../../../components/tabs';
 import { GatesTab } from '../../../../components/unit/gates-tab';
 import { LessonsTab } from '../../../../components/unit/lessons-tab';
+import { ListeningTab } from '../../../../components/unit/listening-tab';
 import { MaterialsTab } from '../../../../components/unit/materials-tab';
 import { OverviewTab } from '../../../../components/unit/overview-tab';
 import { ProductionTab } from '../../../../components/unit/production-tab';
@@ -28,6 +29,7 @@ const TABS = [
   { id: 'words', label: 'Words' },
   { id: 'materials', label: 'Materials' },
   { id: 'lessons', label: 'Lessons' },
+  { id: 'listening', label: 'Listening Time' },
   { id: 'production', label: 'Production' },
   { id: 'validation', label: 'Validation' },
   { id: 'gates', label: 'Gate checks' },
@@ -146,6 +148,7 @@ export default function UnitPage() {
         {tab === 'words' ? <WordsTab unit={unit} /> : null}
         {tab === 'materials' ? <MaterialsTab unit={unit} /> : null}
         {tab === 'lessons' ? <LessonsTab unit={unit} /> : null}
+        {tab === 'listening' ? <ListeningTab unit={unit} /> : null}
         {tab === 'production' ? <ProductionTab code={unit.code} /> : null}
         {tab === 'validation' ? <ValidationTab code={unit.code} /> : null}
         {tab === 'gates' ? <GatesTab unit={unit} /> : null}

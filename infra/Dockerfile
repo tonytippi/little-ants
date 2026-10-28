@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# One Dockerfile, one target per service: api, migrate, importer, admin, teacher.
+# One Dockerfile, one target per service: api, migrate, importer, admin, teacher, student.
 # Build from the repository root:  docker build -f infra/Dockerfile --target api .
 
 FROM node:24-bookworm-slim AS base
@@ -13,6 +13,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
 COPY apps/admin/package.json apps/admin/
 COPY apps/teacher/package.json apps/teacher/
+COPY apps/student/package.json apps/student/
 COPY packages/db/package.json packages/db/
 COPY packages/shared/package.json packages/shared/
 COPY packages/storage/package.json packages/storage/
@@ -25,10 +26,13 @@ COPY . .
 # Public URLs are baked into the browser bundles at build time.
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_TEACHER_APP_URL
-# Versions the Teacher app service worker so each deploy refreshes offline caches.
+ARG NEXT_PUBLIC_STUDENT_APP_URL
+# Versions the Teacher and student app service workers so each deploy refreshes offline caches.
 ARG BUILD_ID=local
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL NEXT_PUBLIC_TEACHER_APP_URL=$NEXT_PUBLIC_TEACHER_APP_URL BUILD_ID=$BUILD_ID
-RUN pnpm turbo run build --filter=@little-ants/api... --filter=@little-ants/admin... --filter=@little-ants/teacher...
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL NEXT_PUBLIC_TEACHER_APP_URL=$NEXT_PUBLIC_TEACHER_APP_URL \
+    NEXT_PUBLIC_STUDENT_APP_URL=$NEXT_PUBLIC_STUDENT_APP_URL BUILD_ID=$BUILD_ID
+RUN pnpm turbo run build --filter=@little-ants/api... --filter=@little-ants/admin... --filter=@little-ants/teacher... \
+    --filter=@little-ants/student...
 
 # Database migrations (needs the Prisma CLI, a dev dependency).
 FROM build AS migrate
@@ -80,3 +84,13 @@ COPY --from=build --chown=node /repo/apps/teacher/public ./apps/teacher/public
 USER node
 EXPOSE 3002
 CMD ["node", "apps/teacher/server.js"]
+
+FROM node:24-bookworm-slim AS student
+ENV NODE_ENV=production PORT=3003 HOSTNAME=0.0.0.0
+WORKDIR /app
+COPY --from=build --chown=node /repo/apps/student/.next/standalone ./
+COPY --from=build --chown=node /repo/apps/student/.next/static ./apps/student/.next/static
+COPY --from=build --chown=node /repo/apps/student/public ./apps/student/public
+USER node
+EXPOSE 3003
+CMD ["node", "apps/student/server.js"]

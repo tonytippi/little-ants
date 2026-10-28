@@ -7,6 +7,7 @@ The Little Ants platform is a pnpm + Turborepo workspace in TypeScript.
 | `apps/api` | NestJS API (auth, content, assets, releases, teaching records) | 3001 |
 | `apps/admin` | Next.js Admin for the program team | 3000 |
 | `apps/teacher` | Next.js PWA teachers use in class (offline-capable) | 3002 |
+| `apps/student` | Next.js PWA for Listening Time: children and parents at home, teachers "At school" | 3003 |
 | `packages/db` | Prisma schema, migrations, seed, backup, test helpers | – |
 | `packages/shared` | zod DTOs, release bundle types, content rules | – |
 | `packages/storage` | Object storage: R2 (S3 API) or a local folder | – |
@@ -49,7 +50,7 @@ pnpm --filter @little-ants/importer run la-import --drive-cat README.md         
 
 The **Drive sync** page in Admin queues a sync; to carry it out locally, run the worker in another terminal: `pnpm --filter @little-ants/importer run la-import --worker`. It imports all units from Drive with their files and overwrites Admin edits.
 
-**Test data.** While the program is being tested, `seed-test` approves every imported unit as it is (its files become public), publishes it, and creates the **Mio Lingo** campus with a **Unit 5** class taught by every teacher, with eight test children. Run it after the import. A sync turns approved content back into drafts, so with `TEST_DATA_AFTER_SYNC=true` the worker runs it after every sync and adds its output to the sync report; otherwise run it again yourself, because the Teacher app keeps the last release until the next run. Running it again keeps the class's lesson progress and children, and publishes only units that changed.
+**Test data.** While the program is being tested, `seed-test` approves every imported unit as it is (its files become public), publishes it, and creates the **Little Ants Test School** with its **Mio Lingo** campus and a **Unit 5** class (U04 before, U05 now) taught by every teacher of that school, with eight test children. Emails in `SEED_TEST_PARENT_EMAILS` (comma-separated Google accounts) become parents of the first children, so they can sign in to the student app. Run it after the import. A sync turns approved content back into drafts, so with `TEST_DATA_AFTER_SYNC=true` the worker runs it after every sync and adds its output to the sync report; otherwise run it again yourself, because the Teacher app keeps the last release until the next run. Running it again keeps the class's lesson progress and children, and publishes only units that changed.
 
 ```bash
 pnpm --filter @little-ants/api run seed-test
@@ -61,7 +62,7 @@ After `seed-test`, a manual `la-import` skips approved units as "edited in Admin
 
 ```bash
 pnpm turbo build --filter=@little-ants/api...
-pnpm --filter @little-ants/api run invite-staff --email you@example.com --roles ADMIN,AUTHOR,REVIEWER,TEACHER
+pnpm --filter @little-ants/api run invite-staff --email you@example.com --roles ADMIN,AUTHOR,REVIEWER
 pnpm dev
 ```
 
@@ -78,12 +79,15 @@ pnpm dev
 | `API_PORT`, `API_PUBLIC_URL` | api | Defaults 3001 / `http://localhost:3001` |
 | `CORS_ORIGINS` | api | Comma-separated app origins |
 | `BETTER_AUTH_SECRET` | api | Required in production (32+ characters) |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | api | Enables "Continue with Google"; redirect URI `<API_PUBLIC_URL>/api/auth/callback/google` |
-| `AUTH_COOKIE_DOMAIN` | api | e.g. `.passionedu.org` so la-admin/la-teacher/la-api share the session |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | api | Enables "Continue with Google"; redirect URIs `<API_PUBLIC_URL>/api/auth/callback/google` (staff) and `<API_PUBLIC_URL>/api/parent/auth/google/callback` (parents) |
+| `AUTH_COOKIE_DOMAIN` | api | e.g. `.passionedu.org` so la-admin/la-teacher/la-student/la-api share the staff and parent sessions |
+| `STUDENT_APP_URL` | api | Student app origin; parent sign-in returns there (default `http://localhost:3003`) |
+| `SEED_TEST_PARENT_EMAILS` | seed-test | Testing: Google emails linked as parents of the test class's first children |
 | `AUTH_DEV_PASSWORD_LOGIN` | api | `true` enables email + password sign-in for invited staff. Refused in production |
 | `STORAGE_DRIVER` | api, importer | `local` (default for development and testing on this machine, files in `infra/storage/`) or `s3` |
 | `S3_*`, `MEDIA_PUBLIC_BASE_URL` | api, importer | R2 settings when `STORAGE_DRIVER=s3`: `S3_BUCKET` is private (all uploads), `S3_PUBLIC_BUCKET` holds approved copies behind the media domain. Production must use `s3` |
-| `NEXT_PUBLIC_API_URL` | admin, teacher | API URL baked into the browser bundle |
+| `NEXT_PUBLIC_API_URL` | admin, teacher, student | API URL baked into the browser bundle |
+| `NEXT_PUBLIC_STUDENT_APP_URL` | teacher | Student app link and QR code on the Home listening page |
 | `NEXT_PUBLIC_TEACHER_APP_URL` | admin | Used for "Preview in Teacher app" links |
 
 To try sign-in without Google, set `AUTH_DEV_PASSWORD_LOGIN=true` and create a password account:
@@ -94,6 +98,21 @@ To try sign-in without Google, set `AUTH_DEV_PASSWORD_LOGIN=true` and create a p
 - Authors edit drafts in Admin. Every change writes a revision (history, diff, restore).
 - Editing approved content starts a new draft version; it must be reviewed again. Approved files are never overwritten: a replacement upload becomes a new version.
 - Reviewers approve items (or the whole unit) and publish a **release**: an immutable bundle the Teacher app downloads for offline teaching. Publishing is blocked until every item is approved and the content rules report no errors.
+## Schools, classes, children and parents
+
+- **Schools → campuses → classes.** HQ staff have global roles (`ADMIN`, `AUTHOR`, `REVIEWER`); people at a school have a school role (`SCHOOL_ADMIN` or `TEACHER`, table `SchoolStaff`). HQ admins act as school admins everywhere. School routes are `/api/schools/:schoolId/...`; a school someone does not work at answers 404.
+- **A class works through units one at a time.** `ClassUnitRun` keeps the history; "start next unit" closes the current run and resets the lesson to 1. Classes can be merged into another class of the same school or stopped.
+- **Children are not tied to a school.** `Enrollment` rows say which class a child was in and when (at most one open enrollment). Moving a child, a merge or a stop closes the open row and, where it applies, opens a new one, so a child can continue at another campus or school.
+- **Access to the student app follows the enrollments:** a child in a class may open every unit their classes worked on while they were there, plus the current unit. With no open enrollment, access stops at the next request.
+- **Parents are separate from staff accounts** (`Parent`, `StudentParent`, `ParentSession`). The school enters a parent's email for a child (Admin → class → child → Parents); the parent signs in to the student app with the Google account of that email (`/api/parent/auth/google/start`, callback `/api/parent/auth/google/callback`). Sessions are stored in the database: at most two devices per parent, and a third sign-in asks which device to sign out.
+- `invite-staff` takes HQ roles and/or a school role: `--roles ADMIN,AUTHOR,REVIEWER` and/or `--school "Little Ants Test School" --school-role TEACHER`.
+
+## Listening Time
+
+- Every release carries the unit's 40 **Listening Time** leaves, generated by the Programme Guide rules (`buildListeningPlan` in `packages/shared/src/listening-plan.ts`). The bridge song is SG1 of the previous unit's latest release, so publish units in order (or republish the next unit after its predecessor). Releases published earlier have no leaves until republished. Admin shows the leaves read-only in the unit's **Listening Time** tab (published version or current draft).
+- Parents get only the listening part of a release (`listeningPayload` in `packages/shared/src/listening.ts`: leaves, the materials and word cards they play, pictures and recordings; no lesson plans or teacher notes): `GET /api/parent/students/:id/units/:code/listening`.
+- Finished leaves are recorded on the device and uploaded with `POST /api/parent/students/:id/listening/sync` (idempotent by `clientId`). The server repeats the app's rules: new leaves open in order, at most two new leaves per day (the device's date); repeats are always accepted. Leaves played in class are uploaded by the Teacher sync (`listeningRuns`).
+- The Teacher app's **Home listening** page shows each child's listening days for the last eight weeks and the share of the class at 4+ days (goal 80%), with the student app link and QR code for parents.
 
 ## Tests
 

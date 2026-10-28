@@ -4,6 +4,7 @@
 #   la-admin.passionedu.org   → http://localhost:9200   (admin)
 #   la-teacher.passionedu.org → http://localhost:9201   (teacher)
 #   la-api.passionedu.org     → http://localhost:9202   (api; the browser apps and Google sign-in call it)
+#   la-student.passionedu.org → http://localhost:9204   (student: Listening Time for children and parents)
 #   127.0.0.1:9203            → postgres, for psql and the importer on the host only
 #
 #   docker compose -f infra/docker-compose.prod.yml --env-file .env.production up -d
@@ -28,7 +29,8 @@ x-server-env: &server-env
 x-api-env: &api-env
   <<: *server-env
   API_PUBLIC_URL: https://${API_HOST:-la-api.passionedu.org}
-  CORS_ORIGINS: https://${ADMIN_HOST:-la-admin.passionedu.org},https://${TEACHER_HOST:-la-teacher.passionedu.org}
+  STUDENT_APP_URL: https://${STUDENT_HOST:-la-student.passionedu.org}
+  CORS_ORIGINS: https://${ADMIN_HOST:-la-admin.passionedu.org},https://${TEACHER_HOST:-la-teacher.passionedu.org},https://${STUDENT_HOST:-la-student.passionedu.org}
   # Shares the session cookie between the admin, teacher and api hosts.
   AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.passionedu.org}
 
@@ -64,6 +66,7 @@ services:
         # Baked into the browser bundles at build time.
         NEXT_PUBLIC_API_URL: https://${API_HOST:-la-api.passionedu.org}
         NEXT_PUBLIC_TEACHER_APP_URL: https://${TEACHER_HOST:-la-teacher.passionedu.org}
+        NEXT_PUBLIC_STUDENT_APP_URL: https://${STUDENT_HOST:-la-student.passionedu.org}
         BUILD_ID: ${IMAGE_TAG:-local}
     restart: 'no'
     profiles: [tools]
@@ -85,6 +88,8 @@ services:
       <<: *api-env
       # Testing phase: every sync also approves and publishes the units as imported. Set to false before go-live.
       TEST_DATA_AFTER_SYNC: 'true'
+      # Google emails that may sign in to the student app as test parents (comma-separated), set in .env.production.
+      SEED_TEST_PARENT_EMAILS: ${SEED_TEST_PARENT_EMAILS:-}
     image: little-ants-importer:${IMAGE_TAG:-latest}
     build: { <<: *build, target: importer }
     user: '${HOST_UID:-1000}:${HOST_GID:-1000}'
@@ -149,9 +154,19 @@ services:
       resources:
         limits: { memory: 512m }
 
+  student:
+    <<: *app-env
+    image: little-ants-student:${IMAGE_TAG:-latest}
+    build: { <<: *build, target: student }
+    ports:
+      - '127.0.0.1:9204:3003'
+    deploy:
+      resources:
+        limits: { memory: 512m }
+
   # Optional: run the tunnel in Docker instead of cloudflared on the host
   # (add --profile tunnel). Its public hostnames then point at the container ports:
-  # http://admin:3000, http://teacher:3002 and http://api:3001.
+  # http://admin:3000, http://teacher:3002, http://student:3003 and http://api:3001.
   cloudflared:
     image: cloudflare/cloudflared:2026.10.2
     command: tunnel --no-autoupdate run
@@ -159,7 +174,7 @@ services:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     restart: unless-stopped
     profiles: [tunnel]
-    depends_on: [api, admin, teacher]
+    depends_on: [api, admin, teacher, student]
     networks: [internal]
 
   # Nightly pg_dump to R2, kept for BACKUP_RETENTION_DAYS days.

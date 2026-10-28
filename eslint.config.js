@@ -29,7 +29,12 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/admin/**/*.{ts,tsx}', 'apps/teacher/**/*.{ts,tsx}', 'packages/ui/**/*.{ts,tsx}'],
+    files: [
+      'apps/admin/**/*.{ts,tsx}',
+      'apps/teacher/**/*.{ts,tsx}',
+      'apps/student/**/*.{ts,tsx}',
+      'packages/ui/**/*.{ts,tsx}',
+    ],
     plugins: { '@next/next': nextPlugin, 'react-hooks': reactHooks },
     rules: {
       ...nextPlugin.configs.recommended.rules,

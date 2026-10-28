@@ -4,21 +4,63 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { usePermissions } from '../lib/hooks';
+import { useCurrentSchool } from '../lib/school';
 import { useMe, useSignOut } from '../lib/session';
 
-const NAV = [
-  { href: '/', label: 'Units', adminOnly: false },
-  { href: '/assets', label: 'Assets', adminOnly: false },
-  { href: '/classes', label: 'Classes', adminOnly: true },
-  { href: '/staff', label: 'Staff', adminOnly: true },
-  { href: '/imports', label: 'Drive sync', adminOnly: true },
+type Access = 'hq' | 'hqAdmin' | 'school';
+
+const NAV: { href: string; label: string; access: Access }[] = [
+  { href: '/', label: 'Units', access: 'hq' },
+  { href: '/assets', label: 'Assets', access: 'hq' },
+  { href: '/schools', label: 'Schools', access: 'hqAdmin' },
+  { href: '/classes', label: 'Classes', access: 'school' },
+  { href: '/school-staff', label: 'School staff', access: 'school' },
+  { href: '/staff', label: 'HQ staff', access: 'hqAdmin' },
+  { href: '/imports', label: 'Drive sync', access: 'hqAdmin' },
 ];
+
+function SchoolSwitcher() {
+  const { schools, school, setSchoolId } = useCurrentSchool();
+  if (!school) return null;
+  return (
+    <div className="px-5 pb-3">
+      <label htmlFor="current-school" className="text-xs font-bold uppercase tracking-wider text-bark-500">
+        School
+      </label>
+      {schools.length > 1 ? (
+        <select
+          id="current-school"
+          value={school.id}
+          onChange={(event) => setSchoolId(event.target.value)}
+          className="mt-1 w-full rounded-lg border border-cream-200 bg-white px-2 py-1.5 text-sm font-semibold text-bark-900 focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-100"
+        >
+          {schools.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+              {item.active ? '' : ' (inactive)'}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <p id="current-school" className="mt-1 truncate text-sm font-semibold">
+          {school.name}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { user } = useMe();
-  const { isAdmin } = usePermissions();
+  const { user, schools } = useMe();
+  const permissions = usePermissions();
   const signOut = useSignOut();
+
+  const allowed: Record<Access, boolean> = {
+    hq: permissions.hasHqRole,
+    hqAdmin: permissions.isAdmin,
+    school: permissions.runsSchools,
+  };
 
   const isActive = (href: string): boolean =>
     href === '/'
@@ -28,6 +70,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         pathname.startsWith('/lessons')
       : pathname.startsWith(href);
 
+  const roleText = [
+    ...user.roles.map((role) => role.toLowerCase()),
+    ...schools.map(
+      (school) => `${school.role === 'SCHOOL_ADMIN' ? 'school admin' : 'teacher'} at ${school.name}`,
+    ),
+  ];
+
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="no-print flex shrink-0 flex-col border-b border-cream-200 bg-white md:sticky md:top-0 md:h-screen md:w-56 md:border-r md:border-b-0">
@@ -35,13 +84,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           <p className="text-xs font-bold uppercase tracking-wider text-ant-600">Little Ants</p>
           <p className="text-lg font-extrabold text-leaf-700">Admin</p>
         </div>
+        {permissions.runsSchools ? <SchoolSwitcher /> : null}
         <nav aria-label="Main" className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:pb-0">
-          {NAV.filter((item) => !item.adminOnly || isAdmin).map((item) => (
+          {NAV.filter((item) => allowed[item.access]).map((item) => (
             <Link
               key={item.href}
               href={item.href}
               aria-current={isActive(item.href) ? 'page' : undefined}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+              className={`rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap ${
                 isActive(item.href) ? 'bg-leaf-50 text-leaf-700' : 'text-bark-700 hover:bg-cream-100'
               }`}
             >
@@ -59,9 +109,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mt-auto hidden border-t border-cream-200 px-5 py-4 md:block">
           <p className="truncate text-sm font-semibold">{user.name}</p>
           <p className="truncate text-xs text-bark-500">{user.email}</p>
-          <p className="mt-1 text-xs text-bark-500">
-            {user.roles.map((role) => role.toLowerCase()).join(', ') || 'no role'}
-          </p>
+          <p className="mt-1 text-xs text-bark-500">{roleText.join(', ') || 'no role'}</p>
           <button
             type="button"
             onClick={() => void signOut()}

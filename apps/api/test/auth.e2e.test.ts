@@ -35,10 +35,16 @@ describe('staff sign-in', () => {
     expect(await ctx.prisma.user.findUnique({ where: { email: 'stranger@example.com' } })).toBeNull();
   });
 
-  it('lets an invited teacher sign up, sign in and read /me with the roles from the invite', async () => {
+  it('lets an invited teacher sign up, sign in and read /me with the school role from the invite', async () => {
     const admin = await createStaff(ctx.prisma, ['ADMIN']);
+    const school = await ctx.prisma.school.create({ data: { name: `Auth test school ${Date.now()}` } });
     await ctx.prisma.staffInvite.create({
-      data: { email: 'teacher@example.com', roles: ['TEACHER'], invitedById: admin.id },
+      data: {
+        email: 'teacher@example.com',
+        schoolId: school.id,
+        schoolRole: 'TEACHER',
+        invitedById: admin.id,
+      },
     });
 
     await request(server())
@@ -56,7 +62,13 @@ describe('staff sign-in', () => {
     expect(cookies.some((cookie) => cookie.includes('session_token'))).toBe(true);
 
     const me = await request(server()).get('/api/me').set('Cookie', cookies).expect(200);
-    expect(me.body.user).toMatchObject({ email: 'teacher@example.com', name: 'Ms Lan', roles: ['TEACHER'] });
+    expect(me.body.user).toMatchObject({
+      email: 'teacher@example.com',
+      name: 'Ms Lan',
+      roles: [],
+      schools: [{ schoolId: school.id, role: 'TEACHER' }],
+    });
+    expect(me.body.schools).toEqual([{ id: school.id, name: school.name, role: 'TEACHER' }]);
 
     const invite = await ctx.prisma.staffInvite.findUniqueOrThrow({
       where: { email: 'teacher@example.com' },

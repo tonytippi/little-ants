@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { ApiError } from '@little-ants/ui/lib/api-client';
-import { hasRole } from '@little-ants/ui/lib/auth-client';
+import { hasRole, runsSchools } from '@little-ants/ui/lib/auth-client';
 import { useMe } from './session';
 
 /** Roles helpers for the signed-in user. */
@@ -11,7 +11,12 @@ export function usePermissions() {
   return {
     canEdit: hasRole(user, 'AUTHOR', 'REVIEWER'),
     canReview: hasRole(user, 'REVIEWER'),
+    /** HQ admin. */
     isAdmin: hasRole(user),
+    /** Any Little Ants HQ role: content pages. */
+    hasHqRole: user.roles.length > 0,
+    /** HQ admin or school admin: classes and school staff. */
+    runsSchools: runsSchools(user),
   };
 }
 
@@ -47,6 +52,17 @@ export function formatDate(value: string | null | undefined, withTime = false): 
         minute: '2-digit',
       })
     : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+/** A date-only value (stored as midnight UTC), shown as that calendar day everywhere. */
+export function formatDay(value: string | null | undefined): string {
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 export function formatBytes(bytes: number): string {

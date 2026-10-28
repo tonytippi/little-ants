@@ -9,7 +9,7 @@ import { AppShell } from '../../components/app-shell';
 import { DownloadButton } from '../../components/download-button';
 import { LessonList } from '../../components/lesson-list';
 import { ReleaseGate } from '../../components/release-gate';
-import { UnitArt } from '../../components/storybook';
+import { UnitArt } from '@little-ants/ui/storybook';
 import { UnitPictures } from '../../components/unit-pictures';
 import { links } from '../../lib/links';
 import { useDownloadedVersions, usePublishedUnits, useTeachClasses } from '../../lib/queries';

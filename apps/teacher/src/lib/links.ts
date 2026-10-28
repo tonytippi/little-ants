@@ -20,6 +20,7 @@ export const links = {
   prepare: ({ unit, lesson, classId }: LessonRef) => `/prepare?${query({ unit, lesson, class: classId })}`,
   observe: (classId: string, unit: string, lesson?: number) =>
     `/observe?${query({ class: classId, unit, lesson })}`,
+  listening: (classId: string) => `/listening?${query({ class: classId })}`,
   print: ({ unit, lesson }: LessonRef) => `/print?${query({ unit, lesson })}`,
   preview: (unit: string, lesson?: number) => `/preview?${query({ unit, lesson })}`,
   present: (unit: string, lesson: number, session: string, preview: boolean) =>

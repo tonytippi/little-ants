@@ -29,12 +29,7 @@ describe('update schemas change only the fields that were sent', () => {
 describe('create schemas still fill in defaults', () => {
   it('class', () => {
     const parsed = classInput.parse({ campusId: 'c', name: 'Bees', levelId: 'l', schoolYear: '2026-2027' });
-    expect(parsed).toMatchObject({
-      currentUnitId: null,
-      nextLesson: 1,
-      lessonDays: [1, 2, 3, 4],
-      active: true,
-    });
+    expect(parsed).toMatchObject({ unitId: null, nextLesson: 1, lessonDays: [1, 2, 3, 4] });
   });
 
   it('student and word', () => {

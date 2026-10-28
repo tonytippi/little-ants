@@ -18,7 +18,7 @@ describe('seedDefaultAdmin', () => {
     expect(await seedDefaultAdmin(prisma, ' New.Admin@Example.com ')).toBe('invited');
     expect(await seedDefaultAdmin(prisma, 'new.admin@example.com')).toBe('invited');
     const invite = await prisma.staffInvite.findUniqueOrThrow({ where: { email: 'new.admin@example.com' } });
-    expect([...invite.roles].sort()).toEqual(['ADMIN', 'AUTHOR', 'REVIEWER', 'TEACHER']);
+    expect([...invite.roles].sort()).toEqual(['ADMIN', 'AUTHOR', 'REVIEWER']);
   });
 
   it('adds the roles to an existing account without removing others and reactivates it', async () => {
@@ -27,14 +27,14 @@ describe('seedDefaultAdmin', () => {
         id: 'existing-admin',
         email: 'existing@example.com',
         name: 'Existing',
-        roles: ['TEACHER'],
+        roles: ['AUTHOR'],
         active: false,
       },
     });
     expect(await seedDefaultAdmin(prisma, 'existing@example.com')).toBe('updated');
     const user = await prisma.user.findUniqueOrThrow({ where: { id: 'existing-admin' } });
     expect(user.active).toBe(true);
-    expect([...user.roles].sort()).toEqual(['ADMIN', 'AUTHOR', 'REVIEWER', 'TEACHER']);
+    expect([...user.roles].sort()).toEqual(['ADMIN', 'AUTHOR', 'REVIEWER']);
     expect(await prisma.staffInvite.findUnique({ where: { email: 'existing@example.com' } })).toBeNull();
   });
 });

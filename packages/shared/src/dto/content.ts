@@ -239,8 +239,18 @@ export const observationInput = z.object({
 });
 
 /** Offline outbox upload: many records in one request. */
+/** A Listening Time leaf played in class (At school). */
+export const classListeningRunInput = z.object({
+  clientId: z.string().uuid(),
+  classId: id,
+  unitCode: z.string().regex(/^U\d{2}$/),
+  leaf: z.number().int().min(1).max(40),
+  playedAt: z.coerce.date(),
+});
+
 export const syncInput = z.object({
   lessonRuns: z.array(lessonRunInput).max(200).default([]),
   observations: z.array(observationInput).max(2000).default([]),
+  listeningRuns: z.array(classListeningRunInput).max(200).default([]),
 });
 export type SyncInput = z.infer<typeof syncInput>;

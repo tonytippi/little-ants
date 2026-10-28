@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { ObjectStorage } from '@little-ants/storage';
-import { TEST_CAMPUS, TEST_CLASS, seedTestData } from '../src/cli/test-data.js';
+import { TEST_CAMPUS, TEST_CLASS, TEST_SCHOOL, seedTestData } from '../src/cli/test-data.js';
 import { ContentService } from '../src/content/content.service.js';
+import { OrgService } from '../src/org/org.service.js';
 import { ReleaseBuilder } from '../src/releases/release-builder.service.js';
 import { OBJECT_STORAGE } from '../src/storage/storage.tokens.js';
 import { createStaff, createTestApp, type TestApp } from './test-app.js';
@@ -19,10 +20,19 @@ describe('test data seed', () => {
     storage = ctx.app.get<ObjectStorage>(OBJECT_STORAGE);
     const content = ctx.app.get(ContentService);
     const releases = ctx.app.get(ReleaseBuilder);
-    run = () => seedTestData(content, releases, { id: null, roles: ['ADMIN'] });
-    await createStaff(ctx.prisma, ['TEACHER'], 'Teacher');
+    const org = ctx.app.get(OrgService);
+    run = () =>
+      seedTestData(content, releases, org, { id: null, roles: ['ADMIN'] }, undefined, [
+        'parent.one@example.com',
+        'parent.two@example.com',
+      ]);
+    const school = await ctx.prisma.school.create({ data: { name: TEST_SCHOOL } });
+    await createStaff(ctx.prisma, [], 'Teacher', [{ schoolId: school.id, role: 'TEACHER' }]);
 
     const level = await ctx.prisma.level.findFirstOrThrow({ where: { number: 2 } });
+    await ctx.prisma.unit.create({
+      data: { levelId: level.id, code: 'U04', number: 4, title: 'On the Farm' },
+    });
     const unit = await ctx.prisma.unit.create({
       data: { levelId: level.id, code: 'U05', number: 5, title: 'Yummy Garden' },
     });
@@ -83,13 +93,31 @@ describe('test data seed', () => {
 
     const testClass = await ctx.prisma.class.findUniqueOrThrow({
       where: { id: result.classId },
-      include: { campus: true, teachers: true, students: true },
+      include: {
+        campus: { include: { school: true } },
+        teachers: true,
+        enrollments: { where: { endedOn: null } },
+        unitRuns: { orderBy: { startedOn: 'asc' }, include: { unit: true } },
+      },
     });
     expect(testClass).toMatchObject({ name: TEST_CLASS, currentUnitId: unit.id, levelId: unit.levelId });
     expect(testClass.campus.name).toBe(TEST_CAMPUS);
+    expect(testClass.campus.school.name).toBe(TEST_SCHOOL);
     expect(testClass.teachers.length).toBe(result.teachers);
-    expect(result.teachers).toBeGreaterThan(0);
-    expect(testClass.students).toHaveLength(8);
+    expect(result.teachers).toBe(1);
+    expect(result.parents).toBe(2);
+    expect(
+      await ctx.prisma.studentParent.count({ where: { parent: { email: 'parent.one@example.com' } } }),
+    ).toBe(1);
+    expect(testClass.enrollments).toHaveLength(8);
+    expect(testClass.unitRuns.map((run) => [run.unit.code, run.endedOn === null])).toEqual([
+      ['U04', false],
+      ['U05', true],
+    ]);
+    // The children studied U04 with the class and are on U05 now.
+    const access = await ctx.app.get(OrgService).studentAccess(testClass.enrollments[0]!.studentId);
+    expect(access.active).toBe(true);
+    expect(access.unitIds.sort()).toEqual(testClass.unitRuns.map((run) => run.unitId).sort());
   });
 
   it('does nothing new when run again, and keeps lesson progress and children', async () => {
@@ -99,10 +127,10 @@ describe('test data seed', () => {
     expect(result.published.U05).toBeUndefined();
     const testClass = await ctx.prisma.class.findUniqueOrThrow({
       where: { id: result.classId },
-      include: { students: true },
+      include: { enrollments: true },
     });
     expect(testClass.nextLesson).toBe(7);
-    expect(testClass.students).toHaveLength(8);
+    expect(testClass.enrollments).toHaveLength(8);
     expect(await ctx.prisma.campus.count({ where: { name: TEST_CAMPUS } })).toBe(1);
   });
 

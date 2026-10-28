@@ -16,10 +16,9 @@ import { useMe } from '../../../lib/session';
 import type { Role, StaffInvite, StaffMember } from '../../../lib/types';
 
 const ROLE_HELP: Record<Role, string> = {
-  ADMIN: 'everything, including staff and classes',
+  ADMIN: 'everything, including schools, HQ staff and Drive sync',
   AUTHOR: 'edit content and upload files',
   REVIEWER: 'approve content and publish units',
-  TEACHER: 'teach their classes with the Teacher app',
 };
 
 const KEY = ['staff'];
@@ -39,8 +38,9 @@ function Staff() {
   });
   return (
     <div>
-      <PageHeader title="Staff">
-        Staff sign in with Google. Invite their email first; their roles come from the invite.
+      <PageHeader title="HQ staff">
+        Little Ants HQ staff sign in with Google. Invite their email first; their roles come from the invite.
+        Teachers and school admins are added per school on the School staff page.
       </PageHeader>
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-6">
@@ -148,6 +148,13 @@ function StaffRow({ user }: { user: StaffMember }) {
   );
 }
 
+/** HQ roles of an invite, or the school role when a school sent it. */
+function inviteRoles(invite: StaffInvite): string {
+  const roles = invite.roles.map((role) => humanize(role));
+  if (invite.schoolRole) roles.push(`${humanize(invite.schoolRole)} (school invite)`);
+  return roles.join(', ') || 'no role';
+}
+
 function Invites({ invites }: { invites: StaffInvite[] }) {
   const cancel = useApiMutation((id: string) => api.del(`/staff/invites/${id}`), [KEY]);
   return (
@@ -163,8 +170,7 @@ function Invites({ invites }: { invites: StaffInvite[] }) {
                 <span className="font-semibold">{invite.email}</span>
                 <span className="text-bark-500">
                   {' '}
-                  · {invite.roles.map((role) => humanize(role)).join(', ')} · invited{' '}
-                  {formatDate(invite.createdAt)}
+                  · {inviteRoles(invite)} · invited {formatDate(invite.createdAt)}
                 </span>
               </span>
               <Button
@@ -187,7 +193,7 @@ function Invites({ invites }: { invites: StaffInvite[] }) {
 
 function InviteForm() {
   const [email, setEmail] = useState('');
-  const [roles, setRoles] = useState<Role[]>(['TEACHER']);
+  const [roles, setRoles] = useState<Role[]>(['AUTHOR']);
   const invite = useApiMutation(() => api.post('/staff/invites', { email, roles }), [KEY]);
   const errors = fieldErrors(invite.error);
 

@@ -1,38 +1,35 @@
-import {
-  Body,
-  Controller,
-  ForbiddenException,
-  Get,
-  NotFoundException,
-  Param,
-  Post,
-  Query,
-} from '@nestjs/common';
-import { syncInput, type ReleaseMedia } from '@little-ants/shared';
+import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { DAYS_PER_WEEK_GOAL, syncInput } from '@little-ants/shared';
 import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators.js';
-import { canAccessClass, hasRole, type StaffUser } from '../auth/staff-access.js';
+import { canAccessClass, teachableClasses, type StaffUser } from '../auth/staff-access.js';
 import { ZodBody } from '../common/zod-body.js';
+import { dayOrToday } from '../org/org.service.js';
+import { requireClassAccess } from '../org/school-access.js';
+import { ListeningService } from '../parents/listening.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { releasePictures } from '../releases/release-pictures.js';
 
-/** Endpoints used by the Teacher app. Teachers see their own classes; admins see all. */
-@Roles('TEACHER')
+/** Endpoints used by the Teacher app. Teachers see their own classes; school admins their school's; HQ all. */
 @Controller('teach')
 export class TeachController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly listening: ListeningService,
+  ) {}
 
   private get db() {
     return this.prisma.client;
   }
 
   private async assertClass(user: StaffUser, classId: string): Promise<void> {
-    if (!(await canAccessClass(this.db, user, classId))) throw new ForbiddenException('Not your class');
+    await requireClassAccess(this.db, user, classId);
   }
 
   @Get('classes')
   async classes(@CurrentUser() user: StaffUser) {
     const classes = await this.db.class.findMany({
-      where: { active: true, ...(hasRole(user, 'ADMIN') ? {} : { teachers: { some: { userId: user.id } } }) },
+      where: { status: 'ACTIVE', ...teachableClasses(user) },
       orderBy: { name: 'asc' },
       include: {
         campus: { select: { name: true } },
@@ -44,16 +41,17 @@ export class TeachController {
             releases: { orderBy: { version: 'desc' }, take: 1, select: { version: true, publishedAt: true } },
           },
         },
-        students: {
-          where: { status: 'ACTIVE' },
-          orderBy: { displayName: 'asc' },
-          select: { id: true, displayName: true },
+        enrollments: {
+          where: { endedOn: null },
+          orderBy: { student: { displayName: 'asc' } },
+          select: { student: { select: { id: true, displayName: true } } },
         },
       },
     });
-    const pictures = await this.releasePictures();
-    return classes.map(({ currentUnit, ...rest }) => ({
+    const pictures = await releasePictures(this.db);
+    return classes.map(({ currentUnit, enrollments, ...rest }) => ({
       ...rest,
+      students: enrollments.map((enrollment) => enrollment.student),
       currentUnit: currentUnit
         ? {
             code: currentUnit.code,
@@ -63,20 +61,6 @@ export class TeachController {
           }
         : null,
     }));
-  }
-
-  /**
-   * The picture that stands for each published unit (its cover, else its lead character's art), read from the
-   * latest release so it is always an approved, public file. Only these two fields are read from the payload.
-   */
-  private async releasePictures(): Promise<Map<string, ReleaseMedia>> {
-    const rows = await this.db.$queryRaw<{ code: string; picture: ReleaseMedia | null }[]>`
-      SELECT DISTINCT ON (r."unitId") u.code AS code,
-             COALESCE(NULLIF(r.payload->'unit'->'cover', 'null'::jsonb),
-                      r.payload->'unit'->'leadCharacter'->'image') AS picture
-      FROM "UnitRelease" r JOIN "Unit" u ON u.id = r."unitId"
-      ORDER BY r."unitId", r.version DESC`;
-    return new Map(rows.flatMap((row) => (row.picture ? [[row.code, row.picture] as const] : [])));
   }
 
   /** Published units a teacher can open (the latest version of each). */
@@ -93,7 +77,7 @@ export class TeachController {
         releases: { orderBy: { version: 'desc' }, take: 1, select: { version: true, publishedAt: true } },
       },
     });
-    const pictures = await this.releasePictures();
+    const pictures = await releasePictures(this.db);
     return units.map(({ releases, ...unit }) => ({
       ...unit,
       release: releases[0]!,
@@ -133,6 +117,37 @@ export class TeachController {
     return [...latest.values()];
   }
 
+  /**
+   * Home listening of the class's children: days with listening per week (last 8 weeks, newest first) and
+   * how many reached the weekly goal this week (the program aims for 80% of the class).
+   */
+  @Get('classes/:id/listening')
+  async classListening(
+    @CurrentUser() user: StaffUser,
+    @Param('id') classId: string,
+    @Query('today') day?: string,
+  ) {
+    await this.assertClass(user, classId);
+    const date = dayOrToday(day);
+    const enrolled = await this.db.enrollment.findMany({
+      where: { classId, endedOn: null },
+      orderBy: { student: { displayName: 'asc' } },
+      select: { student: { select: { id: true, displayName: true, _count: { select: { parents: true } } } } },
+    });
+    const weeks = await this.listening.weeks(
+      enrolled.map((row) => row.student.id),
+      date,
+    );
+    const children = enrolled.map(({ student }) => ({
+      id: student.id,
+      displayName: student.displayName,
+      hasParent: student._count.parents > 0,
+      weeks: weeks.get(student.id) ?? [],
+    }));
+    const reached = children.filter((child) => (child.weeks[0]?.days ?? 0) >= DAYS_PER_WEEK_GOAL).length;
+    return { goalDays: DAYS_PER_WEEK_GOAL, reachedThisWeek: reached, children };
+  }
+
   @Get('classes/:id/runs')
   async runs(@CurrentUser() user: StaffUser, @Param('id') classId: string, @Query('unit') unitCode?: string) {
     await this.assertClass(user, classId);
@@ -159,6 +174,7 @@ export class TeachController {
       ...new Set([
         ...body.lessonRuns.map((run) => run.classId),
         ...body.observations.map((obs) => obs.classId),
+        ...body.listeningRuns.map((run) => run.classId),
       ]),
     ];
     const allowed = new Set<string>();
@@ -169,11 +185,20 @@ export class TeachController {
       rejected.push({ clientId: run.clientId, reason: 'Not your class' });
       return false;
     });
-    const students = await this.db.student.findMany({
-      where: { id: { in: [...new Set(body.observations.map((obs) => obs.studentId))] } },
-      select: { id: true, classId: true },
+    const listeningRuns = body.listeningRuns.filter((run) => {
+      if (allowed.has(run.classId)) return true;
+      rejected.push({ clientId: run.clientId, reason: 'Not your class' });
+      return false;
     });
-    const studentClass = new Map(students.map((student) => [student.id, student.classId]));
+    // Observations are for children in the class now (an open enrollment).
+    const enrolled = await this.db.enrollment.findMany({
+      where: {
+        endedOn: null,
+        studentId: { in: [...new Set(body.observations.map((obs) => obs.studentId))] },
+      },
+      select: { studentId: true, classId: true },
+    });
+    const studentClass = new Map(enrolled.map((row) => [row.studentId, row.classId]));
     const observations = body.observations.filter((obs) => {
       if (!allowed.has(obs.classId)) rejected.push({ clientId: obs.clientId, reason: 'Not your class' });
       else if (studentClass.get(obs.studentId) !== obs.classId)
@@ -199,6 +224,10 @@ export class TeachController {
         data: observations.map((item) => ({ ...item, teacherId: user.id })),
         skipDuplicates: true,
       });
+      await tx.classListeningRun.createMany({
+        data: listeningRuns.map((run) => ({ ...run, teacherId: user.id })),
+        skipDuplicates: true,
+      });
       // Only newly recorded lessons move the class on, and never backwards (one atomic conditional update).
       for (const run of runs.filter((item) => !existing.has(item.clientId))) {
         await tx.class.updateMany({
@@ -211,7 +240,10 @@ export class TeachController {
         });
       }
     });
-    return { accepted: [...runs, ...observations].map((item) => item.clientId), rejected };
+    return {
+      accepted: [...runs, ...observations, ...listeningRuns].map((item) => item.clientId),
+      rejected,
+    };
   }
 }
 

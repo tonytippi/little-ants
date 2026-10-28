@@ -19,7 +19,7 @@ describe('cross-site request protection', () => {
 
   it('rejects a state-changing request from another site, even with a valid session', async () => {
     const response = await request(server())
-      .post('/api/campuses')
+      .post('/api/schools')
       .set({
         [TEST_USER_HEADER]: admin.id,
         Origin: 'https://media.littleants.vn',
@@ -27,12 +27,12 @@ describe('cross-site request protection', () => {
       })
       .send({ name: 'Forged' });
     expect(response.status).toBe(403);
-    expect(await ctx.prisma.campus.count({ where: { name: 'Forged' } })).toBe(0);
+    expect(await ctx.prisma.school.count({ where: { name: 'Forged' } })).toBe(0);
   });
 
   it('rejects a cross-site browser request that hides its origin', async () => {
     await request(server())
-      .post('/api/campuses')
+      .post('/api/schools')
       .set({ [TEST_USER_HEADER]: admin.id, 'Sec-Fetch-Site': 'cross-site' })
       .send({ name: 'Forged 2' })
       .expect(403);
@@ -40,12 +40,12 @@ describe('cross-site request protection', () => {
 
   it('allows the app origins and reads from anywhere', async () => {
     await request(server())
-      .post('/api/campuses')
+      .post('/api/schools')
       .set({ [TEST_USER_HEADER]: admin.id, Origin: 'http://localhost:3000' })
-      .send({ name: 'Real campus' })
+      .send({ name: 'Real school' })
       .expect(201);
     await request(server())
-      .get('/api/campuses')
+      .get('/api/schools')
       .set({ [TEST_USER_HEADER]: admin.id, Origin: 'https://evil.example' })
       .expect(200);
   });

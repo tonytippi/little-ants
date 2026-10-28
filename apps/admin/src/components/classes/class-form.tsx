@@ -5,62 +5,96 @@ import { schoolYearOf } from '@little-ants/shared';
 import { Button } from '@little-ants/ui/button';
 import { Field, Select, TextInput } from '@little-ants/ui/field';
 import { fieldErrors } from '../../lib/hooks';
-import type { Campus, ClassSummary, LevelOption } from '../../lib/types';
+import type { Campus, ClassDetail, LevelOption } from '../../lib/types';
 import { FormError } from '../form-error';
 
-export interface ClassFormValues {
-  campusId: string;
+/** Fields a class keeps changing: unit changes, merges and stops have their own actions. */
+export interface ClassEditValues {
   name: string;
-  levelId: string;
-  currentUnitId: string | null;
-  nextLesson: number;
   schoolYear: string;
+  nextLesson: number;
   lessonDays: number[];
-  active: boolean;
+}
+
+export interface ClassCreateValues extends ClassEditValues {
+  campusId: string;
+  levelId: string;
+  /** The unit the class starts with, or null to start later. */
+  unitId: string | null;
 }
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-interface ClassFormProps {
-  campuses: Campus[];
-  levels: LevelOption[];
-  initial?: ClassSummary;
+interface CommonProps {
   submitLabel: string;
   busy: boolean;
   error: unknown;
-  onSubmit: (values: ClassFormValues) => void;
 }
 
-export function ClassForm({ campuses, levels, initial, submitLabel, busy, error, onSubmit }: ClassFormProps) {
-  const [values, setValues] = useState<ClassFormValues>(() => ({
-    campusId: initial?.campusId ?? campuses[0]?.id ?? '',
+type ClassFormProps = CommonProps &
+  (
+    | {
+        mode: 'create';
+        campuses: Campus[];
+        levels: LevelOption[];
+        onSubmit: (values: ClassCreateValues) => void;
+      }
+    | { mode: 'edit'; initial: ClassDetail; onSubmit: (values: ClassEditValues) => void }
+  );
+
+export function ClassForm(props: ClassFormProps) {
+  const { submitLabel, busy, error } = props;
+  const initial = props.mode === 'edit' ? props.initial : null;
+  const campuses = props.mode === 'create' ? props.campuses : [];
+  const levels = props.mode === 'create' ? props.levels : [];
+
+  const [values, setValues] = useState<ClassCreateValues>(() => ({
+    campusId: campuses.find((campus) => campus.active)?.id ?? campuses[0]?.id ?? '',
+    levelId: levels[0]?.id ?? '',
+    unitId: null,
     name: initial?.name ?? '',
-    levelId: initial?.levelId ?? levels[0]?.id ?? '',
-    currentUnitId: initial?.currentUnitId ?? null,
-    nextLesson: initial?.nextLesson ?? 1,
     schoolYear: initial?.schoolYear ?? schoolYearOf(),
+    nextLesson: initial?.nextLesson ?? 1,
     lessonDays: initial?.lessonDays ?? [1, 2, 3, 4],
-    active: initial?.active ?? true,
   }));
   const errors = fieldErrors(error);
   const level = levels.find((item) => item.id === values.levelId);
-  const set = <K extends keyof ClassFormValues>(key: K, value: ClassFormValues[K]): void =>
+  const set = <K extends keyof ClassCreateValues>(key: K, value: ClassCreateValues[K]): void =>
     setValues((current) => ({ ...current, [key]: value }));
 
   function submit(event: FormEvent): void {
     event.preventDefault();
-    onSubmit(values);
+    const edited: ClassEditValues = {
+      name: values.name,
+      schoolYear: values.schoolYear,
+      nextLesson: values.nextLesson,
+      lessonDays: values.lessonDays,
+    };
+    if (props.mode === 'edit') props.onSubmit(edited);
+    else
+      props.onSubmit({
+        ...edited,
+        campusId: values.campusId,
+        levelId: values.levelId,
+        unitId: values.unitId,
+      });
   }
 
   return (
     <form onSubmit={submit} className="grid gap-4 md:grid-cols-2">
-      {campuses.length > 1 ? (
+      {props.mode === 'create' ? (
         <Field label="Campus" error={errors.campusId}>
           {(id) => (
-            <Select id={id} value={values.campusId} onChange={(event) => set('campusId', event.target.value)}>
+            <Select
+              id={id}
+              required
+              value={values.campusId}
+              onChange={(event) => set('campusId', event.target.value)}
+            >
               {campuses.map((campus) => (
                 <option key={campus.id} value={campus.id}>
                   {campus.name}
+                  {campus.active ? '' : ' (inactive)'}
                 </option>
               ))}
             </Select>
@@ -89,39 +123,49 @@ export function ClassForm({ campuses, levels, initial, submitLabel, busy, error,
           />
         )}
       </Field>
-      <Field label="Level" error={errors.levelId}>
-        {(id) => (
-          <Select
-            id={id}
-            value={values.levelId}
-            onChange={(event) =>
-              setValues((current) => ({ ...current, levelId: event.target.value, currentUnitId: null }))
-            }
+      {props.mode === 'create' ? (
+        <>
+          <Field label="Level" error={errors.levelId}>
+            {(id) => (
+              <Select
+                id={id}
+                required
+                value={values.levelId}
+                onChange={(event) =>
+                  setValues((current) => ({ ...current, levelId: event.target.value, unitId: null }))
+                }
+              >
+                {levels.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    Level {item.number} · {item.name} ({item.ageBand})
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field
+            label="First unit"
+            hint="Leave empty to start a unit later from the class page."
+            error={errors.unitId}
           >
-            {levels.map((item) => (
-              <option key={item.id} value={item.id}>
-                Level {item.number} · {item.name} ({item.ageBand})
-              </option>
-            ))}
-          </Select>
-        )}
-      </Field>
-      <Field label="Current unit" error={errors.currentUnitId}>
-        {(id) => (
-          <Select
-            id={id}
-            value={values.currentUnitId ?? ''}
-            onChange={(event) => set('currentUnitId', event.target.value || null)}
-          >
-            <option value="">Not started</option>
-            {level?.units.map((unit) => (
-              <option key={unit.id} value={unit.id}>
-                {unit.code} {unit.title}
-              </option>
-            ))}
-          </Select>
-        )}
-      </Field>
+            {(id, describedBy) => (
+              <Select
+                id={id}
+                aria-describedby={describedBy}
+                value={values.unitId ?? ''}
+                onChange={(event) => set('unitId', event.target.value || null)}
+              >
+                <option value="">Not started</option>
+                {level?.units.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.code} {unit.title}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        </>
+      ) : null}
       <Field
         label="Next lesson"
         hint="Moves on by itself when teachers mark lessons as taught."
@@ -132,6 +176,7 @@ export function ClassForm({ campuses, levels, initial, submitLabel, busy, error,
             id={id}
             aria-describedby={describedBy}
             type="number"
+            required
             min={1}
             max={40}
             value={values.nextLesson}
@@ -153,7 +198,7 @@ export function ClassForm({ campuses, levels, initial, submitLabel, busy, error,
                     set(
                       'lessonDays',
                       event.target.checked
-                        ? [...values.lessonDays, value].sort()
+                        ? [...values.lessonDays, value].sort((a, b) => a - b)
                         : values.lessonDays.filter((item) => item !== value),
                     )
                   }
@@ -164,16 +209,6 @@ export function ClassForm({ campuses, levels, initial, submitLabel, busy, error,
           })}
         </div>
       </fieldset>
-      {initial ? (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={values.active}
-            onChange={(event) => set('active', event.target.checked)}
-          />
-          Class is active
-        </label>
-      ) : null}
       <div className="flex items-center gap-3 md:col-span-2">
         <Button type="submit" busy={busy}>
           {submitLabel}
