@@ -291,6 +291,23 @@ describe('parent sign-in and the two-device limit', () => {
     const children = list.body[0].children as { id: string; endedOn: string | null; endReason: string }[];
     expect(children.find((child) => child.id === studentId)).toMatchObject({ endReason: 'LEFT' });
     expect(children.find((child) => child.id === otherStudentId)).toMatchObject({ endedOn: null });
+    const students = await request(server())
+      .get(`/api/schools/${schoolId}/students`)
+      .set(asStaff(schoolAdmin))
+      .expect(200);
+    expect(students.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: studentId,
+          parents: 1,
+          enrollment: expect.objectContaining({ endReason: 'LEFT' }),
+        }),
+        expect.objectContaining({
+          id: otherStudentId,
+          enrollment: expect.objectContaining({ endedOn: null }),
+        }),
+      ]),
+    );
 
     const elsewhere = await createSchool(ctx.prisma, 'Next school');
     const level = await ctx.prisma.level.findFirstOrThrow({ where: { number: 2 } });
@@ -305,6 +322,15 @@ describe('parent sign-in and the two-device limit', () => {
       .set(asStaff(schoolAdmin))
       .expect(200);
     expect(after.body[0].children.map((child: { id: string }) => child.id)).toEqual([otherStudentId]);
+    const studentsAfter = await request(server())
+      .get(`/api/schools/${schoolId}/students`)
+      .set(asStaff(schoolAdmin))
+      .expect(200);
+    expect(studentsAfter.body.map((student: { id: string }) => student.id)).not.toContain(studentId);
+    const otherAdmin = await createStaff(ctx.prisma, [], 'Next admin', [
+      { schoolId: elsewhere.schoolId, role: 'SCHOOL_ADMIN' },
+    ]);
+    await request(server()).get(`/api/schools/${schoolId}/students`).set(asStaff(otherAdmin)).expect(404);
   });
 
   it('registers parents together with a new child', async () => {
@@ -325,6 +351,38 @@ describe('parent sign-in and the two-device limit', () => {
       'father@example.com',
       PARENT,
     ]);
+  });
+
+  it('lists a child moved and marked as left on the same day under the class they left', async () => {
+    const level = await ctx.prisma.level.findFirstOrThrow({ where: { number: 2 } });
+    const bees = await ctx.prisma.class.findFirstOrThrow({ where: { campus: { schoolId }, name: 'Bees' } });
+    const wasps = await ctx.prisma.class.create({
+      data: { campusId: bees.campusId, name: 'Wasps', levelId: level.id, schoolYear: '2026-2027' },
+    });
+    const child = await request(server())
+      .post(`/api/classes/${bees.id}/students`)
+      .set(asStaff(schoolAdmin))
+      .send({ displayName: 'Bé Giang' })
+      .expect(201);
+    await request(server())
+      .post(`/api/students/${child.body.id}/move`)
+      .set(asStaff(schoolAdmin))
+      .send({ classId: wasps.id })
+      .expect(200);
+    await request(server())
+      .post(`/api/students/${child.body.id}/leave`)
+      .set(asStaff(schoolAdmin))
+      .expect(200);
+    const students = await request(server())
+      .get(`/api/schools/${schoolId}/students`)
+      .set(asStaff(schoolAdmin))
+      .expect(200);
+    expect(
+      students.body.find((student: { id: string }) => student.id === child.body.id).enrollment,
+    ).toMatchObject({
+      endReason: 'LEFT',
+      class: { id: wasps.id },
+    });
   });
 
   it('signs out on logout', async () => {

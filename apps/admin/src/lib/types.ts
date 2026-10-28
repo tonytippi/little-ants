@@ -423,3 +423,15 @@ export interface SchoolParent {
     endReason: EnrollmentEnd | null;
   }[];
 }
+
+/** A child the school is responsible for, with their class here now or the last one. */
+export interface SchoolStudent extends Student {
+  /** Parent emails linked to the child. */
+  parents: number;
+  enrollment: {
+    startedOn: string;
+    endedOn: string | null;
+    endReason: EnrollmentEnd | null;
+    class: { id: string; name: string; status: ClassStatus };
+  };
+}

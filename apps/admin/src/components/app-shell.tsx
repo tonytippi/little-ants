@@ -17,7 +17,7 @@ interface NavItem {
   access: Access;
 }
 
-/** The menu in three groups: lesson content, schools with their classes and parents, and staff. */
+/** The menu in three groups: lesson content, schools with their campuses, classes, children and parents, and staff. */
 const NAV: { label: string; items: NavItem[] }[] = [
   {
     label: 'Lessons',
@@ -31,7 +31,9 @@ const NAV: { label: string; items: NavItem[] }[] = [
     label: 'Schools',
     items: [
       { href: '/schools', label: 'Schools', icon: 'schools', access: 'hqAdmin' },
+      { href: '/campuses', label: 'Campuses', icon: 'campuses', access: 'school' },
       { href: '/classes', label: 'Classes', icon: 'classes', access: 'school' },
+      { href: '/students', label: 'Students', icon: 'students', access: 'school' },
       { href: '/parents', label: 'Parents', icon: 'parents', access: 'school' },
     ],
   },

@@ -23,7 +23,9 @@ export type NavIconName =
   | 'assets'
   | 'sync'
   | 'schools'
+  | 'campuses'
   | 'classes'
+  | 'students'
   | 'parents'
   | 'schoolStaff'
   | 'hqStaff'
@@ -61,6 +63,20 @@ const PATHS: Record<NavIconName, ReactNode> = {
       <path d="m4 6 7.1-3.55a2 2 0 0 1 1.8 0L20 6" />
       <path d="M6 5v17" />
       <circle cx="12" cy="9" r="2" />
+    </>
+  ),
+  campuses: (
+    <>
+      <path d="M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0" />
+      <circle cx="12" cy="10" r="3" />
+    </>
+  ),
+  students: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+      <path d="M9 9h.01" />
+      <path d="M15 9h.01" />
     </>
   ),
   classes: (

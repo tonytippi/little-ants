@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@little-ants/ui/button';
-import { Card, EmptyState, ErrorNotice, Spinner } from '@little-ants/ui/feedback';
-import { CampusesCard } from '../../../components/classes/campuses-card';
+import { EmptyState, ErrorNotice, Spinner } from '@little-ants/ui/feedback';
 import { ClassForm, type ClassCreateValues } from '../../../components/classes/class-form';
 import { ClassStatusBadge } from '../../../components/classes/class-status-badge';
+import { DataTable, type Column } from '../../../components/data-table';
+import { Dialog } from '../../../components/dialog';
 import { PageHeader } from '../../../components/page-header';
 import { SchoolPage } from '../../../components/school-only';
 import { api } from '../../../lib/api';
@@ -51,36 +52,34 @@ function Classes({ school }: { school: School }) {
       <PageHeader
         eyebrow={school.name}
         title="Classes"
-        actions={
-          hasCampus ? (
-            <Button
-              onClick={() => setCreating((value) => !value)}
-              variant={creating ? 'secondary' : 'primary'}
-            >
-              {creating ? 'Close' : '+ New class'}
-            </Button>
-          ) : null
-        }
+        actions={hasCampus ? <Button onClick={() => setCreating(true)}>+ New class</Button> : null}
       >
         Classes, their teachers and children. Children&apos;s records hold a display name and birth year only.
       </PageHeader>
 
-      {creating ? (
-        <Card className="mb-6">
-          <h2 className="mb-4 font-bold">New class</h2>
-          <ClassForm
-            mode="create"
-            campuses={campuses.data!}
-            levels={levels.data!}
-            submitLabel="Create class"
-            busy={create.isPending}
-            error={create.error}
-            onSubmit={(values) =>
-              create.mutate(values, { onSuccess: (created) => router.push(`/classes/${created.id}`) })
-            }
-          />
-        </Card>
-      ) : null}
+      <Dialog open={creating} onClose={() => setCreating(false)} title="New class" wide>
+        <ClassForm
+          mode="create"
+          campuses={campuses.data!.filter((campus) => campus.active)}
+          levels={levels.data!}
+          submitLabel="Create class"
+          busy={create.isPending}
+          error={create.error}
+          onSubmit={(values) =>
+            create.mutate(values, { onSuccess: (created) => router.push(`/classes/${created.id}`) })
+          }
+        />
+      </Dialog>
+
+      {hasCampus ? null : (
+        <EmptyState title="Add a campus first">
+          Every class belongs to a campus. Add one on the{' '}
+          <Link href="/campuses" className="font-semibold text-leaf-700 hover:underline">
+            Campuses
+          </Link>{' '}
+          page.
+        </EmptyState>
+      )}
 
       <div className="mb-3 flex flex-wrap items-center gap-1" role="group" aria-label="Show classes">
         {FILTERS.map((item) => (
@@ -98,61 +97,52 @@ function Classes({ school }: { school: School }) {
 
       {classes.isPending ? <Spinner label="Loading classes" /> : null}
       {classes.error ? <ErrorNotice error={classes.error} /> : null}
-      {shown?.length === 0 ? (
-        <EmptyState title={filter === 'ENDED' ? 'No ended classes' : 'No classes yet'} />
+      {shown && hasCampus ? (
+        <DataTable
+          label="Classes"
+          columns={COLUMNS}
+          rows={shown}
+          rowKey={(item) => item.id}
+          muted={(item) => item.status !== 'ACTIVE'}
+          minWidth="48rem"
+          empty={filter === 'ENDED' ? 'No ended classes' : 'No classes yet'}
+        />
       ) : null}
-      {shown?.length ? <ClassTable classes={shown} /> : null}
-
-      <div className="mt-6">
-        <CampusesCard schoolId={school.id} campuses={campuses.data!} />
-      </div>
     </div>
   );
 }
 
-function ClassTable({ classes }: { classes: ClassSummary[] }) {
-  return (
-    <Card className="overflow-x-auto p-0">
-      <table className="w-full min-w-[48rem] text-sm">
-        <thead className="bg-cream-100 text-left text-xs uppercase tracking-wide text-bark-500">
-          <tr>
-            <th className="px-4 py-2">Class</th>
-            <th className="px-4 py-2">Campus</th>
-            <th className="px-4 py-2">Level</th>
-            <th className="px-4 py-2">Now teaching</th>
-            <th className="px-4 py-2">Teachers</th>
-            <th className="px-4 py-2">Children</th>
-          </tr>
-        </thead>
-        <tbody>
-          {classes.map((item) => (
-            <tr key={item.id} className="border-t border-cream-200">
-              <td className="px-4 py-3">
-                <Link href={`/classes/${item.id}`} className="font-semibold text-leaf-700 hover:underline">
-                  {item.name}
-                </Link>
-                <span className="flex items-center gap-1 text-xs text-bark-500">
-                  {item.schoolYear}
-                  {item.status === 'ACTIVE' ? null : <ClassStatusBadge status={item.status} />}
-                </span>
-              </td>
-              <td className="px-4 py-3">{item.campus.name}</td>
-              <td className="px-4 py-3">
-                {item.level.number} · {item.level.name}
-              </td>
-              <td className="px-4 py-3">
-                {item.status === 'ACTIVE' && item.currentUnit
-                  ? `${item.currentUnit.code} · lesson ${item.nextLesson}`
-                  : '—'}
-              </td>
-              <td className="px-4 py-3 text-bark-500">
-                {item.teachers.map((teacher) => teacher.user.name).join(', ') || '—'}
-              </td>
-              <td className="px-4 py-3">{item._count.enrollments}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
-  );
-}
+const COLUMNS: Column<ClassSummary>[] = [
+  {
+    header: 'Class',
+    cell: (item) => (
+      <>
+        <Link href={`/classes/${item.id}`} className="font-semibold text-leaf-700 hover:underline">
+          {item.name}
+        </Link>
+        <span className="flex items-center gap-1 text-xs text-bark-500">
+          {item.schoolYear}
+          {item.status === 'ACTIVE' ? null : <ClassStatusBadge status={item.status} />}
+        </span>
+      </>
+    ),
+  },
+  { header: 'Campus', cell: (item) => item.campus.name },
+  { header: 'Level', cell: (item) => `${item.level.number} · ${item.level.name}` },
+  {
+    header: 'Now teaching',
+    cell: (item) =>
+      item.status === 'ACTIVE' && item.currentUnit
+        ? `${item.currentUnit.code} · lesson ${item.nextLesson}`
+        : '—',
+  },
+  {
+    header: 'Teachers',
+    cell: (item) => (
+      <span className="text-bark-500">
+        {item.teachers.map((teacher) => teacher.user.name).join(', ') || '—'}
+      </span>
+    ),
+  },
+  { header: 'Children', cell: (item) => item._count.enrollments },
+];

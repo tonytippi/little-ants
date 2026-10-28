@@ -21,7 +21,7 @@ import { audit } from '../common/audit.js';
 import { ZodBody } from '../common/zod-body.js';
 import { loadEnv } from '../config/env.js';
 import { OPEN_ENROLLMENT, OrgService, dayOrToday } from '../org/org.service.js';
-import { requireSchool, schoolOfStudent } from '../org/school-access.js';
+import { LATEST_ENROLLMENT_FIRST, requireSchool, schoolOfStudent } from '../org/school-access.js';
 import { releasePictures } from '../releases/release-pictures.js';
 import { PARENT_COOKIE, ParentAuthService, SIGN_IN_COOKIE, SignInRefused } from './parent-auth.service.js';
 import { ListeningService } from './listening.service.js';
@@ -325,7 +325,7 @@ export class SchoolParentsController {
             id: true,
             displayName: true,
             enrollments: {
-              orderBy: [{ endedOn: { sort: 'desc', nulls: 'first' } }, { startedOn: 'desc' }],
+              orderBy: LATEST_ENROLLMENT_FIRST,
               take: 1,
               select: {
                 endedOn: true,

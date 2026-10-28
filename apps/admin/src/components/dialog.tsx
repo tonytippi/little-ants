@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 interface DialogProps {
   open: boolean;
@@ -14,6 +14,7 @@ interface DialogProps {
 /** Modal built on the native <dialog> element (focus trap and Escape handled by the browser). */
 export function Dialog({ open, onClose, title, children, footer, wide = false }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     const dialog = ref.current;
@@ -26,13 +27,13 @@ export function Dialog({ open, onClose, title, children, footer, wide = false }:
     <dialog
       ref={ref}
       onClose={onClose}
-      aria-labelledby="dialog-title"
+      aria-labelledby={titleId}
       className={`m-auto max-h-[90vh] w-[calc(100%-2rem)] rounded-2xl bg-white p-0 text-bark-900 shadow-xl backdrop:bg-bark-900/40 ${wide ? 'max-w-5xl' : 'max-w-lg'}`}
     >
       {open ? (
         <div className="flex max-h-[90vh] flex-col">
           <header className="flex items-center justify-between border-b border-cream-200 px-5 py-3">
-            <h2 id="dialog-title" className="text-lg font-bold">
+            <h2 id={titleId} className="text-lg font-bold">
               {title}
             </h2>
             <button

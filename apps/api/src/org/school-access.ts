@@ -1,5 +1,5 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import type { PrismaClient } from '@little-ants/db';
+import type { Prisma, PrismaClient } from '@little-ants/db';
 import { canAccessClass, canManageSchool, schoolRole, type StaffUser } from '../auth/staff-access.js';
 
 /**
@@ -34,13 +34,23 @@ export async function requireClassAccess(
 }
 
 /**
+ * A child's enrollments, latest first: the open one, else the last to end. Moving and leaving on the same day
+ * ends two enrollments on one date, so the order they were created in breaks the tie.
+ */
+export const LATEST_ENROLLMENT_FIRST = [
+  { endedOn: { sort: 'desc', nulls: 'first' } },
+  { startedOn: 'desc' },
+  { createdAt: 'desc' },
+] satisfies Prisma.EnrollmentOrderByWithRelationInput[];
+
+/**
  * The school responsible for a child: where the child is now, else where they were last. Only that school
  * (and HQ) may change the child's record.
  */
 export async function schoolOfStudent(prisma: PrismaClient, studentId: string): Promise<string> {
   const enrollment = await prisma.enrollment.findFirst({
     where: { studentId },
-    orderBy: [{ endedOn: { sort: 'desc', nulls: 'first' } }, { startedOn: 'desc' }],
+    orderBy: LATEST_ENROLLMENT_FIRST,
     select: { class: { select: { campus: { select: { schoolId: true } } } } },
   });
   if (!enrollment) throw new NotFoundException('Child not found');

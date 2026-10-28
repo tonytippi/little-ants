@@ -9,25 +9,29 @@ import { api } from '../../lib/api';
 import { fieldErrors, formatDate, useApiMutation } from '../../lib/hooks';
 import { orgKeys } from '../../lib/org';
 import type { Student, StudentParent } from '../../lib/types';
+import { ConfirmDialog } from '../confirm-dialog';
 import { Dialog } from '../dialog';
 import { FormError } from '../form-error';
 
-/** "Parents" button of a child row, opening the child's parent emails in a dialog. */
-export function ChildParentsButton({ student }: { student: Student }) {
-  const [open, setOpen] = useState(false);
+/** The parent emails of a child, opened from the child's actions menu. */
+export function ChildParentsDialog({
+  student,
+  open,
+  onClose,
+}: {
+  student: Pick<Student, 'id' | 'displayName'>;
+  open: boolean;
+  onClose: () => void;
+}) {
   return (
-    <>
-      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
-        Parents
-      </Button>
-      <Dialog open={open} onClose={() => setOpen(false)} title={`Parents of ${student.displayName}`}>
-        <ChildParents student={student} />
-      </Dialog>
-    </>
+    <Dialog open={open} onClose={onClose} title={`Parents of ${student.displayName}`}>
+      <ChildParents student={student} />
+    </Dialog>
   );
 }
 
-function ChildParents({ student }: { student: Student }) {
+function ChildParents({ student }: { student: Pick<Student, 'id' | 'displayName'> }) {
+  const [removing, setRemoving] = useState<StudentParent['parent'] | null>(null);
   const key = orgKeys.parents(student.id);
   const parents = useQuery({
     queryKey: key,
@@ -35,7 +39,7 @@ function ChildParents({ student }: { student: Student }) {
   });
   const remove = useApiMutation(
     (parentId: string) => api.del(`/students/${student.id}/parents/${parentId}`),
-    [key, orgKeys.allSchoolParents],
+    [key, orgKeys.allSchoolParents, orgKeys.allSchoolStudents],
   );
 
   return (
@@ -57,24 +61,29 @@ function ChildParents({ student }: { student: Student }) {
                   {parent.lastSignInAt ? `signed in ${formatDate(parent.lastSignInAt)}` : 'not signed in yet'}
                 </span>
               </span>
-              <Button
-                size="sm"
-                variant="danger"
-                busy={remove.isPending && remove.variables === parent.id}
-                onClick={() =>
-                  window.confirm(
-                    `Remove ${parent.email} from ${student.displayName}? They can no longer open this child's listening.`,
-                  ) && remove.mutate(parent.id)
-                }
-              >
+              <Button size="sm" variant="ghost" onClick={() => setRemoving(parent)}>
                 Remove
               </Button>
             </li>
           ))}
         </ul>
       ) : null}
-      <FormError error={remove.error} />
       <AddParent studentId={student.id} />
+      <ConfirmDialog
+        open={removing !== null}
+        title="Remove parent"
+        confirmLabel="Remove"
+        danger
+        busy={remove.isPending}
+        error={remove.error}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => remove.mutate(removing!.id, { onSuccess: () => setRemoving(null) })}
+      >
+        <p>
+          Remove <strong>{removing?.email}</strong> from {student.displayName}? They can no longer open this
+          child&apos;s listening.
+        </p>
+      </ConfirmDialog>
     </div>
   );
 }
@@ -84,7 +93,7 @@ function AddParent({ studentId }: { studentId: string }) {
   const [relationship, setRelationship] = useState('');
   const add = useApiMutation(
     () => api.post(`/students/${studentId}/parents`, { email, relationship }),
-    [orgKeys.parents(studentId), orgKeys.allSchoolParents],
+    [orgKeys.parents(studentId), orgKeys.allSchoolParents, orgKeys.allSchoolStudents],
   );
   const errors = fieldErrors(add.error);
 

@@ -32,7 +32,13 @@ import { audit } from '../common/audit.js';
 import { linkParent } from '../parents/parent-link.js';
 import { ZodBody } from '../common/zod-body.js';
 import { OrgService } from './org.service.js';
-import { requireClassAccess, requireSchool, schoolOfClass, schoolOfStudent } from './school-access.js';
+import {
+  LATEST_ENROLLMENT_FIRST,
+  requireClassAccess,
+  requireSchool,
+  schoolOfClass,
+  schoolOfStudent,
+} from './school-access.js';
 
 const CLASS_STATUSES: ClassStatus[] = ['ACTIVE', 'MERGED', 'STOPPED'];
 
@@ -255,6 +261,42 @@ export class OrgController {
   }
 
   // Children ----------------------------------------------------------------
+
+  /**
+   * The children this school is responsible for: in one of its classes now, or there last before they left.
+   * A child now at another school belongs to that school and is left out.
+   */
+  @Get('schools/:schoolId/students')
+  async listStudents(@CurrentUser() user: StaffUser, @Param('schoolId') schoolId: string) {
+    requireSchool(user, schoolId, true);
+    const students = await this.db.student.findMany({
+      where: { enrollments: { some: { class: { campus: { schoolId } } } } },
+      orderBy: { displayName: 'asc' },
+      select: {
+        id: true,
+        displayName: true,
+        birthYear: true,
+        consentAt: true,
+        _count: { select: { parents: true } },
+        enrollments: {
+          orderBy: LATEST_ENROLLMENT_FIRST,
+          take: 1,
+          select: {
+            startedOn: true,
+            endedOn: true,
+            endReason: true,
+            class: { select: { id: true, name: true, status: true, campus: { select: { schoolId: true } } } },
+          },
+        },
+      },
+    });
+    return students.flatMap(({ enrollments, _count, ...student }) => {
+      const latest = enrollments[0];
+      if (latest?.class.campus.schoolId !== schoolId) return [];
+      const { campus: _campus, ...klass } = latest.class;
+      return [{ ...student, parents: _count.parents, enrollment: { ...latest, class: klass } }];
+    });
+  }
 
   /** A new child, in this class from today, with the parents who may sign in for them. */
   @Post('classes/:id/students')

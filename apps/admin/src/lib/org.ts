@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api';
-import type { Campus, ClassSummary, LevelOption, SchoolStaff } from './types';
+import type { Campus, ClassSummary, LevelOption, SchoolStaff, SchoolStudent } from './types';
 
 /** Query keys of the school pages; ['classes'] and ['class'] prefixes refresh every class list or detail. */
 export const orgKeys = {
@@ -17,7 +17,18 @@ export const orgKeys = {
   allStudentParents: ['student-parents'],
   schoolParents: (schoolId: string) => ['school-parents', schoolId],
   allSchoolParents: ['school-parents'],
+  schoolStudents: (schoolId: string) => ['school-students', schoolId],
+  allSchoolStudents: ['school-students'],
 };
+
+/** Every change to a child can touch class lists and details, the school's children and its parents. */
+export const CHILD_KEYS = [
+  orgKeys.allClassDetails,
+  orgKeys.allClasses,
+  orgKeys.allSchoolStudents,
+  orgKeys.allSchoolParents,
+  orgKeys.allStudentParents,
+];
 
 export type ClassListStatus = 'ACTIVE' | 'all';
 
@@ -44,5 +55,13 @@ export function useSchoolStaff(schoolId: string) {
   return useQuery({
     queryKey: orgKeys.schoolStaff(schoolId),
     queryFn: () => api.get<SchoolStaff>(`/schools/${schoolId}/staff`),
+  });
+}
+
+/** Children the school is responsible for, including those who left (school admins). */
+export function useSchoolStudents(schoolId: string) {
+  return useQuery({
+    queryKey: orgKeys.schoolStudents(schoolId),
+    queryFn: () => api.get<SchoolStudent[]>(`/schools/${schoolId}/students`),
   });
 }
