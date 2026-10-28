@@ -164,7 +164,7 @@ export default function AssetsPage() {
       ) : null}
       <FormError error={bulk.error} />
 
-      <div className={`grid gap-6 ${openId ? 'xl:grid-cols-[1fr_24rem]' : ''}`}>
+      <div className={`grid grid-cols-1 gap-6 ${openId ? 'xl:grid-cols-[1fr_24rem]' : ''}`}>
         <div>
           {query.isPending ? <Spinner label="Loading files" /> : null}
           {query.error ? <ErrorNotice error={query.error} /> : null}

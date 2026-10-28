@@ -84,7 +84,7 @@ export default function MaterialPage() {
           invalidate={invalidate}
         />
       </div>
-      <div className="grid gap-6 xl:grid-cols-[3fr_2fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[3fr_2fr]">
         <div className="flex flex-col gap-6">
           <MaterialForm key={`${material.id}-${material.version}-${material.status}`} material={material} />
           <Card>

@@ -30,7 +30,7 @@ function Schools() {
       <PageHeader title="Schools">
         Partner schools using Little Ants. Each school runs its own campuses, classes and staff.
       </PageHeader>
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
         <div>
           {query.isPending ? <Spinner label="Loading schools" /> : null}
           {query.error ? <ErrorNotice error={query.error} /> : null}

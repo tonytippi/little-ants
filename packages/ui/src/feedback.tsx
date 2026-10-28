@@ -31,11 +31,5 @@ export function ErrorNotice({ error }: { error: unknown }) {
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return (
-    <section
-      className={`rounded-[var(--radius-card)] border border-cream-200 bg-white p-5 shadow-xs ${className}`}
-    >
-      {children}
-    </section>
-  );
+  return <section className={`la-card ${className}`}>{children}</section>;
 }

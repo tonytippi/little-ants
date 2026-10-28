@@ -6,8 +6,8 @@ import {
   type TextareaHTMLAttributes,
 } from 'react';
 
-const CONTROL =
-  'w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-bark-900 shadow-xs placeholder:text-bark-500/60 focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-100 disabled:bg-cream-100';
+/** Default look in `styles.css` (components layer), so a `className` width or padding wins. */
+const CONTROL = 'la-control';
 
 interface FieldProps {
   label: string;

@@ -9,6 +9,7 @@ import { Card, EmptyState, ErrorNotice, Spinner } from '@little-ants/ui/feedback
 import { Field, Select, TextInput } from '@little-ants/ui/field';
 import { END_REASON } from '../../../components/classes/children-card';
 import { FormError } from '../../../components/form-error';
+import { NavIcon } from '../../../components/nav-icons';
 import { PageHeader } from '../../../components/page-header';
 import { SchoolPage } from '../../../components/school-only';
 import { api } from '../../../lib/api';
@@ -63,7 +64,7 @@ function ParentsView({ school }: { school: School }) {
         Parent accounts of the children of this school, including children who have left. Parents sign in to
         the Listening Time app with the Google account of their email, as long as a child is in a class.
       </PageHeader>
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="flex min-w-0 flex-col gap-4">
           {parents.isPending ? <Spinner label="Loading parents" /> : null}
           {parents.error ? <ErrorNotice error={parents.error} /> : null}
@@ -110,20 +111,19 @@ function ParentFilters({
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(14rem,1fr)_repeat(3,minmax(0,11rem))_auto]">
       <TextInput
         type="search"
         aria-label="Search parents"
-        placeholder="Search by email, name or child"
+        placeholder="Search parent or child"
         value={filters.search}
         onChange={(event) => set({ search: event.target.value })}
-        className="w-64"
+        className="sm:col-span-2 lg:col-span-1"
       />
       <Select
         aria-label="Class"
         value={filters.classId}
         onChange={(event) => set({ classId: event.target.value })}
-        className="w-44"
       >
         <option value="">All classes</option>
         {classes.map((klass) => (
@@ -136,7 +136,6 @@ function ParentFilters({
         aria-label="Child status"
         value={filters.status}
         onChange={(event) => set({ status: event.target.value as ChildStatus })}
-        className="w-44"
       >
         <option value="all">All children</option>
         <option value="current">In a class now</option>
@@ -146,14 +145,13 @@ function ParentFilters({
         aria-label="Sign-in"
         value={filters.signIn}
         onChange={(event) => set({ signIn: event.target.value as SignIn })}
-        className="w-44"
       >
         <option value="all">Any sign-in</option>
         <option value="signed-in">Signed in now</option>
         <option value="never">Never signed in</option>
       </Select>
       {Object.entries(NO_FILTERS).some(([key, value]) => filters[key as keyof Filters] !== value) ? (
-        <Button size="sm" variant="ghost" onClick={() => onChange(NO_FILTERS)}>
+        <Button size="sm" variant="ghost" onClick={() => onChange(NO_FILTERS)} className="self-center">
           Clear filters
         </Button>
       ) : null}
@@ -161,23 +159,23 @@ function ParentFilters({
   );
 }
 
+/** One row per parent: a table on wide screens, stacked blocks on phones. */
 function ParentTable({ schoolId, parents }: { schoolId: string; parents: SchoolParent[] }) {
   return (
-    <Card className="overflow-x-auto p-0">
-      <table className="w-full min-w-[44rem] text-sm">
-        <thead className="bg-cream-100 text-left text-xs uppercase tracking-wide text-bark-500">
-          <tr>
-            <th className="px-4 py-2">Parent</th>
-            <th className="px-4 py-2">Children</th>
-            <th className="px-4 py-2">Devices</th>
-          </tr>
-        </thead>
-        <tbody>
-          {parents.map((parent) => (
-            <ParentRow key={parent.id} schoolId={schoolId} parent={parent} />
-          ))}
-        </tbody>
-      </table>
+    <Card className="p-0">
+      <div
+        aria-hidden
+        className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_10rem] gap-4 rounded-t-[var(--radius-card)] bg-cream-100 px-4 py-2 text-xs font-bold uppercase tracking-wide text-bark-500 md:grid"
+      >
+        <span>Parent</span>
+        <span>Children</span>
+        <span>Devices</span>
+      </div>
+      <ul className="divide-y divide-cream-200">
+        {parents.map((parent) => (
+          <ParentRow key={parent.id} schoolId={schoolId} parent={parent} />
+        ))}
+      </ul>
     </Card>
   );
 }
@@ -194,53 +192,70 @@ function ParentRow({ schoolId, parent }: { schoolId: string; parent: SchoolParen
   const { devices } = parent;
 
   return (
-    <tr className="border-t border-cream-200 align-top">
-      <td className="px-4 py-3">
-        <p className="font-semibold">{parent.email}</p>
+    <li className="grid gap-3 px-4 py-3 text-sm md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_10rem] md:gap-4">
+      <div className="min-w-0">
+        <p className="truncate font-semibold" title={parent.email}>
+          {parent.email}
+        </p>
         <p className="text-xs text-bark-500">
           {parent.name ? `${parent.name} · ` : null}
           {parent.lastSignInAt ? `signed in ${formatDate(parent.lastSignInAt)}` : 'not signed in yet'}
         </p>
-      </td>
-      <td className="px-4 py-3">
-        <ul className="flex flex-col gap-2">
+      </div>
+      <div className="min-w-0">
+        <ul aria-label={`Children of ${parent.email}`} className="flex flex-wrap gap-2">
           {parent.children.map((child) => (
-            <li key={child.id} className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold">{child.displayName}</span>
-              {child.relationship ? <Badge tone="bark">{child.relationship}</Badge> : null}
-              <Link href={`/classes/${child.class.id}`} className="text-xs text-leaf-700 hover:underline">
+            <li
+              key={child.id}
+              className={`inline-flex max-w-full items-center gap-1.5 rounded-full border py-1 pr-1 pl-3 ${
+                child.endedOn ? 'border-dashed border-cream-200 bg-white' : 'border-cream-200 bg-cream-50'
+              }`}
+            >
+              <span className="truncate font-semibold">{child.displayName}</span>
+              {child.relationship ? (
+                <span className="text-xs text-bark-500">· {child.relationship}</span>
+              ) : null}
+              <Link
+                href={`/classes/${child.class.id}`}
+                className="text-xs font-semibold text-leaf-700 hover:underline"
+              >
                 {child.class.name}
               </Link>
               {child.endedOn ? (
-                <span className="text-xs text-bark-500">
+                <Badge tone="sun">
                   {child.endReason ? END_REASON[child.endReason] : 'left'} {formatDay(child.endedOn)}
-                </span>
+                </Badge>
               ) : null}
-              <Button
-                size="sm"
-                variant="ghost"
-                busy={unlink.isPending && unlink.variables === child.id}
+              <button
+                type="button"
+                aria-label={`Remove ${parent.email} from ${child.displayName}`}
+                title="Remove this parent from the child"
+                disabled={unlink.isPending && unlink.variables === child.id}
                 onClick={() =>
                   window.confirm(
                     `Remove ${parent.email} from ${child.displayName}? They can no longer open this child's listening.`,
                   ) && unlink.mutate(child.id)
                 }
+                className="rounded-full p-1 text-bark-500 transition-colors hover:bg-ant-50 hover:text-ant-600 disabled:opacity-50"
               >
-                Remove
-              </Button>
+                <NavIcon name="close" className="size-3.5" />
+              </button>
             </li>
           ))}
         </ul>
         <FormError error={unlink.error} />
-      </td>
-      <td className="px-4 py-3">
-        <p className="mb-2 text-xs text-bark-500">
-          {devices === 0 ? 'Not signed in' : `Signed in on ${devices} device${devices === 1 ? '' : 's'}`}
-        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 md:flex-col md:items-start">
+        <span
+          className={`inline-flex items-center gap-1.5 text-xs font-semibold ${devices ? 'text-leaf-700' : 'text-bark-500'}`}
+        >
+          <span aria-hidden className={`size-2 rounded-full ${devices ? 'bg-leaf-500' : 'bg-cream-200'}`} />
+          {devices === 0 ? 'Not signed in' : `${devices} device${devices === 1 ? '' : 's'}`}
+        </span>
         {devices > 0 ? (
           <Button
             size="sm"
-            variant="danger"
+            variant="ghost"
             busy={signOut.isPending}
             onClick={() =>
               window.confirm(
@@ -252,8 +267,8 @@ function ParentRow({ schoolId, parent }: { schoolId: string; parent: SchoolParen
           </Button>
         ) : null}
         <FormError error={signOut.error} />
-      </td>
-    </tr>
+      </div>
+    </li>
   );
 }
 

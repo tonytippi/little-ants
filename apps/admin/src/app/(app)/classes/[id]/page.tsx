@@ -69,7 +69,7 @@ function ClassView() {
         ) : null}
         {!active && data.endedAt ? ` · ended ${formatDate(data.endedAt)}` : ''}
       </PageHeader>
-      <div className="grid gap-6 xl:grid-cols-[3fr_2fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[3fr_2fr]">
         <div className="flex flex-col gap-6">
           {active ? (
             <Card>
