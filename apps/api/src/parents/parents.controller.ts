@@ -25,6 +25,7 @@ import { requireSchool, schoolOfStudent } from '../org/school-access.js';
 import { releasePictures } from '../releases/release-pictures.js';
 import { PARENT_COOKIE, ParentAuthService, SIGN_IN_COOKIE, SignInRefused } from './parent-auth.service.js';
 import { ListeningService } from './listening.service.js';
+import { linkParent } from './parent-link.js';
 import { CurrentParent, ParentGuard, readCookie, type SignedInParent } from './parent-session.js';
 
 /**
@@ -271,19 +272,9 @@ export class StudentParentsController {
     @Body(new ZodBody(parentLinkInput)) body: z.infer<typeof parentLinkInput>,
   ) {
     await this.manage(user, studentId);
-    const db = this.org.db;
-    const parent = await db.parent.upsert({
-      where: { email: body.email },
-      update: {},
-      create: { email: body.email },
-    });
-    const link = await db.studentParent.upsert({
-      where: { studentId_parentId: { studentId, parentId: parent.id } },
-      update: { relationship: body.relationship },
-      create: { studentId, parentId: parent.id, relationship: body.relationship },
-    });
-    await audit(db, user.id, 'parent-link', studentId, { parentId: parent.id });
-    return { ...link, parent };
+    const link = await linkParent(this.org.db, studentId, body);
+    await audit(this.org.db, user.id, 'parent-link', studentId, { parentId: link.parentId });
+    return link;
   }
 
   /** Unlink a parent; one with no other child in a class is signed out on every device. */
@@ -303,4 +294,101 @@ export class StudentParentsController {
     if (stillActive === 0) await db.parentSession.deleteMany({ where: { parentId } });
     await audit(db, user.id, 'parent-unlink', studentId, { parentId });
   }
+}
+
+/** Staff: every parent account of a school, with the children they follow there. */
+@Controller('schools/:schoolId/parents')
+export class SchoolParentsController {
+  constructor(private readonly org: OrgService) {}
+
+  /**
+   * Parent links of the children this school is responsible for: in one of its classes now, or there last
+   * before they left. A child now at another school belongs to that school, so it is left out here.
+   */
+  private async linksHere(schoolId: string, parentId?: string) {
+    const links = await this.org.db.studentParent.findMany({
+      where: { parentId, student: { enrollments: { some: { class: { campus: { schoolId } } } } } },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        relationship: true,
+        parent: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            lastSignInAt: true,
+            _count: { select: { sessions: true } },
+          },
+        },
+        student: {
+          select: {
+            id: true,
+            displayName: true,
+            enrollments: {
+              orderBy: [{ endedOn: { sort: 'desc', nulls: 'first' } }, { startedOn: 'desc' }],
+              take: 1,
+              select: {
+                endedOn: true,
+                endReason: true,
+                class: { select: { id: true, name: true, campus: { select: { schoolId: true } } } },
+              },
+            },
+          },
+        },
+      },
+    });
+    return links.filter((link) => link.student.enrollments[0]?.class.campus.schoolId === schoolId);
+  }
+
+  @Get()
+  async list(@CurrentUser() user: StaffUser, @Param('schoolId') schoolId: string) {
+    requireSchool(user, schoolId, true);
+    const parents = new Map<string, SchoolParentRow>();
+    for (const { parent, student, relationship } of await this.linksHere(schoolId)) {
+      const { _count, ...account } = parent;
+      const row = parents.get(parent.id) ?? { ...account, devices: _count.sessions, children: [] };
+      const { class: klass, endedOn, endReason } = student.enrollments[0]!;
+      row.children.push({
+        id: student.id,
+        displayName: student.displayName,
+        relationship,
+        class: { id: klass.id, name: klass.name },
+        endedOn,
+        endReason,
+      });
+      parents.set(parent.id, row);
+    }
+    return [...parents.values()].sort((a, b) => a.email.localeCompare(b.email));
+  }
+
+  /** Sign a parent out on every device, e.g. a lost phone; they can sign in again with Google. */
+  @Delete(':parentId/sessions')
+  @HttpCode(204)
+  async signOutEverywhere(
+    @CurrentUser() user: StaffUser,
+    @Param('schoolId') schoolId: string,
+    @Param('parentId') parentId: string,
+  ): Promise<void> {
+    requireSchool(user, schoolId, true);
+    if ((await this.linksHere(schoolId, parentId)).length === 0)
+      throw new NotFoundException('Parent not found');
+    await this.org.db.parentSession.deleteMany({ where: { parentId } });
+    await audit(this.org.db, user.id, 'parent-sign-out', parentId, { schoolId });
+  }
+}
+
+interface SchoolParentRow {
+  id: string;
+  email: string;
+  name: string;
+  lastSignInAt: Date | null;
+  devices: number;
+  children: {
+    id: string;
+    displayName: string;
+    relationship: string;
+    class: { id: string; name: string };
+    endedOn: Date | null;
+    endReason: string | null;
+  }[];
 }

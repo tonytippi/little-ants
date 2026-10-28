@@ -14,6 +14,9 @@ export const orgKeys = {
   allClassDetails: ['class'],
   schoolStaff: (schoolId: string) => ['school-staff', schoolId],
   parents: (studentId: string) => ['student-parents', studentId],
+  allStudentParents: ['student-parents'],
+  schoolParents: (schoolId: string) => ['school-parents', schoolId],
+  allSchoolParents: ['school-parents'],
 };
 
 export type ClassListStatus = 'ACTIVE' | 'all';

@@ -37,6 +37,7 @@ describe('create schemas still fill in defaults', () => {
       displayName: 'Bé Na',
       birthYear: null,
       consentAt: null,
+      parents: [],
     });
     expect(wordInput.parse({ cardId: 'U01-41', text: 'sun' })).toMatchObject({
       kind: 'CORE',

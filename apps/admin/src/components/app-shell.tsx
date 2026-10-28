@@ -9,14 +9,37 @@ import { useMe, useSignOut } from '../lib/session';
 
 type Access = 'hq' | 'hqAdmin' | 'school';
 
-const NAV: { href: string; label: string; access: Access }[] = [
-  { href: '/', label: 'Units', access: 'hq' },
-  { href: '/assets', label: 'Assets', access: 'hq' },
-  { href: '/schools', label: 'Schools', access: 'hqAdmin' },
-  { href: '/classes', label: 'Classes', access: 'school' },
-  { href: '/school-staff', label: 'School staff', access: 'school' },
-  { href: '/staff', label: 'HQ staff', access: 'hqAdmin' },
-  { href: '/imports', label: 'Drive sync', access: 'hqAdmin' },
+interface NavItem {
+  href: string;
+  label: string;
+  access: Access;
+}
+
+/** The menu in three groups: lesson content, schools with their classes and parents, and staff. */
+const NAV: { label: string; items: NavItem[] }[] = [
+  {
+    label: 'Lessons',
+    items: [
+      { href: '/', label: 'Units', access: 'hq' },
+      { href: '/assets', label: 'Assets', access: 'hq' },
+      { href: '/imports', label: 'Drive sync', access: 'hqAdmin' },
+    ],
+  },
+  {
+    label: 'Schools',
+    items: [
+      { href: '/schools', label: 'Schools', access: 'hqAdmin' },
+      { href: '/classes', label: 'Classes', access: 'school' },
+      { href: '/parents', label: 'Parents', access: 'school' },
+    ],
+  },
+  {
+    label: 'Staff',
+    items: [
+      { href: '/school-staff', label: 'School staff', access: 'school' },
+      { href: '/staff', label: 'HQ staff', access: 'hqAdmin' },
+    ],
+  },
 ];
 
 function SchoolSwitcher() {
@@ -62,6 +85,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     school: permissions.runsSchools,
   };
 
+  const groups = NAV.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => allowed[item.access]),
+  })).filter((group) => group.items.length > 0);
+
   const isActive = (href: string): boolean =>
     href === '/'
       ? pathname === '/' ||
@@ -85,18 +113,28 @@ export function AppShell({ children }: { children: ReactNode }) {
           <p className="text-lg font-extrabold text-leaf-700">Admin</p>
         </div>
         {permissions.runsSchools ? <SchoolSwitcher /> : null}
-        <nav aria-label="Main" className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:pb-0">
-          {NAV.filter((item) => allowed[item.access]).map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive(item.href) ? 'page' : undefined}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap ${
-                isActive(item.href) ? 'bg-leaf-50 text-leaf-700' : 'text-bark-700 hover:bg-cream-100'
-              }`}
-            >
-              {item.label}
-            </Link>
+        <nav
+          aria-label="Main"
+          className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:overflow-y-auto md:pb-0"
+        >
+          {groups.map((group) => (
+            <div key={group.label} className="flex gap-1 md:mb-3 md:flex-col">
+              <p className="hidden px-3 pb-1 text-xs font-bold uppercase tracking-wider text-bark-500 md:block">
+                {group.label}
+              </p>
+              {group.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive(item.href) ? 'page' : undefined}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap ${
+                    isActive(item.href) ? 'bg-leaf-50 text-leaf-700' : 'text-bark-700 hover:bg-cream-100'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
           ))}
           <button
             type="button"

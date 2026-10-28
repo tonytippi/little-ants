@@ -404,3 +404,22 @@ export interface StudentParent {
   relationship: string;
   parent: { id: string; email: string; name: string; lastSignInAt: string | null };
 }
+
+/** A parent account of a school, with the children the school is responsible for (now or before they left). */
+export interface SchoolParent {
+  id: string;
+  email: string;
+  name: string;
+  lastSignInAt: string | null;
+  /** Signed-in devices. */
+  devices: number;
+  children: {
+    id: string;
+    displayName: string;
+    relationship: string;
+    /** The child's class at this school now, or the last one. */
+    class: { id: string; name: string };
+    endedOn: string | null;
+    endReason: EnrollmentEnd | null;
+  }[];
+}

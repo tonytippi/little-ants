@@ -77,9 +77,17 @@ const studentBase = z.object({
     .nullable(),
   consentAt: z.coerce.date().nullable(),
 });
+/** A parent who may sign in to the student app for this child (by the Google account's email). */
+export const parentLinkInput = z.object({
+  email,
+  relationship: z.string().trim().max(40).default(''),
+});
+
+/** A new child, optionally with the parents who may sign in for them. */
 export const studentInput = studentBase.extend({
   birthYear: studentBase.shape.birthYear.default(null),
   consentAt: studentBase.shape.consentAt.default(null),
+  parents: z.array(parentLinkInput).max(4).default([]),
 });
 export const studentUpdate = studentBase.partial();
 export const moveStudentInput = z.object({ classId: id });
@@ -100,13 +108,8 @@ export type SchoolInput = z.infer<typeof schoolInput>;
 export type CampusInput = z.infer<typeof campusInput>;
 export type ClassInput = z.infer<typeof classInput>;
 export type StudentInput = z.infer<typeof studentInput>;
+export type ParentLinkInput = z.infer<typeof parentLinkInput>;
 export type StaffInviteInput = z.infer<typeof staffInviteInput>;
-
-/** A parent who may sign in to the student app for this child (by the Google account's email). */
-export const parentLinkInput = z.object({
-  email,
-  relationship: z.string().trim().max(40).default(''),
-});
 
 /** At the two-device limit: which signed-in device to sign out for the new one. */
 export const replaceDeviceInput = z.object({ signOutSessionId: id });

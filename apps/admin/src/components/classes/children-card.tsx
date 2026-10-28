@@ -10,8 +10,9 @@ import { orgKeys, useSchoolClasses } from '../../lib/org';
 import type { ClassDetail, ClassSummary, Enrollment, EnrollmentEnd, Student } from '../../lib/types';
 import { FormError } from '../form-error';
 import { ChildParentsButton } from './child-parents';
+import { EMPTY_PARENT, ParentEmailFields, filledParents } from './parent-email-fields';
 
-const END_REASON: Record<EnrollmentEnd, string> = {
+export const END_REASON: Record<EnrollmentEnd, string> = {
   LEFT: 'left',
   MOVED: 'moved to another class',
   MERGED: 'class merged',
@@ -137,14 +138,16 @@ function AddChild({ classId }: { classId: string }) {
   const [name, setName] = useState('');
   const [birthYear, setBirthYear] = useState('');
   const [consent, setConsent] = useState('');
+  const [parents, setParents] = useState([EMPTY_PARENT]);
   const add = useApiMutation(
     () =>
       api.post<Student>(`/classes/${classId}/students`, {
         displayName: name,
         birthYear: birthYearValue(birthYear),
         consentAt: consent || null,
+        parents: filledParents(parents),
       }),
-    CHILD_KEYS,
+    [...CHILD_KEYS, orgKeys.allSchoolParents],
   );
 
   function submit(event: FormEvent): void {
@@ -154,6 +157,7 @@ function AddChild({ classId }: { classId: string }) {
         setName('');
         setBirthYear('');
         setConsent('');
+        setParents([EMPTY_PARENT]);
       },
     });
   }
@@ -185,6 +189,7 @@ function AddChild({ classId }: { classId: string }) {
           className="w-40"
         />
       </label>
+      <ParentEmailFields rows={parents} onChange={setParents} />
       <Button type="submit" variant="secondary" busy={add.isPending}>
         Add child
       </Button>

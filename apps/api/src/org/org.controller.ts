@@ -29,6 +29,7 @@ import type { z } from 'zod';
 import { CurrentUser } from '../auth/decorators.js';
 import { schoolRole, type StaffUser } from '../auth/staff-access.js';
 import { audit } from '../common/audit.js';
+import { linkParent } from '../parents/parent-link.js';
 import { ZodBody } from '../common/zod-body.js';
 import { OrgService } from './org.service.js';
 import { requireClassAccess, requireSchool, schoolOfClass, schoolOfStudent } from './school-access.js';
@@ -255,7 +256,7 @@ export class OrgController {
 
   // Children ----------------------------------------------------------------
 
-  /** A new child, in this class from today. */
+  /** A new child, in this class from today, with the parents who may sign in for them. */
   @Post('classes/:id/students')
   async addStudent(
     @CurrentUser() user: StaffUser,
@@ -263,12 +264,14 @@ export class OrgController {
     @Body(new ZodBody(studentInput)) body: z.infer<typeof studentInput>,
   ) {
     await this.manageClass(user, classId);
+    const { parents, ...data } = body;
     const student = await this.db.$transaction(async (tx) => {
-      const created = await tx.student.create({ data: body });
+      const created = await tx.student.create({ data });
       await this.org.enroll(tx, created.id, classId);
+      for (const parent of parents) await linkParent(tx, created.id, parent);
       return created;
     });
-    await audit(this.db, user.id, 'student-create', student.id, { classId });
+    await audit(this.db, user.id, 'student-create', student.id, { classId, parents: parents.length });
     return student;
   }
 

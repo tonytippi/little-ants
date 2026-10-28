@@ -35,7 +35,7 @@ function ChildParents({ student }: { student: Student }) {
   });
   const remove = useApiMutation(
     (parentId: string) => api.del(`/students/${student.id}/parents/${parentId}`),
-    [key],
+    [key, orgKeys.allSchoolParents],
   );
 
   return (
@@ -84,7 +84,7 @@ function AddParent({ studentId }: { studentId: string }) {
   const [relationship, setRelationship] = useState('');
   const add = useApiMutation(
     () => api.post(`/students/${studentId}/parents`, { email, relationship }),
-    [orgKeys.parents(studentId)],
+    [orgKeys.parents(studentId), orgKeys.allSchoolParents],
   );
   const errors = fieldErrors(add.error);
 

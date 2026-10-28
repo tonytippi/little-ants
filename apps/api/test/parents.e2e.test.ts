@@ -23,6 +23,7 @@ interface Started {
 describe('parent sign-in and the two-device limit', () => {
   let ctx: TestApp;
   let schoolAdmin: StaffUser;
+  let schoolId: string;
   let studentId: string;
   let otherStudentId: string;
   const PARENT = 'mother@example.com';
@@ -78,6 +79,7 @@ describe('parent sign-in and the two-device limit', () => {
   beforeAll(async () => {
     ctx = await createTestApp({ headerAuth: true, providers: [[GoogleIdentityVerifier, fakeGoogle]] });
     const school = await createSchool(ctx.prisma, 'Parents school');
+    schoolId = school.schoolId;
     schoolAdmin = await createStaff(ctx.prisma, [], 'School admin', [
       { schoolId: school.schoolId, role: 'SCHOOL_ADMIN' },
     ]);
@@ -134,6 +136,37 @@ describe('parent sign-in and the two-device limit', () => {
       .set(asStaff(schoolAdmin))
       .expect(200);
     expect(parents.body[0].parent.email).toBe(PARENT);
+  });
+
+  it('lists the parent accounts of a school and signs one out on every device', async () => {
+    const list = await request(server())
+      .get(`/api/schools/${schoolId}/parents`)
+      .set(asStaff(schoolAdmin))
+      .expect(200);
+    expect(list.body).toEqual([
+      expect.objectContaining({
+        email: PARENT,
+        devices: 1,
+        children: [expect.objectContaining({ id: studentId, relationship: 'Mother', endedOn: null })],
+      }),
+    ]);
+
+    const elsewhere = await createSchool(ctx.prisma, 'Another school');
+    const otherAdmin = await createStaff(ctx.prisma, [], 'Other admin', [
+      { schoolId: elsewhere.schoolId, role: 'SCHOOL_ADMIN' },
+    ]);
+    const parentId = list.body[0].id as string;
+    await request(server()).get(`/api/schools/${schoolId}/parents`).set(asStaff(otherAdmin)).expect(404);
+    await request(server())
+      .delete(`/api/schools/${elsewhere.schoolId}/parents/${parentId}/sessions`)
+      .set(asStaff(otherAdmin))
+      .expect(404);
+
+    await request(server())
+      .delete(`/api/schools/${schoolId}/parents/${parentId}/sessions`)
+      .set(asStaff(schoolAdmin))
+      .expect(204);
+    expect(await ctx.prisma.parentSession.count({ where: { parentId } })).toBe(0);
   });
 
   it('checks state, browser binding, nonce and single use', async () => {
@@ -248,6 +281,50 @@ describe('parent sign-in and the two-device limit', () => {
     const back = await signIn();
     const me = await request(server()).get('/api/parent/me').set('Cookie', back.cookie!).expect(200);
     expect(me.body.children.map((child: { id: string }) => child.id)).toEqual([otherStudentId]);
+  });
+
+  it('keeps a child who left in the school list, and drops one now at another school', async () => {
+    const list = await request(server())
+      .get(`/api/schools/${schoolId}/parents`)
+      .set(asStaff(schoolAdmin))
+      .expect(200);
+    const children = list.body[0].children as { id: string; endedOn: string | null; endReason: string }[];
+    expect(children.find((child) => child.id === studentId)).toMatchObject({ endReason: 'LEFT' });
+    expect(children.find((child) => child.id === otherStudentId)).toMatchObject({ endedOn: null });
+
+    const elsewhere = await createSchool(ctx.prisma, 'Next school');
+    const level = await ctx.prisma.level.findFirstOrThrow({ where: { number: 2 } });
+    const there = await ctx.prisma.class.create({
+      data: { campusId: elsewhere.campusId, name: 'Owls', levelId: level.id, schoolYear: '2026-2027' },
+    });
+    await ctx.prisma.enrollment.create({
+      data: { studentId, classId: there.id, startedOn: new Date() },
+    });
+    const after = await request(server())
+      .get(`/api/schools/${schoolId}/parents`)
+      .set(asStaff(schoolAdmin))
+      .expect(200);
+    expect(after.body[0].children.map((child: { id: string }) => child.id)).toEqual([otherStudentId]);
+  });
+
+  it('registers parents together with a new child', async () => {
+    const klass = await ctx.prisma.class.findFirstOrThrow({ where: { campus: { schoolId }, name: 'Bees' } });
+    const created = await request(server())
+      .post(`/api/classes/${klass.id}/students`)
+      .set(asStaff(schoolAdmin))
+      .send({
+        displayName: 'Bé Chi',
+        parents: [{ email: 'Father@Example.com', relationship: 'Father' }, { email: PARENT }],
+      })
+      .expect(201);
+    const parents = await request(server())
+      .get(`/api/students/${created.body.id}/parents`)
+      .set(asStaff(schoolAdmin))
+      .expect(200);
+    expect(parents.body.map((link: { parent: { email: string } }) => link.parent.email)).toEqual([
+      'father@example.com',
+      PARENT,
+    ]);
   });
 
   it('signs out on logout', async () => {
