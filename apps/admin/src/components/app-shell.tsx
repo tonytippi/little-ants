@@ -8,7 +8,7 @@ import { useCurrentSchool } from '../lib/school';
 import { useMe, useSignOut } from '../lib/session';
 import { NavIcon, type NavIconName } from './nav-icons';
 
-type Access = 'hq' | 'hqAdmin' | 'school';
+type Access = 'any' | 'hq' | 'hqAdmin' | 'school';
 
 interface NavItem {
   href: string;
@@ -19,10 +19,12 @@ interface NavItem {
 
 /** The menu in three groups: lesson content, schools with their campuses, classes, children and parents, and staff. */
 const NAV: { label: string; items: NavItem[] }[] = [
+  // The home page, above the groups and without a heading.
+  { label: '', items: [{ href: '/', label: 'Dashboard', icon: 'dashboard', access: 'any' }] },
   {
     label: 'Lessons',
     items: [
-      { href: '/', label: 'Units', icon: 'units', access: 'hq' },
+      { href: '/units', label: 'Units', icon: 'units', access: 'hq' },
       { href: '/assets', label: 'Assets', icon: 'assets', access: 'hq' },
       { href: '/imports', label: 'Drive sync', icon: 'sync', access: 'hqAdmin' },
     ],
@@ -47,17 +49,18 @@ const NAV: { label: string; items: NavItem[] }[] = [
 ];
 
 function isActive(pathname: string, href: string): boolean {
-  if (href !== '/') return pathname === href || pathname.startsWith(`${href}/`);
-  // Units also own the unit, material and lesson pages under them.
-  return (
-    ['/units', '/materials', '/lessons'].some((prefix) => pathname.startsWith(prefix)) || pathname === '/'
-  );
+  if (href === '/') return pathname === '/';
+  // Units also own the material and lesson pages under them.
+  if (href === '/units')
+    return ['/units', '/materials', '/lessons'].some((prefix) => pathname.startsWith(prefix));
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 /** The menu groups and items this person may open. */
 function useNavGroups() {
   const permissions = usePermissions();
   const allowed: Record<Access, boolean> = {
+    any: permissions.hasHqRole || permissions.runsSchools,
     hq: permissions.hasHqRole,
     hqAdmin: permissions.isAdmin,
     school: permissions.runsSchools,
@@ -123,13 +126,20 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav aria-label="Main" className="flex flex-col gap-5 px-3">
       {groups.map((group) => (
-        <div key={group.label} role="group" aria-labelledby={`nav-${group.label}`}>
-          <p
-            id={`nav-${group.label}`}
-            className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-bark-500/80"
-          >
-            {group.label}
-          </p>
+        <div
+          key={group.label || 'home'}
+          role="group"
+          aria-labelledby={group.label ? `nav-${group.label}` : undefined}
+          aria-label={group.label ? undefined : 'Home'}
+        >
+          {group.label ? (
+            <p
+              id={`nav-${group.label}`}
+              className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-bark-500/80"
+            >
+              {group.label}
+            </p>
+          ) : null}
           <ul className="flex flex-col gap-0.5">
             {group.items.map((item) => {
               const active = isActive(pathname, item.href);

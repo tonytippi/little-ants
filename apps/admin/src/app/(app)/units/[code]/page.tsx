@@ -64,7 +64,7 @@ export default function UnitPage() {
   return (
     <div>
       <PageHeader
-        back={{ href: '/', label: 'All units' }}
+        back={{ href: '/units', label: 'All units' }}
         eyebrow={`${unit.code} · Level ${unit.level.number} ${unit.level.name} · ${unit.level.ageBand}`}
         title={unit.title}
         actions={

@@ -435,3 +435,53 @@ export interface SchoolStudent extends Student {
     class: { id: string; name: string; status: ClassStatus };
   };
 }
+
+/** The Admin home page; each part is null when the signed-in person may not see it. */
+export interface Dashboard {
+  content: {
+    units: Record<ContentStatus, number>;
+    /** Units with at least one release. */
+    published: number;
+    waitingReview: { code: string; title: string; updatedAt: string }[];
+    lastSync: {
+      status: ImportRunStatus;
+      createdAt: string;
+      finishedAt: string | null;
+      message: string;
+    } | null;
+  } | null;
+  network: {
+    schools: number;
+    activeSchools: number;
+    campuses: number;
+    activeClasses: number;
+    childrenInClass: number;
+    parents: number;
+  } | null;
+  school: {
+    totals: {
+      activeClasses: number;
+      childrenInClass: number;
+      parents: number;
+      parentsSignedIn: number;
+      staff: number;
+    };
+    attention: {
+      noConsent: number;
+      noParent: number;
+      classesWithoutTeacher: number;
+      classesWithoutUnit: number;
+    };
+    /** Oldest day first, ending today. */
+    listening: { day: string; leaves: number; children: number }[];
+    classes: {
+      id: string;
+      name: string;
+      nextLesson: number;
+      campus: { name: string };
+      currentUnit: { code: string; title: string } | null;
+      children: number;
+      lastTaughtAt: string | null;
+    }[];
+  } | null;
+}
