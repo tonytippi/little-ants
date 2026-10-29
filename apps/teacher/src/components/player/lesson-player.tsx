@@ -6,9 +6,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } 
 import type { UnitReleasePayload } from '@little-ants/shared';
 import { Button, buttonClass } from '@little-ants/ui/button';
 import { Badge } from '@little-ants/ui/badge';
+import { sendToTv, useCast, useCastMessages } from '../../lib/cast';
+import type { AudioStatus, ReceiverMessage } from '../../lib/cast-protocol';
 import { formatClock, stageLabel } from '../../lib/format';
 import { useElapsedSeconds } from '../../lib/hooks';
 import { links } from '../../lib/links';
+import { NOTE_SIZES, useNoteSize } from '../../lib/note-size';
 import {
   isPresenterMessage,
   presenterChannelName,
@@ -19,8 +22,9 @@ import { AudioBar } from './audio-bar';
 import { FinishDialog } from './finish-dialog';
 import { NotesPanel } from './notes-panel';
 import { Stage } from './stage';
-import { audioFor, clampPage, materialForStep } from './stage-content';
+import { audioFor, buildStageFrame, clampPage, materialForStep } from './stage-content';
 import { StepRail } from './step-rail';
+import { TvMenu } from './tv-menu';
 
 interface Props {
   payload: UnitReleasePayload;
@@ -44,13 +48,25 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
   const [lessonStart] = useState(() => Date.now());
   const [stepStart, setStepStart] = useState(() => Date.now());
   const [session, setSession] = useState<string | null>(null);
-  const [tvConnected, setTvConnected] = useState(false);
+  const [windowConnected, setWindowConnected] = useState(false);
+  const cast = useCast();
+  const casting = cast.status === 'connected';
+  const [tvAudio, setTvAudio] = useState<AudioStatus | null>(null);
+  const [tvReady, setTvReady] = useState(0);
+  const [noteSize, setNoteSize] = useNoteSize();
   const [finishing, setFinishing] = useState(false);
   const channel = useRef<BroadcastChannel | null>(null);
   const swipeStart = useRef<number | null>(null);
 
   const step = steps[stepIndex];
   const material = view === 'material' ? materialForStep(payload, step) : undefined;
+  const shownPage = clampPage(page, pageCount);
+  const frame = useMemo(
+    () => buildStageFrame(payload, step, view, shownPage),
+    [payload, step, view, shownPage],
+  );
+  // With a TV showing the stage, the teacher's screen puts the notes first.
+  const withTv = casting || windowConnected;
   const lessonSeconds = useElapsedSeconds(lessonStart, true);
   const stepSeconds = useElapsedSeconds(stepStart, true);
   const stepLeft = (step?.minutes ?? 0) * 60 - stepSeconds;
@@ -106,8 +122,8 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
     channel.current = bc;
     bc.onmessage = (event: MessageEvent<unknown>) => {
       if (!isPresenterMessage(event.data)) return;
-      if (event.data.type === 'hello') setTvConnected(true);
-      if (event.data.type === 'bye') setTvConnected(false);
+      if (event.data.type === 'hello') setWindowConnected(true);
+      if (event.data.type === 'bye') setWindowConnected(false);
     };
     return () => {
       bc.postMessage({ type: 'bye' } satisfies PresenterMessage);
@@ -117,8 +133,19 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
   }, [session]);
 
   useEffect(() => {
-    channel.current?.postMessage({ type: 'state', stepIndex, page, view } satisfies PresenterMessage);
-  }, [stepIndex, page, view, tvConnected, session]);
+    channel.current?.postMessage({ type: 'state', frame } satisfies PresenterMessage);
+  }, [frame, windowConnected, session]);
+
+  // Chromecast: the TV follows the same frames; it asks again ('ready') when it starts or reconnects.
+  useEffect(() => {
+    if (casting) sendToTv({ type: 'frame', frame });
+  }, [frame, casting, tvReady]);
+
+  const onTvMessage = useCallback((message: ReceiverMessage) => {
+    if (message.type === 'ready') setTvReady((count) => count + 1);
+    else setTvAudio(message);
+  }, []);
+  useCastMessages(onTvMessage);
 
   function openTv(): void {
     const id = session ?? crypto.randomUUID();
@@ -147,6 +174,7 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
   }
 
   const tracks = view === 'material' ? audioFor(material, page) : [];
+  const remoteAudio = casting ? { status: tvAudio, send: sendToTv, resync: tvReady } : undefined;
 
   function onPointerDown(event: PointerEvent): void {
     swipeStart.current = event.clientX;
@@ -204,22 +232,22 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
           >
             Word cards
           </Button>
-          <Button
-            size="md"
-            variant="secondary"
-            onClick={() => setNotesOpen(!notesOpen)}
-            aria-pressed={notesOpen}
-          >
-            Notes
-          </Button>
-          <Button
-            size="md"
-            variant={session ? 'primary' : 'secondary'}
-            onClick={openTv}
-            title="Open a second window for the TV or projector"
-          >
-            {session ? (tvConnected ? 'TV on' : 'TV window…') : 'Show on TV'}
-          </Button>
+          {withTv ? null : (
+            <Button
+              size="md"
+              variant="secondary"
+              onClick={() => setNotesOpen(!notesOpen)}
+              aria-pressed={notesOpen}
+            >
+              Notes
+            </Button>
+          )}
+          <TvMenu
+            cast={cast}
+            windowConnected={windowConnected}
+            windowOpen={session !== null}
+            onOpenWindow={openTv}
+          />
           <Button
             size="md"
             variant="accent"
@@ -233,20 +261,17 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <section className="flex min-w-0 flex-1 flex-col gap-3 p-3" aria-label="Lesson stage">
+      <div className={`flex min-h-0 flex-1 ${withTv ? 'flex-col landscape:flex-row' : ''}`}>
+        <section
+          className={`flex min-w-0 flex-col gap-3 p-3 ${withTv ? 'shrink-0 portrait:h-[42%] landscape:w-[42%]' : 'flex-1'}`}
+          aria-label={withTv ? 'What the TV shows' : 'Lesson stage'}
+        >
           <div
             className="relative min-h-0 flex-1 touch-pan-y select-none overflow-hidden rounded-3xl bg-cream-50 ring-1 ring-cream-200"
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
           >
-            <Stage
-              payload={payload}
-              step={step}
-              view={view}
-              page={clampPage(page, pageCount)}
-              onPageCount={onPageCount}
-            />
+            <Stage frame={frame} onPageCount={onPageCount} />
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
@@ -263,29 +288,55 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
               </Button>
             </div>
             <div className="min-w-64 flex-1">
-              <AudioBar tracks={tracks} />
+              <AudioBar tracks={tracks} remote={remoteAudio} />
             </div>
           </div>
         </section>
 
-        {notesOpen ? (
+        {notesOpen || withTv ? (
           <aside
-            className="fixed inset-y-0 right-0 z-30 w-[min(24rem,90vw)] overflow-y-auto border-l border-cream-200 bg-white p-5 shadow-xl lg:static lg:z-auto lg:shadow-none"
+            className={
+              withTv
+                ? 'min-h-0 min-w-0 flex-1 overflow-y-auto border-cream-200 bg-white p-5 portrait:border-t landscape:border-l'
+                : 'fixed inset-y-0 right-0 z-30 w-[min(24rem,90vw)] overflow-y-auto border-l border-cream-200 bg-white p-5 shadow-xl lg:static lg:z-auto lg:shadow-none'
+            }
             aria-label="Teacher notes"
           >
-            <div className="mb-4 flex items-center justify-between">
-              <div>
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-wide text-ant-600">Step {stepIndex + 1}</p>
                 <h2 className="font-extrabold text-bark-900">{step?.title}</h2>
               </div>
-              <button
-                type="button"
-                onClick={() => setNotesOpen(false)}
-                className="rounded-lg px-2 py-1 text-bark-500 hover:bg-cream-100 lg:hidden"
-                aria-label="Close notes"
-              >
-                ✕
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setNoteSize(noteSize - 1)}
+                  disabled={noteSize === 0}
+                  className="rounded-lg px-2.5 py-1.5 text-sm font-bold text-bark-700 hover:bg-cream-100 disabled:opacity-40"
+                  aria-label="Smaller note text"
+                >
+                  A−
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNoteSize(noteSize + 1)}
+                  disabled={noteSize === NOTE_SIZES.length - 1}
+                  className="rounded-lg px-2.5 py-1.5 text-lg font-bold text-bark-700 hover:bg-cream-100 disabled:opacity-40"
+                  aria-label="Larger note text"
+                >
+                  A+
+                </button>
+                {withTv ? null : (
+                  <button
+                    type="button"
+                    onClick={() => setNotesOpen(false)}
+                    className="rounded-lg px-2 py-1 text-bark-500 hover:bg-cream-100 lg:hidden"
+                    aria-label="Close notes"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
             {lesson.newToday.length ? (
               <p className="mb-4 flex flex-wrap items-center gap-1 text-xs text-bark-500">
@@ -297,7 +348,12 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
                 ))}
               </p>
             ) : null}
-            <NotesPanel lesson={lesson} step={step} material={materialForStep(payload, step)} />
+            <NotesPanel
+              lesson={lesson}
+              step={step}
+              material={materialForStep(payload, step)}
+              size={noteSize}
+            />
           </aside>
         ) : null}
       </div>
@@ -310,7 +366,10 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
         <FinishDialog
           open={finishing}
           onClose={() => setFinishing(false)}
-          onDone={() => router.push(links.home())}
+          onDone={() => {
+            sendToTv({ type: 'end' });
+            router.push(links.home());
+          }}
           unitCode={payload.unit.code}
           lessonNumber={lesson.number}
           releaseVersion={payload.version}

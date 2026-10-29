@@ -1,37 +1,21 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import type { UnitReleasePayload } from '@little-ants/shared';
 import { Spinner } from '@little-ants/ui/feedback';
 import { Stage } from '../../components/player/stage';
-import { clampPage } from '../../components/player/stage-content';
+import type { StageFrame } from '../../components/player/stage-content';
 import { ReleaseGate } from '../../components/release-gate';
 import { UnitArt } from '@little-ants/ui/storybook';
-import {
-  isPresenterMessage,
-  presenterChannelName,
-  type PresenterMessage,
-  type StageView,
-} from '../../lib/presenter';
+import { isPresenterMessage, presenterChannelName, type PresenterMessage } from '../../lib/presenter';
 import { RequireStaff } from '../../lib/session';
 
 /** The TV / projector window: only the stage, driven by the teacher's window. */
-function TvStage({
-  payload,
-  lessonNumber,
-  session,
-}: {
-  payload: UnitReleasePayload;
-  lessonNumber: number;
-  session: string;
-}) {
-  const [state, setState] = useState<{ stepIndex: number; page: number; view: StageView } | null>(null);
+function TvStage({ payload, session }: { payload: UnitReleasePayload; session: string }) {
+  const [frame, setFrame] = useState<StageFrame | null>(null);
   const [ended, setEnded] = useState(false);
-  const [pageCount, setPageCount] = useState(1);
   const [fullscreen, setFullscreen] = useState(false);
-  const onPageCount = useCallback((count: number) => setPageCount(Math.max(1, count)), []);
-  const lesson = payload.lessons.find((item) => item.number === lessonNumber);
 
   useEffect(() => {
     const channel = new BroadcastChannel(presenterChannelName(session));
@@ -39,7 +23,7 @@ function TvStage({
       if (!isPresenterMessage(event.data)) return;
       if (event.data.type === 'state') {
         setEnded(false);
-        setState({ stepIndex: event.data.stepIndex, page: event.data.page, view: event.data.view });
+        setFrame(event.data.frame);
       }
       if (event.data.type === 'bye') setEnded(true);
     };
@@ -61,15 +45,8 @@ function TvStage({
 
   return (
     <div className="relative h-dvh w-screen overflow-hidden bg-cream-50">
-      {state && lesson && !ended ? (
-        <Stage
-          presenter
-          payload={payload}
-          step={lesson.steps[state.stepIndex]}
-          view={state.view}
-          page={clampPage(state.page, pageCount)}
-          onPageCount={onPageCount}
-        />
+      {frame && !ended ? (
+        <Stage presenter frame={frame} />
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
           <UnitArt
@@ -100,12 +77,11 @@ function TvStage({
 function Present() {
   const params = useSearchParams();
   const unit = params.get('unit')?.toUpperCase() ?? null;
-  const lesson = Number(params.get('lesson') ?? '1');
   const session = params.get('session') ?? '';
   const preview = params.get('preview') === '1';
   return (
     <ReleaseGate unit={unit} preview={preview}>
-      {(payload) => <TvStage payload={payload} lessonNumber={lesson} session={session} />}
+      {(payload) => <TvStage payload={payload} session={session} />}
     </ReleaseGate>
   );
 }

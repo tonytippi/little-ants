@@ -129,6 +129,14 @@ Create the scratch database once with `$COMPOSE exec postgres createdb -U little
 - When a child leaves (or their class is stopped), the parents lose access at once; moving to another class or school keeps the child's progress and studied units.
 - Teachers signed in to the Teacher app can switch the student app to **At school** to play the lesson's leaf on the classroom screen.
 
+## Showing lessons on a TV (Google Cast)
+
+- Teachers tap **Show on TV → Chromecast / Android TV** in a lesson (Chrome only, same Wi-Fi as the TV). The TV shows the stage and plays the audio; the teacher's screen keeps the notes. The in-app guide is `https://la-teacher.passionedu.org/tv-help`.
+- The TV runs the Cast receiver app **`B1587FA6`**, registered in the [Google Cast SDK Developer Console](https://cast.google.com/publish) and pointing at `https://la-teacher.passionedu.org/cast-receiver`. The ID lives in `apps/teacher/src/lib/cast-protocol.ts`. Changing the receiver URL in the console changes it for every TV.
+- Until the receiver is **published** in the console, only TVs whose serial number is registered there (**Add New Device**, then restart the TV after about 15 minutes) can run it.
+- The receiver has no login and no data of its own: it shows what the teacher's device sends. It loads pictures and audio from `la-media`, so the TV needs internet even when the unit is downloaded on the teacher's device.
+- Debug the receiver from a computer on the same network with `chrome://inspect` (registered devices only), or with Google's Cast Command and Control tool.
+
 ## Classroom tips
 
 - Teachers should open the Teacher app and download the week's unit the day before; lessons then run without the internet.

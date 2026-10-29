@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { ReleaseMaterial, ReleaseMedia } from '@little-ants/shared';
+import type { ReleaseMaterial, ReleaseMedia, ReleaseStep, UnitReleasePayload } from '@little-ants/shared';
 import {
   audioFor,
+  buildStageFrame,
   clampPage,
   displayPageCount,
   materialDisplay,
@@ -101,5 +102,67 @@ describe('pdfPageForStoryPage', () => {
     expect(pdfPageForStoryPage(0, 8, 8)).toBe(1);
     expect(pdfPageForStoryPage(2, 8, null)).toBe(3);
     expect(pdfPageForStoryPage(2, 8, 4)).toBe(3);
+  });
+});
+
+describe('buildStageFrame', () => {
+  const step = (materialCode: string | null): ReleaseStep => ({
+    order: 1,
+    minutes: 5,
+    kind: 'SONG',
+    title: 'Sing hello',
+    materialCode,
+    teacherText: 'Point and sing.',
+    childrenText: 'Sing along.',
+  });
+  const longStory = material({
+    code: 'ST1',
+    type: 'STORY',
+    title: 'The big day',
+    actions: 'Clap twice.',
+    teacherNotes: 'Pause before the last page.',
+    pages: Array.from({ length: 40 }, (_, i) => ({
+      number: i + 1,
+      text: 'Ants walk to the garden and look for food under the big green leaves. '.repeat(4),
+      image: media(`page-${i}`, 'IMAGE'),
+      audio: media(`audio-${i}`, 'AUDIO'),
+    })),
+  });
+  const payload = {
+    unit: { title: 'My Home', leadCharacter: { code: 'ANT', name: 'Andy', image: media('andy', 'IMAGE') } },
+    words: [
+      { cardId: 'w1', text: 'cat', kind: 'CORE', group: '', image: media('cat', 'IMAGE') },
+      { cardId: 'w2', text: 'extra', kind: 'EXTRA', group: '', image: null },
+      { cardId: 'w3', text: 'dog', kind: 'CORE', group: '', image: null },
+    ],
+    materials: [material(), longStory],
+  } as unknown as UnitReleasePayload;
+
+  it('carries the material children see without teacher-only text', () => {
+    const frame = buildStageFrame(payload, step('ST1'), 'material', 2);
+    expect(frame).toMatchObject({ title: 'The big day', view: 'material', page: 2, word: null });
+    expect(frame.material?.pages).toHaveLength(40);
+    expect(frame.material).not.toHaveProperty('teacherNotes');
+    expect(frame.material).not.toHaveProperty('actions');
+    expect(JSON.stringify(frame)).not.toContain('Pause before the last page');
+  });
+
+  it('shows the current class word card, skipping home-only words', () => {
+    const frame = buildStageFrame(payload, step('SG1'), 'words', 1);
+    expect(frame).toMatchObject({ title: 'Word cards', material: null, wordCount: 2 });
+    expect(frame.word).toEqual({ text: 'dog', image: null });
+  });
+
+  it('falls back to the step card with the lead character', () => {
+    const frame = buildStageFrame(payload, step(null), 'material', 0);
+    expect(frame).toMatchObject({ title: 'Sing hello', stepTitle: 'Sing hello', material: null });
+    expect(frame.lead?.name).toBe('Andy');
+  });
+
+  it('stays small enough for one Cast message', () => {
+    for (const code of ['SG1', 'ST1']) {
+      const frame = buildStageFrame(payload, step(code), 'material', 0);
+      expect(JSON.stringify(frame).length).toBeLessThan(32_000);
+    }
   });
 });

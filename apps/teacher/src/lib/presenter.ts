@@ -1,6 +1,7 @@
+import type { StageFrame } from '../components/player/stage-content';
+
 /** Messages between the teacher's window and the TV (presenter) window. */
-export type PresenterMessage =
-  { type: 'state'; stepIndex: number; page: number; view: StageView } | { type: 'hello' } | { type: 'bye' };
+export type PresenterMessage = { type: 'state'; frame: StageFrame } | { type: 'hello' } | { type: 'bye' };
 
 export type StageView = 'material' | 'words';
 

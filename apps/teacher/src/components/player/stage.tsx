@@ -1,28 +1,26 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { ReleaseMaterial, ReleaseStep, UnitReleasePayload } from '@little-ants/shared';
-import type { StageView } from '../../lib/presenter';
 import { fadeClass } from '@little-ants/ui/storybook';
 import { PdfPage } from './pdf-page';
 import {
   clampPage,
   displayPageCount,
   materialDisplay,
-  materialForStep,
   pdfPageForStoryPage,
+  type StageFrame,
+  type StageMaterial,
 } from './stage-content';
 
 interface StageProps {
-  payload: UnitReleasePayload;
-  step: ReleaseStep | undefined;
-  view: StageView;
-  page: number;
-  /** Reports how many pages the current view has (for page turning). */
-  onPageCount: (count: number) => void;
-  /** Large type for the TV window. */
+  frame: StageFrame;
+  /** Reports how many pages the current view has (for page turning). TV screens leave it out. */
+  onPageCount?: (count: number) => void;
+  /** Large type for the TV. */
   presenter?: boolean;
 }
+
+const ignorePageCount = (): void => undefined;
 
 /** `fade` softens the edges into the page, for character art drawn on paper (brand storybook look). */
 function Picture({ src, alt, fade = false }: { src: string; alt: string; fade?: boolean }) {
@@ -53,7 +51,7 @@ function MaterialStage({
   page,
   onPageCount,
 }: {
-  material: ReleaseMaterial;
+  material: StageMaterial;
   page: number;
   onPageCount: (count: number) => void;
 }) {
@@ -107,17 +105,15 @@ function MaterialStage({
 }
 
 function WordCards({
-  payload,
-  page,
+  word,
+  wordCount,
   onPageCount,
 }: {
-  payload: UnitReleasePayload;
-  page: number;
+  word: StageFrame['word'];
+  wordCount: number;
   onPageCount: (count: number) => void;
 }) {
-  const words = payload.words.filter((word) => word.kind !== 'EXTRA');
-  useEffect(() => onPageCount(words.length), [words.length, onPageCount]);
-  const word = words[clampPage(page, words.length)];
+  useEffect(() => onPageCount(wordCount), [wordCount, onPageCount]);
   if (!word) return <ChildText>No word cards in this unit.</ChildText>;
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-6">
@@ -134,24 +130,23 @@ function WordCards({
 }
 
 /** The part of the lesson children see: shown in the teacher's window and on the TV. */
-export function Stage({ payload, step, view, page, onPageCount, presenter = false }: StageProps) {
-  const material = materialForStep(payload, step);
-  const lead = payload.unit.leadCharacter;
+export function Stage({ frame, onPageCount = ignorePageCount, presenter = false }: StageProps) {
+  const { material, lead, page } = frame;
   return (
     <div className={`flex h-full w-full flex-col ${presenter ? 'p-8' : 'p-4 sm:p-6'}`}>
       <div className="mb-3 flex items-baseline justify-between gap-4">
         <p className={`font-child font-bold text-leaf-700 ${presenter ? 'text-3xl' : 'text-xl'}`}>
-          {view === 'words' ? 'Word cards' : (material?.title ?? step?.title ?? payload.unit.title)}
+          {frame.title}
         </p>
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center">
-        {view === 'words' ? (
-          <WordCards payload={payload} page={page} onPageCount={onPageCount} />
+        {frame.view === 'words' ? (
+          <WordCards word={frame.word} wordCount={frame.wordCount} onPageCount={onPageCount} />
         ) : material ? (
           <MaterialStage key={material.code} material={material} page={page} onPageCount={onPageCount} />
         ) : (
           <StepCard
-            title={step?.title ?? 'Little Ants'}
+            title={frame.stepTitle}
             lead={lead?.image?.url ?? null}
             leadName={lead?.name ?? ''}
             onPageCount={onPageCount}

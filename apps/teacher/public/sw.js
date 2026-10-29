@@ -20,6 +20,7 @@ const ROUTES = [
   '/print',
   '/preview',
   '/listening',
+  '/tv-help',
 ];
 const FILES = ['/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png', '/pdf.worker.min.mjs'];
 

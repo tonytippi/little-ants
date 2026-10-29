@@ -1,4 +1,24 @@
 import type { ReleaseMaterial, ReleaseMedia, ReleaseStep, UnitReleasePayload } from '@little-ants/shared';
+import type { StageView } from '../../lib/presenter';
+
+/** The parts of a material children see. Teacher-only text (notes, actions) stays off the TV. */
+export type StageMaterial = Pick<ReleaseMaterial, 'code' | 'title' | 'fullText' | 'targetLanguage' | 'pages' | 'media'>;
+
+/**
+ * Everything the stage shows at one moment, self-contained so a TV can render it without the release:
+ * the teacher window, the TV window and the Cast receiver all draw from the same frame.
+ */
+export interface StageFrame {
+  title: string;
+  stepTitle: string;
+  view: StageView;
+  page: number;
+  material: StageMaterial | null;
+  /** The word card on screen in the word cards view. */
+  word: { text: string; image: ReleaseMedia | null } | null;
+  wordCount: number;
+  lead: { name: string; image: ReleaseMedia | null } | null;
+}
 
 /** What the stage shows for a material, in order of preference. */
 export type MaterialDisplay =
@@ -7,7 +27,7 @@ export type MaterialDisplay =
   | { kind: 'pdf'; pdf: ReleaseMedia }
   | { kind: 'text'; text: string };
 
-export function materialDisplay(material: ReleaseMaterial): MaterialDisplay {
+export function materialDisplay(material: StageMaterial): MaterialDisplay {
   const images = material.media.filter((media) => media.kind === 'IMAGE' && media.role !== 'draft-layout');
   const pdf = material.media.find((media) => media.kind === 'PDF') ?? null;
   if (material.pages.length > 0) {
@@ -37,7 +57,7 @@ export function displayPageCount(display: MaterialDisplay, pdfPages: number | nu
 }
 
 /** Audio for the current material and page: the page's own audio first, then the material's tracks. */
-export function audioFor(material: ReleaseMaterial | undefined, page: number): ReleaseMedia[] {
+export function audioFor(material: StageMaterial | null | undefined, page: number): ReleaseMedia[] {
   if (!material) return [];
   const pageAudio = material.pages[page]?.audio;
   const tracks = material.media.filter((media) => media.kind === 'AUDIO');
@@ -63,4 +83,41 @@ export function clampPage(page: number, count: number): number {
 export function pdfPageForStoryPage(page: number, storyPages: number, pdfPages: number | null): number {
   const offset = pdfPages && pdfPages > storyPages ? pdfPages - storyPages : 0;
   return page + 1 + offset;
+}
+
+/** Word cards shown in class (extra words are for home only). */
+export function stageWords(payload: UnitReleasePayload) {
+  return payload.words.filter((word) => word.kind !== 'EXTRA');
+}
+
+export function buildStageFrame(
+  payload: UnitReleasePayload,
+  step: ReleaseStep | undefined,
+  view: StageView,
+  page: number,
+): StageFrame {
+  const found = materialForStep(payload, step);
+  const material: StageMaterial | null = found
+    ? {
+        code: found.code,
+        title: found.title,
+        fullText: found.fullText,
+        targetLanguage: found.targetLanguage,
+        pages: found.pages,
+        media: found.media,
+      }
+    : null;
+  const words = stageWords(payload);
+  const word = view === 'words' ? words[clampPage(page, words.length)] : undefined;
+  const lead = payload.unit.leadCharacter;
+  return {
+    title: view === 'words' ? 'Word cards' : (material?.title ?? step?.title ?? payload.unit.title),
+    stepTitle: step?.title ?? 'Little Ants',
+    view,
+    page,
+    material: view === 'material' ? material : null,
+    word: word ? { text: word.text, image: word.image } : null,
+    wordCount: words.length,
+    lead: lead ? { name: lead.name, image: lead.image } : null,
+  };
 }

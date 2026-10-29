@@ -25,4 +25,5 @@ export const links = {
   preview: (unit: string, lesson?: number) => `/preview?${query({ unit, lesson })}`,
   present: (unit: string, lesson: number, session: string, preview: boolean) =>
     `/present?${query({ unit, lesson, session, preview: preview ? 1 : null })}`,
+  tvHelp: () => '/tv-help',
 };
