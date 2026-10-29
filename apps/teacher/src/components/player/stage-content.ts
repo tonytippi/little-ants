@@ -2,7 +2,10 @@ import type { ReleaseMaterial, ReleaseMedia, ReleaseStep, UnitReleasePayload } f
 import type { StageView } from '../../lib/presenter';
 
 /** The parts of a material children see. Teacher-only text (notes, actions) stays off the TV. */
-export type StageMaterial = Pick<ReleaseMaterial, 'code' | 'title' | 'fullText' | 'targetLanguage' | 'pages' | 'media'>;
+export type StageMaterial = Pick<
+  ReleaseMaterial,
+  'code' | 'title' | 'fullText' | 'targetLanguage' | 'pages' | 'media'
+>;
 
 /**
  * Everything the stage shows at one moment, self-contained so a TV can render it without the release:

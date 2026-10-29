@@ -20,6 +20,8 @@ export interface AudioStatus {
   playing: boolean;
   current: number;
   duration: number;
+  /** The browser refused to start the sound until someone touches the screen (laptop screens). */
+  blocked?: boolean;
 }
 
 /** TV → teacher. `ready` asks the teacher for the current frame (TV started or a teacher joined). */

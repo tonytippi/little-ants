@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { screenCodeFromScan } from '@little-ants/shared';
 import { isReceiverMessage, isSenderMessage } from '../src/lib/cast-protocol';
 import { clampNoteSize } from '../src/lib/note-size';
 
@@ -29,5 +30,16 @@ describe('clampNoteSize', () => {
     expect(clampNoteSize(9)).toBe(3);
     expect(clampNoteSize(Number.NaN)).toBe(0);
     expect(clampNoteSize(1.5)).toBe(0);
+  });
+});
+
+describe('screen pairing codes', () => {
+  it('reads the code from a scanned link or typed text', () => {
+    expect(screenCodeFromScan('https://la-teacher.passionedu.org/screen/pair?code=ABC234')).toBe('ABC234');
+    expect(screenCodeFromScan(' abc-234 ')).toBe('ABC234');
+    expect(screenCodeFromScan('https://example.com/other?code=ABC234')).toBeNull();
+    // Look-alike characters are not in codes.
+    expect(screenCodeFromScan('ABC230')).toBeNull();
+    expect(screenCodeFromScan('ABCD')).toBeNull();
   });
 });

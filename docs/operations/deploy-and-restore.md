@@ -133,9 +133,15 @@ Create the scratch database once with `$COMPOSE exec postgres createdb -U little
 
 - Teachers tap **Show on TV → Chromecast / Android TV** in a lesson (Chrome only, same Wi-Fi as the TV). The TV shows the stage and plays the audio; the teacher's screen keeps the notes. The in-app guide is `https://la-teacher.passionedu.org/tv-help`.
 - The TV runs the Cast receiver app **`B1587FA6`**, registered in the [Google Cast SDK Developer Console](https://cast.google.com/publish) and pointing at `https://la-teacher.passionedu.org/cast-receiver`. The ID lives in `apps/teacher/src/lib/cast-protocol.ts`. Changing the receiver URL in the console changes it for every TV.
-- Until the receiver is **published** in the console, only TVs whose serial number is registered there (**Add New Device**, then restart the TV after about 15 minutes) can run it.
+- Until the receiver is **published** in the console, only TVs whose serial number is registered there (**Add New Device**, then unplug and restart the TV once it shows "Ready For Testing", about 15 minutes) can run it. Use the **Google Cast serial** from the TV's Settings → Google Cast → About → Serial number (a long code such as `HB0pZFuEEGpYghvlnK3a`), not the TV's own serial number: with the wrong one, Chrome's built-in Cast still finds the TV but the app does not.
 - The receiver has no login and no data of its own: it shows what the teacher's device sends. It loads pictures and audio from `la-media`, so the TV needs internet even when the unit is downloaded on the teacher's device.
 - Debug the receiver from a computer on the same network with `chrome://inspect` (registered devices only), or with Google's Cast Command and Control tool.
+
+## Laptop screen driven by a tablet
+
+- Where the TV cannot run the Cast receiver, a laptop plugged into the TV (display mode Duplicate) opens `https://la-teacher.passionedu.org/screen` without signing in and shows a QR code; the teacher's signed-in tablet scans it in a lesson (Show on TV → Laptop screen) and drives the lesson. Both need internet.
+- The API relays the messages (`/api/screens`, server-sent events both ways). The laptop's side is authorised by a secret token it got when opening the screen; only the teacher who paired can send to it. Pairing codes are single use and change every 15 minutes.
+- Screens live in the API's memory: **a deploy disconnects every laptop screen** (the laptop shows a new code and the teacher scans again). Deploy outside teaching hours. Screens whose laptop left close after 2 minutes, idle ones after 12 hours, and at most 1,000 can be open.
 
 ## Classroom tips
 

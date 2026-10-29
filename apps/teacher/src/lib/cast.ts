@@ -122,14 +122,12 @@ export function useCast(): CastState {
   );
 }
 
-/** Calls `listener` for every message from the TV. */
-export function useCastMessages(listener: (message: ReceiverMessage) => void): void {
-  useEffect(() => {
-    messageListeners.add(listener);
-    return () => {
-      messageListeners.delete(listener);
-    };
-  }, [listener]);
+/** Calls `listener` for every message from the Cast receiver; returns the unsubscribe. */
+export function onCastMessage(listener: (message: ReceiverMessage) => void): () => void {
+  messageListeners.add(listener);
+  return () => {
+    messageListeners.delete(listener);
+  };
 }
 
 /** Opens Chrome's device picker. Resolves when connected; rejects if the teacher closes the picker. */
@@ -143,7 +141,7 @@ export function stopCasting(): void {
   context?.endCurrentSession(true);
 }
 
-export function sendToTv(message: SenderMessage): void {
+export function sendToCast(message: SenderMessage): void {
   if (state.status !== 'connected') return;
   context
     ?.getCurrentSession()

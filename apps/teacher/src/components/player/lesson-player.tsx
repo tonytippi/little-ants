@@ -6,12 +6,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } 
 import type { UnitReleasePayload } from '@little-ants/shared';
 import { Button, buttonClass } from '@little-ants/ui/button';
 import { Badge } from '@little-ants/ui/badge';
-import { sendToTv, useCast, useCastMessages } from '../../lib/cast';
+import { useCast } from '../../lib/cast';
 import type { AudioStatus, ReceiverMessage } from '../../lib/cast-protocol';
 import { formatClock, stageLabel } from '../../lib/format';
 import { useElapsedSeconds } from '../../lib/hooks';
 import { links } from '../../lib/links';
 import { NOTE_SIZES, useNoteSize } from '../../lib/note-size';
+import { useScreenLink } from '../../lib/screen-link';
+import { sendToTv, useTvLink, useTvMessages } from '../../lib/tv-link';
 import {
   isPresenterMessage,
   presenterChannelName,
@@ -50,7 +52,9 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
   const [session, setSession] = useState<string | null>(null);
   const [windowConnected, setWindowConnected] = useState(false);
   const cast = useCast();
-  const casting = cast.status === 'connected';
+  const screen = useScreenLink();
+  const tv = useTvLink();
+  const casting = tv.kind !== null;
   const [tvAudio, setTvAudio] = useState<AudioStatus | null>(null);
   const [tvReady, setTvReady] = useState(0);
   const [noteSize, setNoteSize] = useNoteSize();
@@ -136,7 +140,7 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
     channel.current?.postMessage({ type: 'state', frame } satisfies PresenterMessage);
   }, [frame, windowConnected, session]);
 
-  // Chromecast: the TV follows the same frames; it asks again ('ready') when it starts or reconnects.
+  // Chromecast or laptop screen: the TV follows the same frames; it asks again ('ready') when it (re)connects.
   useEffect(() => {
     if (casting) sendToTv({ type: 'frame', frame });
   }, [frame, casting, tvReady]);
@@ -145,7 +149,7 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
     if (message.type === 'ready') setTvReady((count) => count + 1);
     else setTvAudio(message);
   }, []);
-  useCastMessages(onTvMessage);
+  useTvMessages(onTvMessage);
 
   function openTv(): void {
     const id = session ?? crypto.randomUUID();
@@ -244,6 +248,8 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
           )}
           <TvMenu
             cast={cast}
+            screen={screen}
+            tv={tv}
             windowConnected={windowConnected}
             windowOpen={session !== null}
             onOpenWindow={openTv}
@@ -289,6 +295,11 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
             </div>
             <div className="min-w-64 flex-1">
               <AudioBar tracks={tracks} remote={remoteAudio} />
+              {casting && tvAudio?.blocked ? (
+                <p className="mt-1 text-sm font-semibold text-ant-700">
+                  The TV is not allowed to play sound yet: tap the laptop screen once.
+                </p>
+              ) : null}
             </div>
           </div>
         </section>

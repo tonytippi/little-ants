@@ -5,9 +5,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@little-ants/ui/button';
 import { startCasting, stopCasting, type CastState } from '../../lib/cast';
 import { links } from '../../lib/links';
+import { disconnectScreen, type ScreenLinkStatus } from '../../lib/screen-link';
+import type { TvLink } from '../../lib/tv-link';
+import { ScreenPairDialog } from './qr-scanner';
 
 interface Props {
   cast: CastState;
+  screen: ScreenLinkStatus;
+  tv: TvLink;
   /** The second window (laptop + HDMI) is open and showing the lesson. */
   windowConnected: boolean;
   windowOpen: boolean;
@@ -22,9 +27,20 @@ const castHint: Record<CastState['status'], string> = {
   connected: '',
 };
 
-/** "Show on TV": cast to a Chromecast / Android TV, or open a second window for a TV plugged into the laptop. */
-export function TvMenu({ cast, windowConnected, windowOpen, onOpenWindow }: Props) {
+const screenHint: Record<ScreenLinkStatus, string> = {
+  none: 'Scan the code on a laptop plugged into the TV',
+  connecting: 'Connecting…',
+  connected: '',
+  'screen-offline': 'The laptop screen is not connected',
+};
+
+/**
+ * "Show on TV": cast to a Chromecast / Android TV, drive a laptop plugged into the TV from this tablet, or open a
+ * second window for a TV plugged into this laptop.
+ */
+export function TvMenu({ cast, screen, tv, windowConnected, windowOpen, onOpenWindow }: Props) {
   const [open, setOpen] = useState(false);
+  const [pairing, setPairing] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,22 +53,25 @@ export function TvMenu({ cast, windowConnected, windowOpen, onOpenWindow }: Prop
   }, [open]);
 
   const casting = cast.status === 'connected';
-  const label = casting
-    ? `On TV: ${cast.device ?? 'TV'}`
-    : cast.status === 'connecting'
+  const screenPaired = screen !== 'none';
+  const label = tv.kind
+    ? `On TV: ${tv.name}`
+    : cast.status === 'connecting' || screen === 'connecting'
       ? 'Connecting…'
-      : windowOpen
-        ? windowConnected
-          ? 'TV on'
-          : 'TV window…'
-        : 'Show on TV';
+      : screen === 'screen-offline'
+        ? 'Laptop offline'
+        : windowOpen
+          ? windowConnected
+            ? 'TV on'
+            : 'TV window…'
+          : 'Show on TV';
   const canCast = cast.status === 'ready' || cast.status === 'connecting';
 
   return (
     <div ref={box} className="relative">
       <Button
         size="md"
-        variant={casting || windowOpen ? 'primary' : 'secondary'}
+        variant={tv.kind || screenPaired || windowOpen ? 'primary' : 'secondary'}
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-haspopup="menu"
@@ -65,6 +84,26 @@ export function TvMenu({ cast, windowConnected, windowOpen, onOpenWindow }: Prop
           role="menu"
           className="absolute right-0 top-full z-40 mt-2 flex w-72 flex-col gap-1 rounded-2xl bg-white p-2 shadow-xl ring-1 ring-cream-200"
         >
+          {screenPaired ? (
+            <MenuItem
+              title="Disconnect the laptop screen"
+              hint={screenHint[screen] || 'The laptop shows a new code'}
+              onClick={() => {
+                setOpen(false);
+                void disconnectScreen();
+              }}
+            />
+          ) : (
+            <MenuItem
+              title="Laptop screen (scan QR)"
+              hint={screenHint[screen]}
+              disabled={casting}
+              onClick={() => {
+                setOpen(false);
+                setPairing(true);
+              }}
+            />
+          )}
           {casting ? (
             <MenuItem
               title="Stop showing on TV"
@@ -77,8 +116,8 @@ export function TvMenu({ cast, windowConnected, windowOpen, onOpenWindow }: Prop
           ) : (
             <MenuItem
               title="Chromecast / Android TV"
-              hint={castHint[cast.status]}
-              disabled={!canCast}
+              hint={screenPaired ? 'Disconnect the laptop screen first' : castHint[cast.status]}
+              disabled={!canCast || screenPaired}
               onClick={() => {
                 setOpen(false);
                 // The teacher may close Chrome's device picker: nothing to do then.
@@ -104,6 +143,7 @@ export function TvMenu({ cast, windowConnected, windowOpen, onOpenWindow }: Prop
           </Link>
         </div>
       ) : null}
+      {pairing ? <ScreenPairDialog onClose={() => setPairing(false)} /> : null}
     </div>
   );
 }
