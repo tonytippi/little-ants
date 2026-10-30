@@ -1,0 +1,126 @@
+/* Classroom TV receiver: the Teacher app's presenter stage, in plain CSS for the TV's old browser. */
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #fffdf8;
+  color: #4a2e20;
+  font-family: 'Andika', 'Century Gothic', sans-serif;
+}
+[hidden] {
+  display: none !important;
+}
+#waiting {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+#waiting img {
+  width: 10rem;
+  height: 10rem;
+  margin-bottom: 1.5rem;
+}
+.brand {
+  margin: 0;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 800;
+  font-size: 5rem;
+  line-height: 1;
+  color: #b5543a;
+}
+.hint {
+  margin: 1.5rem 0 0;
+  font-size: 1.5rem;
+  color: #7a5a48;
+}
+#stage {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+.title {
+  margin: 0 0 0.75rem;
+  font-weight: 700;
+  font-size: 1.875rem;
+  color: #3f6b28;
+}
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.holder {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.holder.lead {
+  flex: 0 1 60%;
+}
+.picture {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 1rem;
+}
+.picture.fade {
+  border-radius: 0;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 58%, transparent 76%);
+  mask-image: radial-gradient(ellipse at center, #000 58%, transparent 76%);
+}
+.pdf {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pdf canvas {
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 1px 4px rgba(74, 46, 32, 0.2);
+}
+.child-text {
+  margin: 1rem 0 0;
+  white-space: pre-line;
+  text-align: center;
+  line-height: 1.375;
+  font-size: 2.6rem;
+}
+.child-text.xl {
+  font-size: 4.5rem;
+}
+.word {
+  margin: 1.5rem 0 0;
+  font-weight: 700;
+  font-size: 8rem;
+  line-height: 1;
+  color: #3f6b28;
+}
+#error {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99;
+  margin: 0;
+  padding: 16px;
+  max-height: 50vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  background: #7f1d1d;
+  color: #fff;
+  font: 20px/1.4 monospace;
+}

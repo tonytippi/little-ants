@@ -1,0 +1,56 @@
+<!doctype html>
+<!--
+  Google Cast receiver for classroom TVs (Cast app B1587FA6, served at /cast-receiver).
+  TVs run an old browser (Chrome 92), so this page is plain HTML, CSS and ES2020 code built from
+  apps/teacher/cast-receiver/receiver.ts, without the Next.js app.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Little Ants</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&display=swap"
+    />
+    <link rel="stylesheet" href="/cast-receiver/receiver.css" />
+  </head>
+  <body>
+    <div id="waiting">
+      <img src="/icon.svg" alt="" />
+      <p class="brand">Little Ants English</p>
+      <p class="hint">Waiting for the teacher…</p>
+    </div>
+    <main id="stage" hidden></main>
+    <audio id="audio" preload="auto"></audio>
+    <script>
+      // Shows errors on the TV with the browser version, so they can be reported from a photo.
+      (function () {
+        function show(text) {
+          var box = document.getElementById('error');
+          if (!box) {
+            box = document.createElement('pre');
+            box.id = 'error';
+            box.textContent = 'Browser: ' + navigator.userAgent;
+            document.body.appendChild(box);
+          }
+          box.textContent += '\n' + text;
+        }
+        window.laShowError = show;
+        window.addEventListener('error', function (event) {
+          show('Error: ' + event.message + ' (' + event.filename + ':' + event.lineno + ')');
+        });
+        window.addEventListener('unhandledrejection', function (event) {
+          show('Error: ' + (event.reason && event.reason.message ? event.reason.message : event.reason));
+        });
+        setTimeout(function () {
+          if (!window.laStarted) show('The receiver did not start on this TV.');
+        }, 8000);
+      })();
+    </script>
+    <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+    <script type="module" src="/cast-receiver/js/cast-receiver/receiver.js"></script>
+  </body>
+</html>

@@ -1,2 +1,5 @@
 # Copied from pdfjs-dist by scripts/copy-pdf-worker.mjs
 public/pdf.worker.min.mjs
+public/pdfjs-legacy/
+# Built from cast-receiver/receiver.ts
+public/cast-receiver/js/

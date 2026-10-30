@@ -16,9 +16,9 @@ export function Providers({ children }: { children: ReactNode }) {
       }),
   );
   useEffect(() => {
-    // TV screens (Cast receiver, laptop screen) have no teacher session to sync and no offline use.
+    // The laptop screen on the classroom TV has no teacher session to sync and no offline use.
     const path = window.location.pathname;
-    if (path.startsWith('/cast-receiver') || path === '/screen' || path === '/screen/') return;
+    if (path === '/screen' || path === '/screen/') return;
     startOutbox();
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       navigator.serviceWorker

@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/copy-pdf-worker.mjs && next dev --port 3002",
-    "build": "node scripts/copy-pdf-worker.mjs && next build",
+    "dev": "node scripts/copy-pdf-worker.mjs && tsc -p cast-receiver && next dev --port 3002",
+    "build": "node scripts/copy-pdf-worker.mjs && tsc -p cast-receiver && next build",
     "start": "next start --port 3002",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test",
