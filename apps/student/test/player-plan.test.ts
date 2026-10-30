@@ -4,6 +4,7 @@ import { libraryShelves, unitItems } from '../src/lib/library';
 import {
   audioFrame,
   planItem,
+  playableItems,
   soundParts,
   stepAfter,
   textLines,
@@ -228,5 +229,14 @@ describe('library', () => {
     ]);
     expect(libraryShelves(payload.leaves, new Set())).toEqual([]);
     expect(unitItems(payload.leaves)).toHaveLength(6);
+  });
+});
+
+describe('playableItems', () => {
+  it('skips a look-back song without a recording and keeps one with a recording', () => {
+    const items = payload.leaves[0]!.items;
+    expect(playableItems(items).map((item) => item.kind)).toEqual(['words', 'material', 'sound']);
+    const recorded = { ...items[0]!, audio: media('old-song', 'AUDIO') } as (typeof items)[number];
+    expect(playableItems([recorded, ...items.slice(1)])).toHaveLength(4);
   });
 });

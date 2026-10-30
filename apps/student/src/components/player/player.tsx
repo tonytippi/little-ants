@@ -6,6 +6,7 @@ import { ctaClass } from '@little-ants/ui/storybook';
 import {
   firstSlide,
   planItem,
+  playableItems,
   stepAfter,
   usesDeviceVoice,
   type PlayerAction,
@@ -36,7 +37,7 @@ const BETWEEN_ITEMS_MS = 900;
 /** Plays a leaf (or one item) with big controls a small child can use alone. */
 export function Player({ payload, items, leaf, mode, onExit, onFinished }: PlayerProps) {
   // Fixed for this playthrough: a refreshed payload must not restart the item being played.
-  const [plans] = useState(() => items.map((item) => planItem(item, payload, mode)));
+  const [plans] = useState(() => playableItems(items).map((item) => planItem(item, payload, mode)));
   const [index, setIndex] = useState(0);
   const [run, setRun] = useState(0);
   const [slide, setSlide] = useState<Slide>(() =>

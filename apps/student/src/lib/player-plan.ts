@@ -316,6 +316,11 @@ function lookBackSegments(
   ];
 }
 
+/** The items a leaf plays: a look-back song without a recording is skipped, so the leaf starts at once. */
+export function playableItems(items: ListeningItem[]): ListeningItem[] {
+  return items.filter((item) => item.kind !== 'lookBack' || item.audio !== null);
+}
+
 /** What the player does for one item of a leaf. */
 export function planItem(item: ListeningItem, payload: ListeningPayload, mode: Mode): ItemPlan {
   const kind = listeningItemKind(item);
