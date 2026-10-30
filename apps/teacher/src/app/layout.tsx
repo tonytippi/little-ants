@@ -1,16 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import { Andika, Baloo_2, Nunito } from 'next/font/google';
 import type { ReactNode } from 'react';
+import { andika } from '@little-ants/ui/lib/font-andika';
+import { baloo } from '@little-ants/ui/lib/font-baloo';
+import { nunito } from '@little-ants/ui/lib/font-nunito';
 import './globals.css';
 import { Providers } from './providers';
-
-const nunito = Nunito({ subsets: ['latin', 'vietnamese'], variable: '--font-nunito' });
-const andika = Andika({
-  subsets: ['latin', 'vietnamese'],
-  weight: ['400', '700'],
-  variable: '--font-andika',
-});
-const baloo = Baloo_2({ subsets: ['latin', 'vietnamese'], weight: ['700', '800'], variable: '--font-baloo' });
 
 export const metadata: Metadata = {
   title: { default: 'Little Ants Teacher', template: '%s · Little Ants Teacher' },

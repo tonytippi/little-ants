@@ -1,20 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import { Andika, Baloo_2, Poppins } from 'next/font/google';
 import type { ReactNode } from 'react';
+import { andika } from '@little-ants/ui/lib/font-andika';
+import { baloo } from '@little-ants/ui/lib/font-baloo';
+import { poppins } from '@little-ants/ui/lib/font-poppins';
 import './globals.css';
 import { Providers } from './providers';
-
-const poppins = Poppins({
-  subsets: ['latin', 'latin-ext'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-poppins',
-});
-const andika = Andika({
-  subsets: ['latin', 'vietnamese'],
-  weight: ['400', '700'],
-  variable: '--font-andika',
-});
-const baloo = Baloo_2({ subsets: ['latin', 'vietnamese'], weight: ['700', '800'], variable: '--font-baloo' });
 
 export const metadata: Metadata = {
   title: { default: 'Little Ants Listening', template: '%s · Little Ants Listening' },
