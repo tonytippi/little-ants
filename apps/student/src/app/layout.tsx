@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: 'Listening Time: the songs, stories and rhymes of Little Ants English, a few minutes a day.',
   manifest: '/manifest.webmanifest',
   icons: { icon: '/favicon.png', apple: '/apple-touch-icon.png' },
-  appleWebApp: { capable: true, title: 'Listening', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'Little Ants Student', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {

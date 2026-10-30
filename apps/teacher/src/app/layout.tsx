@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: 'Prepare and teach Little Ants English lessons, online or offline.',
   manifest: '/manifest.webmanifest',
   icons: { icon: '/icon.svg', apple: '/apple-touch-icon.png' },
-  appleWebApp: { capable: true, title: 'Little Ants', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'Little Ants Teacher', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {

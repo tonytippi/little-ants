@@ -7,7 +7,9 @@ import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: { default: 'Little Ants Admin', template: '%s · Little Ants Admin' },
+  manifest: '/manifest.webmanifest',
   icons: { icon: '/icon.svg', apple: '/apple-touch-icon.png' },
+  appleWebApp: { capable: true, title: 'Little Ants Admin', statusBarStyle: 'default' },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
