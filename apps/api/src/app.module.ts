@@ -12,7 +12,16 @@ import { ScreensModule } from './screens/screens.module.js';
 import { StorageModule } from './storage/storage.module.js';
 
 @Module({
-  imports: [PrismaModule, StorageModule, AuthModule, OrgModule, ParentsModule, ContentModule, ImportsModule, ScreensModule],
+  imports: [
+    PrismaModule,
+    StorageModule,
+    AuthModule,
+    OrgModule,
+    ParentsModule,
+    ContentModule,
+    ImportsModule,
+    ScreensModule,
+  ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: PrismaExceptionFilter }],
 })

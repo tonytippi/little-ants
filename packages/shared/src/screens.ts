@@ -51,5 +51,7 @@ export function screenCodeFromScan(text: string): string | null {
   } catch {
     return normalizeScreenCode(text);
   }
-  return url.pathname.startsWith('/screen/pair') ? normalizeScreenCode(url.searchParams.get('code') ?? '') : null;
+  return url.pathname.startsWith('/screen/pair')
+    ? normalizeScreenCode(url.searchParams.get('code') ?? '')
+    : null;
 }

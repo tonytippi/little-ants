@@ -9,3 +9,6 @@ pnpm-lock.yaml
 **/dist/
 # Copied from pdfjs-dist by the Teacher app build.
 apps/teacher/public/pdf.worker.min.mjs
+# Built by the Teacher app build: pdf.js 3 for the Cast receiver, and the compiled receiver script.
+apps/teacher/public/pdfjs-legacy/
+apps/teacher/public/cast-receiver/js/
