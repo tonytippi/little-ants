@@ -16,6 +16,7 @@ import {
   type InkMessage,
   type ReceiverMessage,
 } from '../src/lib/cast-protocol.js';
+import { loadLegacyPdf, type LegacyPdfDocument } from '../src/lib/pdf-legacy.js';
 import {
   HIGHLIGHTER_OPACITY,
   measureInkRect,
@@ -73,50 +74,6 @@ function picture(url: string, alt: string, fade = false): HTMLElement {
 
 // --- PDF pages (draft layouts), with pdf.js 3's legacy build: pdf.js 6 does not run on the TV's Chrome 92 ----------
 
-interface PdfDocument {
-  numPages: number;
-  getPage(n: number): Promise<{
-    getViewport(o: { scale: number }): { width: number; height: number };
-    render(o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }): { promise: Promise<void> };
-  }>;
-}
-interface PdfLibrary {
-  GlobalWorkerOptions: { workerSrc: string };
-  // isEvalSupported: false closes CVE-2024-4367 (font code execution) in pdf.js 3.
-  getDocument(o: { url: string; isEvalSupported: boolean }): { promise: Promise<PdfDocument> };
-}
-let library: Promise<PdfLibrary> | null = null;
-const documents = new Map<string, Promise<PdfDocument>>();
-
-function loadLibrary(): Promise<PdfLibrary> {
-  library ??= new Promise<PdfLibrary>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = '/pdfjs-legacy/pdf.min.js';
-    script.onload = () => {
-      const pdfjs = (window as unknown as { pdfjsLib?: PdfLibrary }).pdfjsLib;
-      if (!pdfjs) return reject(new Error('pdf.js did not load'));
-      pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs-legacy/pdf.worker.min.js';
-      resolve(pdfjs);
-    };
-    script.onerror = () => reject(new Error('pdf.js did not load'));
-    document.head.appendChild(script);
-  });
-  library.catch(() => {
-    library = null;
-  });
-  return library;
-}
-
-function loadPdf(url: string): Promise<PdfDocument> {
-  let pending = documents.get(url);
-  if (!pending) {
-    pending = loadLibrary().then((pdfjs) => pdfjs.getDocument({ url, isEvalSupported: false }).promise);
-    documents.set(url, pending);
-    pending.catch(() => documents.delete(url));
-  }
-  return pending;
-}
-
 /** Rendering above 1.5× the box size is not visibly sharper on a TV and costs its slow CPU much more time. */
 const MAX_PIXEL_RATIO = 1.5;
 /** Pages kept rendered (the current one and its neighbours, for instant page turns). */
@@ -131,7 +88,7 @@ function remember(key: string, canvas: HTMLCanvasElement): void {
 }
 
 /** One page rendered to fit width × height, reusing a page rendered (or being rendered) before. */
-function drawPage(doc: PdfDocument, url: string, number: number, width: number, height: number) {
+function drawPage(doc: LegacyPdfDocument, url: string, number: number, width: number, height: number) {
   const key = `${url}#${number}@${width}x${height}`;
   const done = rendered.get(key);
   if (done) {
@@ -181,7 +138,7 @@ function pdfPage(
   const token = renderCount;
   void (async () => {
     try {
-      const doc = await loadPdf(url);
+      const doc = await loadLegacyPdf(url);
       const width = box.clientWidth;
       const height = box.clientHeight;
       const current = Math.min(Math.max(1, pageFor(0, doc.numPages)), doc.numPages);

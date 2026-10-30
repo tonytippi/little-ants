@@ -57,6 +57,7 @@ describe('Cast receiver modules', () => {
       'src/lib/cast-protocol.ts',
       'src/lib/presenter.ts',
       'src/lib/ink.ts',
+      'src/lib/pdf-legacy.ts',
     ];
     for (const file of files) {
       const source = readFileSync(resolve(__dirname, '..', file), 'utf8');
