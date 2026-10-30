@@ -47,7 +47,7 @@ function TvStage({ payload, session }: { payload: UnitReleasePayload; session: s
   }, []);
 
   return (
-    <div className="relative h-dvh w-screen overflow-hidden bg-cream-50">
+    <div className="fixed inset-0 overflow-hidden bg-cream-50">
       {frame && !ended ? (
         <Stage presenter frame={frame} ink={<ReceivedInkLayer ink={ink} surface={frame.surface} />} />
       ) : (

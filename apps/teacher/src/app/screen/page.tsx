@@ -43,13 +43,13 @@ export default function ScreenPage() {
   }
 
   return (
-    <div className="relative">
+    <div>
       <TvDisplay link={link} waiting={<Waiting state={state} />} />
       {started ? null : (
         <button
           type="button"
           onClick={start}
-          className="absolute right-4 top-4 z-10 rounded-2xl bg-leaf-600 px-5 py-3 text-lg font-bold text-white shadow-lg hover:bg-leaf-700"
+          className="fixed right-4 top-4 z-10 rounded-2xl bg-leaf-600 px-5 py-3 text-lg font-bold text-white shadow-lg hover:bg-leaf-700"
         >
           Start: full screen and sound on
         </button>

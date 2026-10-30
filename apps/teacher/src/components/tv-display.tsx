@@ -110,7 +110,7 @@ export function TvDisplay({ link, waiting }: { link: DisplayLink | null; waiting
   }, [link, runAudio, onInk, clearInk]);
 
   return (
-    <div className="relative h-dvh w-screen overflow-hidden bg-cream-50">
+    <div className="fixed inset-0 overflow-hidden bg-cream-50">
       <audio ref={audio} preload="auto" />
       {frame ? (
         <Stage presenter frame={frame} ink={<ReceivedInkLayer ink={ink} surface={frame.surface} />} />
