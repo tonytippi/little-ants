@@ -18,7 +18,7 @@ Files: [`infra/docker-compose.prod.yml`](../../infra/docker-compose.prod.yml), [
      - a public media bucket (e.g. `little-ants-media`). Approved files are copied here when a reviewer approves them.
      - a backups bucket (e.g. `little-ants-backups`).
    - Connect a custom domain `la-media.passionedu.org` to the **media** bucket only. Never make the files bucket public: drafts must stay private.
-   - Apply `infra/r2-cors.json` to both the files and the media bucket (change the origins to your domains). Admin uploads to the files bucket directly, and the Teacher app downloads from both.
+   - Apply `infra/r2-cors.json` to both the files and the media bucket (change the origins to your domains). Admin uploads to the files bucket directly, the Teacher app downloads from both, and the Student app downloads a unit's media for offline listening.
    - Create an R2 API token with read/write on all three buckets.
 3. **Google sign-in**: create an OAuth web client. Authorised redirect URIs: `https://la-api.passionedu.org/api/auth/callback/google` (staff) and `https://la-api.passionedu.org/api/parent/auth/google/callback` (parents in the student app).
 4. **Tunnel**: in Zero Trust → Networks → Tunnels, add public hostnames to the tunnel whose `cloudflared` runs on this server:

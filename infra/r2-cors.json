@@ -6,7 +6,11 @@
     "MaxAgeSeconds": 3600
   },
   {
-    "AllowedOrigins": ["https://la-admin.passionedu.org", "https://la-teacher.passionedu.org"],
+    "AllowedOrigins": [
+      "https://la-admin.passionedu.org",
+      "https://la-teacher.passionedu.org",
+      "https://la-student.passionedu.org"
+    ],
     "AllowedMethods": ["GET", "HEAD"],
     "AllowedHeaders": ["*"],
     "MaxAgeSeconds": 86400

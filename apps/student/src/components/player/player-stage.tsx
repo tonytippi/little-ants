@@ -7,7 +7,7 @@ import type { Slide } from '../../lib/player-plan';
 /** The picture of the moment, faded into the page; a big letter or word on top for sounds and word cards. */
 export function PlayerStage({ slide, colour, cover }: { slide: Slide; colour: string; cover: boolean }) {
   return (
-    <div className="fade-soft relative grid aspect-[4/3] w-full place-items-center overflow-hidden rounded-[36px] bg-white">
+    <div className="fade-soft relative grid aspect-[4/3] w-full place-items-center overflow-hidden rounded-[36px] bg-white md:max-h-[calc(100dvh-16rem)]">
       {slide.picture ? <StageImage key={slide.picture.url} picture={slide.picture} cover={cover} /> : null}
       {slide.big && !slide.picture ? (
         <span
@@ -65,7 +65,7 @@ export function PlayerText({ slide, colour, large }: { slide: Slide; colour: str
       ) : null}
       <div
         ref={box}
-        className={`relative max-h-[42vh] overflow-auto pr-1.5 font-child leading-[1.45] ${large ? 'text-[clamp(22px,2.6vw,40px)]' : 'text-[clamp(19px,2.3vw,25px)]'}`}
+        className={`relative max-h-[42vh] overflow-auto md:max-h-[max(5.5rem,calc(100dvh-35rem))] pr-1.5 font-child leading-[1.45] ${large ? 'text-[clamp(22px,2.6vw,40px)]' : 'text-[clamp(19px,2.3vw,25px)]'}`}
       >
         {slide.lines.map((line, index) =>
           line ? (

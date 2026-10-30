@@ -80,7 +80,7 @@ function Frame({ header, children }: { header?: ReactNode; children: ReactNode }
   return (
     <div className="mx-auto flex min-h-dvh max-w-[1180px] flex-col px-[max(16px,env(safe-area-inset-left))] 2xl:max-w-[1600px]">
       {header}
-      <main className="min-w-0 flex-1 pt-1.5 pb-28">{children}</main>
+      <main className="min-w-0 flex-1 pt-1.5 pb-24">{children}</main>
     </div>
   );
 }
