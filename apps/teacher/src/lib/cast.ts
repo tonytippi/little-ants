@@ -18,7 +18,7 @@ interface CastSession {
 
 interface CastContext {
   setOptions(options: { receiverApplicationId: string; autoJoinPolicy: string }): void;
-  addEventListener(type: string, listener: () => void): void;
+  addEventListener(type: string, listener: (event: { castState?: string }) => void): void;
   getCastState(): string;
   getCurrentSession(): CastSession | null;
   requestSession(): Promise<unknown>;
@@ -59,10 +59,16 @@ const STATUS: Record<string, CastStatus> = {
   CONNECTED: 'connected',
 };
 
+/**
+ * The SDK's cast state as last reported in a CAST_STATE_CHANGED event. Asking `getCastState()` while the SDK is
+ * dispatching its events can still return the old state (e.g. CONNECTED right after the session ended).
+ */
+let castState = 'NO_DEVICES_AVAILABLE';
+
 function refresh(): void {
   if (!context) return;
-  const status = STATUS[context.getCastState()] ?? 'unavailable';
-  const session = context.getCurrentSession();
+  const status = STATUS[castState] ?? 'unavailable';
+  const session = status === 'connected' ? context.getCurrentSession() : null;
   if (session && session !== listenedSession) {
     listenedSession = session;
     session.addMessageListener(CAST_NAMESPACE, (_namespace, raw) => {
@@ -95,8 +101,12 @@ function load(): void {
       receiverApplicationId: CAST_APP_ID,
       autoJoinPolicy: win.chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
     });
-    context.addEventListener(CastContextEventType.CAST_STATE_CHANGED, refresh);
-    context.addEventListener(CastContextEventType.SESSION_STATE_CHANGED, refresh);
+    context.addEventListener(CastContextEventType.CAST_STATE_CHANGED, (event) => {
+      if (event.castState) castState = event.castState;
+      refresh();
+    });
+    context.addEventListener(CastContextEventType.SESSION_STATE_CHANGED, () => refresh());
+    castState = context.getCastState();
     refresh();
   };
   const script = document.createElement('script');
@@ -138,7 +148,11 @@ export async function startCasting(): Promise<void> {
 
 /** Ends the session; the TV goes back to its home screen. */
 export function stopCasting(): void {
-  context?.endCurrentSession(true);
+  if (!context) return;
+  context.endCurrentSession(true);
+  // Show it as stopped at once; the SDK's own state change follows.
+  castState = 'NOT_CONNECTED';
+  refresh();
 }
 
 export function sendToCast(message: SenderMessage): void {
