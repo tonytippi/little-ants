@@ -18,7 +18,10 @@ import {
 
 /** The parts of the Cast Web Receiver SDK used here (loaded by index.html, so no npm types). */
 interface ReceiverContext {
-  addCustomMessageListener(namespace: string, listener: (event: { senderId: string; data: unknown }) => void): void;
+  addCustomMessageListener(
+    namespace: string,
+    listener: (event: { senderId: string; data: unknown }) => void,
+  ): void;
   sendCustomMessage(namespace: string, senderId: string | undefined, data: ReceiverMessage): void;
   addEventListener(type: string, listener: (event: { senderId: string }) => void): void;
   getSenders(): unknown[];
@@ -27,7 +30,10 @@ interface ReceiverContext {
 declare const cast: {
   framework: {
     CastReceiverContext: { getInstance(): ReceiverContext };
-    system: { EventType: { SENDER_CONNECTED: string; SENDER_DISCONNECTED: string }; MessageType: { JSON: string } };
+    system: {
+      EventType: { SENDER_CONNECTED: string; SENDER_DISCONNECTED: string };
+      MessageType: { JSON: string };
+    };
   };
 };
 
@@ -37,7 +43,11 @@ const player = document.getElementById('audio') as HTMLAudioElement;
 let blocked = false;
 let renderCount = 0;
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className = '',
+  text = '',
+): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (text) node.textContent = text;
@@ -97,25 +107,81 @@ function loadPdf(url: string): Promise<PdfDocument> {
   return pending;
 }
 
-/** A PDF page fitted into its box; `pageFor` maps the document's page count to the page to show. */
-function pdfPage(url: string, pageFor: (pages: number) => number, fallback: string): HTMLElement {
-  const box = el('div', 'pdf');
-  const canvas = el('canvas');
-  box.appendChild(canvas);
-  const token = renderCount;
-  void (async () => {
-    try {
-      const doc = await loadPdf(url);
-      const page = await doc.getPage(Math.min(Math.max(1, pageFor(doc.numPages)), doc.numPages));
-      if (token !== renderCount) return;
+/** Rendering above 1.5× the box size is not visibly sharper on a TV and costs its slow CPU much more time. */
+const MAX_PIXEL_RATIO = 1.5;
+/** Pages kept rendered (the current one and its neighbours, for instant page turns). */
+const KEEP_PAGES = 6;
+const rendered = new Map<string, HTMLCanvasElement>();
+const rendering = new Map<string, Promise<HTMLCanvasElement>>();
+
+function remember(key: string, canvas: HTMLCanvasElement): void {
+  rendered.delete(key);
+  rendered.set(key, canvas);
+  while (rendered.size > KEEP_PAGES) rendered.delete(rendered.keys().next().value as string);
+}
+
+/** One page rendered to fit width × height, reusing a page rendered (or being rendered) before. */
+function drawPage(doc: PdfDocument, url: string, number: number, width: number, height: number) {
+  const key = `${url}#${number}@${width}x${height}`;
+  const done = rendered.get(key);
+  if (done) {
+    remember(key, done);
+    return Promise.resolve(done);
+  }
+  let job = rendering.get(key);
+  if (!job) {
+    job = (async () => {
+      const page = await doc.getPage(number);
       const base = page.getViewport({ scale: 1 });
-      const scale = Math.min(box.clientWidth / base.width, box.clientHeight / base.height) * (window.devicePixelRatio || 1);
-      const viewport = page.getViewport({ scale });
+      const ratio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
+      const viewport = page.getViewport({
+        scale: Math.min(width / base.width, height / base.height) * ratio,
+      });
+      const canvas = el('canvas');
       canvas.width = Math.floor(viewport.width);
       canvas.height = Math.floor(viewport.height);
       const context = canvas.getContext('2d');
       if (context) await page.render({ canvasContext: context, viewport }).promise;
+      remember(key, canvas);
+      return canvas;
+    })();
+    rendering.set(key, job);
+    const settled = (): void => {
+      rendering.delete(key);
+    };
+    job.then(settled, settled);
+  }
+  return job;
+}
+
+/**
+ * A PDF page fitted into its box. `pageFor(offset, pages)` gives the PDF page for the current page (offset 0) and
+ * its neighbours (±1), which are rendered next so that turning the page is instant.
+ */
+function pdfPage(
+  url: string,
+  pageFor: (offset: number, pages: number) => number,
+  fallback: string,
+): HTMLElement {
+  const box = el('div', 'pdf');
+  const token = renderCount;
+  void (async () => {
+    try {
+      const doc = await loadPdf(url);
+      const width = box.clientWidth;
+      const height = box.clientHeight;
+      const current = Math.min(Math.max(1, pageFor(0, doc.numPages)), doc.numPages);
+      const canvas = await drawPage(doc, url, current, width, height);
+      if (token !== renderCount) return;
+      box.replaceChildren(canvas);
+      for (const offset of [1, -1]) {
+        const next = pageFor(offset, doc.numPages);
+        if (next < 1 || next > doc.numPages || next === current) continue;
+        await drawPage(doc, url, next, width, height).catch(() => undefined);
+        if (token !== renderCount) return;
+      }
     } catch (error) {
+      if (token !== renderCount) return;
       box.replaceChildren(el('p', 'child-text xl', fallback));
       reportError(error);
     }
@@ -125,7 +191,22 @@ function pdfPage(url: string, pageFor: (pages: number) => number, fallback: stri
 
 // --- Drawing a frame ---------------------------------------------------------------------------------------------
 
+let shown = '';
+
 function render(frame: StageFrame | null): void {
+  // The teacher's device resends the current frame (reconnects, audio changes): do not redraw the same page.
+  const key = frame
+    ? JSON.stringify([
+        frame.view,
+        frame.page,
+        frame.material?.code,
+        frame.word?.text,
+        frame.stepTitle,
+        frame.title,
+      ])
+    : '';
+  if (key && key === shown) return;
+  shown = key;
   renderCount += 1;
   stage.replaceChildren();
   stage.hidden = !frame;
@@ -147,7 +228,8 @@ function render(frame: StageFrame | null): void {
 
   const material = frame.material;
   if (!material) {
-    if (frame.lead?.image) body.appendChild(holder(picture(frame.lead.image.url, frame.lead.name, true), 'lead'));
+    if (frame.lead?.image)
+      body.appendChild(holder(picture(frame.lead.image.url, frame.lead.name, true), 'lead'));
     body.appendChild(el('p', 'child-text xl', frame.stepTitle));
     return;
   }
@@ -162,7 +244,16 @@ function render(frame: StageFrame | null): void {
       else if (display.pdf) {
         const pages = display.pages.length;
         body.appendChild(
-          holder(pdfPage(display.pdf.url, (pdfPages) => pdfPageForStoryPage(index, pages, pdfPages), current.text)),
+          holder(
+            pdfPage(
+              display.pdf.url,
+              (offset, pdfPages) =>
+                index + offset < 0 || index + offset >= pages
+                  ? 0
+                  : pdfPageForStoryPage(index + offset, pages, pdfPages),
+              current.text,
+            ),
+          ),
         );
       } else {
         body.appendChild(el('p', 'child-text xl', current.text));
@@ -177,7 +268,7 @@ function render(frame: StageFrame | null): void {
       return;
     }
     case 'pdf':
-      body.appendChild(holder(pdfPage(display.pdf.url, () => frame.page + 1, material.title)));
+      body.appendChild(holder(pdfPage(display.pdf.url, (offset) => frame.page + 1 + offset, material.title)));
       return;
     case 'text':
       body.appendChild(el('p', 'child-text xl', display.text));
@@ -238,7 +329,8 @@ function runAudio(command: AudioCommand): void {
   reportAudio();
 }
 
-for (const name of ['play', 'pause', 'ended', 'loadedmetadata', 'seeked']) player.addEventListener(name, reportAudio);
+for (const name of ['play', 'pause', 'ended', 'loadedmetadata', 'seeked'])
+  player.addEventListener(name, reportAudio);
 window.setInterval(() => {
   if (!player.paused) reportAudio();
 }, 1000);
