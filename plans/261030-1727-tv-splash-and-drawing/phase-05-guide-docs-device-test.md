@@ -1,7 +1,7 @@
 ---
 phase: 5
 title: "Guide, docs and device test"
-status: in-progress
+status: completed
 priority: P1
 effort: "0.5d"
 dependencies: [4]

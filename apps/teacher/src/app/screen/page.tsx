@@ -7,7 +7,7 @@ import { links } from '../../lib/links';
 import { createScreenLink, type ScreenState } from '../../lib/screen-display';
 
 /**
- * A laptop plugged into the classroom TV (display mode Duplicate). No sign-in: it shows a code until the teacher's
+ * The classroom TV's own web browser, or a laptop plugged into the TV (display mode Duplicate). No sign-in: it shows a code until the teacher's
  * tablet pairs, then shows the lesson and plays its audio.
  */
 export default function ScreenPage() {
@@ -85,7 +85,8 @@ function Waiting({ state }: { state: ScreenState }) {
             {state.code}
           </p>
           <p className="max-w-3xl text-xl text-bark-500">
-            On the tablet: open the lesson → Show on TV → Laptop screen, then scan this code or type it.
+            On the tablet: open the lesson → Show on TV → TV browser or laptop, then scan this code or type
+            it.
           </p>
         </>
       ) : (

@@ -1,7 +1,7 @@
 ---
 title: "Hide the lesson on the TV, and draw on the stage"
 description: "The teacher hides the stage on the TV behind the Little Ants logo, and draws on pictures and pages in a full-screen wide mode, shown on the TV too."
-status: in-progress
+status: completed
 priority: P1
 effort: 4.5d
 branch: feat/tv-splash-and-drawing

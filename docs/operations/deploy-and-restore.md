@@ -141,9 +141,10 @@ Create the scratch database once with `$COMPOSE exec postgres createdb -U little
 - The receiver has no login and no data of its own: it shows what the teacher's device sends. It loads pictures and audio from `la-media`, so the TV needs internet even when the unit is downloaded on the teacher's device.
 - Debug the receiver from a computer on the same network with `chrome://inspect` (registered devices only), or with Google's Cast Command and Control tool.
 
-## Laptop screen driven by a tablet
+## TV screen driven by a tablet
 
-- Where the TV cannot run the Cast receiver, a laptop plugged into the TV (display mode Duplicate) opens `https://la-teacher.passionedu.org/screen` without signing in and shows a QR code; the teacher's signed-in tablet scans it in a lesson (Show on TV → Laptop screen) and drives the lesson. Both need internet.
+- Where the TV cannot run the Cast receiver, `https://la-teacher.passionedu.org/screen` is opened without signing in, either in the TV's own web browser (tested in October 2026 on the classroom Android TV's browser) or on a laptop plugged into the TV (display mode Duplicate). It shows a QR code; the teacher's signed-in tablet scans it in a lesson (Show on TV → TV browser or laptop) and drives the lesson. Both need internet.
+- TV browsers are old: the page avoids newer CSS such as `dvh` units, and draws PDFs with the same pdf.js 3 legacy build as the Cast receiver when the browser lacks what pdf.js 6 needs (`apps/teacher/src/lib/pdf-legacy.ts`).
 - The API relays the messages (`/api/screens`, server-sent events both ways). The laptop's side is authorised by a secret token it got when opening the screen; only the teacher who paired can send to it. Pairing codes are single use and change every 15 minutes.
 - Screens live in the API's memory: **a deploy disconnects every laptop screen** (the laptop shows a new code and the teacher scans again). Deploy outside teaching hours. Screens whose laptop left close after 2 minutes, idle ones after 12 hours, and at most 1,000 can be open.
 

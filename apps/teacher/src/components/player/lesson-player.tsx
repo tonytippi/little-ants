@@ -390,7 +390,7 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
               <AudioBar tracks={tracks} remote={remoteAudio} pauseSignal={pauseSignal} />
               {casting && tvAudio?.blocked ? (
                 <p className="mt-1 text-sm font-semibold text-ant-700">
-                  The TV is not allowed to play sound yet: tap the laptop screen once.
+                  The TV is not allowed to play sound yet: press Start on the TV screen (or tap it once).
                 </p>
               ) : null}
             </div>

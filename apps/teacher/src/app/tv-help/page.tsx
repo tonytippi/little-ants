@@ -6,19 +6,19 @@ import { buttonClass } from '@little-ants/ui/button';
 
 const GUIDES = {
   screen: {
-    label: 'Laptop + tablet',
+    label: 'TV browser + tablet',
     intro:
-      'A laptop plugged into the TV shows the lesson; you walk around the class with your tablet, which has the notes and the controls. Sound comes from the TV.',
+      'The TV shows the lesson in its own web browser (or a laptop plugged into the TV does); you walk around the class with your tablet, which has the notes and the controls. Sound comes from the TV.',
     steps: [
-      'Plug the laptop into the TV with an HDMI cable. In the display settings, choose "Duplicate".',
-      'On the laptop, open la-teacher.passionedu.org/screen in Chrome (no sign-in needed) and tap Start. The TV shows a QR code and a 6-letter code.',
-      'On your tablet, open the lesson in the Little Ants app and tap Show on TV → Laptop screen (scan QR).',
+      'Open the web browser on the TV and go to la-teacher.passionedu.org/screen (no sign-in needed). Bookmark it for next time. No browser on the TV: plug a laptop into it with an HDMI cable, choose "Duplicate" in the display settings, and open the page in Chrome on the laptop.',
+      'Press Start (OK on the TV remote). The TV shows a QR code and a 6-letter code.',
+      'On your tablet, open the lesson in the Little Ants app and tap Show on TV → TV browser or laptop (scan QR).',
       'Point the camera at the QR code (allow the camera the first time), or type the code.',
-      'Teach from the tablet. When you finish, tap On TV → Disconnect the laptop screen.',
+      'Teach from the tablet. When you finish, tap On TV → Disconnect the TV screen.',
     ],
     trouble: [
-      'Both the laptop and the tablet need internet.',
-      'No sound: tap the laptop screen once (browsers do not play sound before someone touches the page).',
+      'The TV (or laptop) and the tablet both need internet.',
+      'No sound: press Start on the TV screen (browsers do not play sound before someone presses something on the page).',
       'The code was refused: codes change after 15 minutes and work once. Use the code on the TV now.',
       'The TV shows a new code during the lesson: the connection was reset (for example after an app update). Scan again.',
     ],

@@ -28,15 +28,15 @@ const castHint: Record<CastState['status'], string> = {
 };
 
 const screenHint: Record<ScreenLinkStatus, string> = {
-  none: 'Scan the code on a laptop plugged into the TV',
+  none: 'Open la-teacher.passionedu.org/screen on the TV, then scan its code',
   connecting: 'Connecting…',
   connected: '',
-  'screen-offline': 'The laptop screen is not connected',
+  'screen-offline': 'The TV screen is not connected',
 };
 
 /**
- * "Show on TV": cast to a Chromecast / Android TV, drive a laptop plugged into the TV from this tablet, or open a
- * second window for a TV plugged into this laptop.
+ * "Show on TV": cast to a Chromecast / Android TV, drive the /screen page (the TV's own browser, or a laptop
+ * plugged into the TV) from this tablet, or open a second window for a TV plugged into this laptop.
  */
 export function TvMenu({ cast, screen, tv, windowConnected, windowOpen, onOpenWindow }: Props) {
   const [open, setOpen] = useState(false);
@@ -59,7 +59,7 @@ export function TvMenu({ cast, screen, tv, windowConnected, windowOpen, onOpenWi
     : cast.status === 'connecting' || screen === 'connecting'
       ? 'Connecting…'
       : screen === 'screen-offline'
-        ? 'Laptop offline'
+        ? 'TV offline'
         : windowOpen
           ? windowConnected
             ? 'TV on'
@@ -86,8 +86,8 @@ export function TvMenu({ cast, screen, tv, windowConnected, windowOpen, onOpenWi
         >
           {screenPaired ? (
             <MenuItem
-              title="Disconnect the laptop screen"
-              hint={screenHint[screen] || 'The laptop shows a new code'}
+              title="Disconnect the TV screen"
+              hint={screenHint[screen] || 'The TV shows a new code'}
               onClick={() => {
                 setOpen(false);
                 void disconnectScreen();
@@ -95,7 +95,7 @@ export function TvMenu({ cast, screen, tv, windowConnected, windowOpen, onOpenWi
             />
           ) : (
             <MenuItem
-              title="Laptop screen (scan QR)"
+              title="TV browser or laptop (scan QR)"
               hint={screenHint[screen]}
               disabled={casting}
               onClick={() => {
@@ -116,7 +116,7 @@ export function TvMenu({ cast, screen, tv, windowConnected, windowOpen, onOpenWi
           ) : (
             <MenuItem
               title="Chromecast / Android TV"
-              hint={screenPaired ? 'Disconnect the laptop screen first' : castHint[cast.status]}
+              hint={screenPaired ? 'Disconnect the TV screen first' : castHint[cast.status]}
               disabled={!canCast || screenPaired}
               onClick={() => {
                 setOpen(false);

@@ -30,11 +30,11 @@ function Pair() {
     );
   }, [code]);
 
-  if (result.kind === 'pairing') return <Spinner label="Connecting to the laptop screen" />;
+  if (result.kind === 'pairing') return <Spinner label="Connecting to the TV screen" />;
   return (
     <main className="mx-auto flex max-w-lg flex-col items-start gap-4 p-8">
       <h1 className="text-2xl font-extrabold text-bark-900">
-        {result.kind === 'done' ? 'The laptop screen is connected' : 'Not connected'}
+        {result.kind === 'done' ? 'The TV screen is connected' : 'Not connected'}
       </h1>
       <p className="text-bark-700">
         {result.kind === 'done'
