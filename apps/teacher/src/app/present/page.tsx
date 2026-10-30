@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import type { UnitReleasePayload } from '@little-ants/shared';
 import { Spinner } from '@little-ants/ui/feedback';
+import { ReceivedInkLayer, useReceivedInk } from '../../components/player/ink-layer';
 import { Stage } from '../../components/player/stage';
 import type { StageFrame } from '../../components/player/stage-content';
 import { ReleaseGate } from '../../components/release-gate';
@@ -16,6 +17,7 @@ function TvStage({ payload, session }: { payload: UnitReleasePayload; session: s
   const [frame, setFrame] = useState<StageFrame | null>(null);
   const [ended, setEnded] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [ink, onInk] = useReceivedInk();
 
   useEffect(() => {
     const channel = new BroadcastChannel(presenterChannelName(session));
@@ -26,6 +28,7 @@ function TvStage({ payload, session }: { payload: UnitReleasePayload; session: s
         setFrame(event.data.frame);
       }
       if (event.data.type === 'bye') setEnded(true);
+      if (event.data.type === 'ink' || event.data.type === 'ink-live') onInk(event.data);
     };
     channel.postMessage({ type: 'hello' } satisfies PresenterMessage);
     const bye = (): void => channel.postMessage({ type: 'bye' } satisfies PresenterMessage);
@@ -35,7 +38,7 @@ function TvStage({ payload, session }: { payload: UnitReleasePayload; session: s
       bye();
       channel.close();
     };
-  }, [session]);
+  }, [session, onInk]);
 
   useEffect(() => {
     const update = (): void => setFullscreen(Boolean(document.fullscreenElement));
@@ -46,7 +49,7 @@ function TvStage({ payload, session }: { payload: UnitReleasePayload; session: s
   return (
     <div className="relative h-dvh w-screen overflow-hidden bg-cream-50">
       {frame && !ended ? (
-        <Stage presenter frame={frame} />
+        <Stage presenter frame={frame} ink={<ReceivedInkLayer ink={ink} surface={frame.surface} />} />
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
           <UnitArt

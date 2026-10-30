@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { StageFrame } from './player/stage-content';
+import { ReceivedInkLayer, useReceivedInk } from './player/ink-layer';
 import { Stage } from './player/stage';
 import {
   isSenderMessage,
@@ -23,6 +24,7 @@ export interface DisplayLink {
  */
 export function TvDisplay({ link, waiting }: { link: DisplayLink | null; waiting?: ReactNode }) {
   const [frame, setFrame] = useState<StageFrame | null>(null);
+  const [ink, onInk, clearInk] = useReceivedInk();
   const audio = useRef<HTMLAudioElement | null>(null);
   const blocked = useRef(false);
 
@@ -92,6 +94,7 @@ export function TvDisplay({ link, waiting }: { link: DisplayLink | null; waiting
     if (!link) return;
     const stop = (): void => {
       setFrame(null);
+      clearInk();
       runAudio({ type: 'audio', action: 'load', track: null });
     };
     return link.connect({
@@ -99,17 +102,18 @@ export function TvDisplay({ link, waiting }: { link: DisplayLink | null; waiting
         if (!isSenderMessage(message)) return;
         if (message.type === 'frame') setFrame(message.frame);
         else if (message.type === 'end') stop();
+        else if (message.type === 'ink' || message.type === 'ink-live') onInk(message);
         else runAudio(message);
       },
       onIdle: stop,
     });
-  }, [link, runAudio]);
+  }, [link, runAudio, onInk, clearInk]);
 
   return (
     <div className="relative h-dvh w-screen overflow-hidden bg-cream-50">
       <audio ref={audio} preload="auto" />
       {frame ? (
-        <Stage presenter frame={frame} />
+        <Stage presenter frame={frame} ink={<ReceivedInkLayer ink={ink} surface={frame.surface} />} />
       ) : (
         (waiting ?? (
           <div className="flex h-full flex-col items-center justify-center gap-6 p-8 text-center">

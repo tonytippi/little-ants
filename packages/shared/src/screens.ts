@@ -9,7 +9,7 @@ export const SCREEN_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 export const SCREEN_CODE_LENGTH = 6;
 
 /** Message types the teacher may send to a screen, and the screen to the teacher. */
-export const TEACHER_TO_SCREEN_TYPES = ['frame', 'end', 'audio'] as const;
+export const TEACHER_TO_SCREEN_TYPES = ['frame', 'end', 'audio', 'ink', 'ink-live'] as const;
 export const SCREEN_TO_TEACHER_TYPES = ['ready', 'audio-status'] as const;
 
 /** Largest relayed message, in characters of JSON. */

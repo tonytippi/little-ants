@@ -13,8 +13,16 @@ import {
   CAST_NAMESPACE,
   isSenderMessage,
   type AudioCommand,
+  type InkMessage,
   type ReceiverMessage,
 } from '../src/lib/cast-protocol.js';
+import {
+  HIGHLIGHTER_OPACITY,
+  measureInkRect,
+  strokePath,
+  strokeWidth,
+  type InkStroke,
+} from '../src/lib/ink.js';
 
 /** The parts of the Cast Web Receiver SDK used here (loaded by index.html, so no npm types). */
 interface ReceiverContext {
@@ -58,6 +66,8 @@ function picture(url: string, alt: string, fade = false): HTMLElement {
   const img = el('img', fade ? 'picture fade' : 'picture');
   img.src = url;
   img.alt = alt;
+  // Ink is anchored to the picture (see lib/ink.ts).
+  img.dataset.inkTarget = '';
   return img;
 }
 
@@ -142,6 +152,8 @@ function drawPage(doc: PdfDocument, url: string, number: number, width: number, 
       canvas.height = Math.floor(viewport.height);
       const context = canvas.getContext('2d');
       if (context) await page.render({ canvasContext: context, viewport }).promise;
+      canvas.dataset.inkTarget = '';
+      canvas.dataset.inkReady = '1';
       remember(key, canvas);
       return canvas;
     })();
@@ -164,6 +176,8 @@ function pdfPage(
   fallback: string,
 ): HTMLElement {
   const box = el('div', 'pdf');
+  // Until the page is drawn, ink waits (the box is the anchor, and it is not a picture or a drawn page).
+  box.dataset.inkTarget = '';
   const token = renderCount;
   void (async () => {
     try {
@@ -173,6 +187,7 @@ function pdfPage(
       const current = Math.min(Math.max(1, pageFor(0, doc.numPages)), doc.numPages);
       const canvas = await drawPage(doc, url, current, width, height);
       if (token !== renderCount) return;
+      delete box.dataset.inkTarget;
       box.replaceChildren(canvas);
       for (const offset of [1, -1]) {
         const next = pageFor(offset, doc.numPages);
@@ -182,6 +197,7 @@ function pdfPage(
       }
     } catch (error) {
       if (token !== renderCount) return;
+      delete box.dataset.inkTarget;
       box.replaceChildren(el('p', 'child-text xl', fallback));
       reportError(error);
     }
@@ -194,6 +210,7 @@ function pdfPage(
 let shown = '';
 
 function render(frame: StageFrame | null): void {
+  surface = frame?.surface ?? '';
   // The teacher's device resends the current frame (reconnects, audio changes): do not redraw the same page.
   const key = frame
     ? JSON.stringify([
@@ -203,18 +220,33 @@ function render(frame: StageFrame | null): void {
         frame.word?.text,
         frame.stepTitle,
         frame.title,
+        frame.splash,
       ])
     : '';
-  if (key && key === shown) return;
+  if (key && key === shown) {
+    drawInk();
+    return;
+  }
   shown = key;
   renderCount += 1;
   stage.replaceChildren();
   stage.hidden = !frame;
   waiting.hidden = !!frame;
+  inkHost = null;
   if (!frame) return;
+  if (frame.splash) {
+    const logo = el('img', 'splash');
+    logo.src = '/logo-horizontal.webp';
+    logo.alt = 'Little Ants English';
+    stage.appendChild(logo);
+    return;
+  }
   stage.appendChild(el('p', 'title', frame.title));
   const body = el('div', 'body');
   stage.appendChild(body);
+  inkHost = body;
+  body.appendChild(inkLayer);
+  drawInk();
 
   if (frame.view === 'words') {
     if (!frame.word) {
@@ -281,6 +313,53 @@ function holder(child: HTMLElement, extra = ''): HTMLElement {
   return box;
 }
 
+// --- Ink: the teacher's drawing, over the picture or page it was drawn on -----------------------------------------
+
+const SVG = 'http://www.w3.org/2000/svg';
+const inkLayer = document.createElementNS(SVG, 'svg');
+inkLayer.setAttribute('class', 'ink');
+let inkHost: HTMLElement | null = null;
+/** The page the TV shows, and the ink the teacher sent (for `ink.key`). */
+let surface = '';
+let ink: { key: string; strokes: InkStroke[]; live: InkStroke | null } = { key: '', strokes: [], live: null };
+
+function onInk(message: InkMessage): void {
+  ink =
+    message.type === 'ink'
+      ? { key: message.key, strokes: message.strokes, live: null }
+      : { key: message.key, strokes: message.key === ink.key ? ink.strokes : [], live: message.stroke };
+  drawInk();
+}
+
+function drawInk(): void {
+  const rect = inkHost && surface && ink.key === surface ? measureInkRect(inkHost) : null;
+  if (!rect) {
+    inkLayer.replaceChildren();
+    return;
+  }
+  const strokes = ink.live ? ink.strokes.concat(ink.live) : ink.strokes;
+  inkLayer.replaceChildren(
+    ...strokes.map((stroke) => {
+      const path = document.createElementNS(SVG, 'path');
+      path.setAttribute('d', strokePath(stroke.points, rect));
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', stroke.color);
+      path.setAttribute('stroke-width', String(strokeWidth(stroke, rect)));
+      path.setAttribute('stroke-opacity', String(stroke.tool === 'highlighter' ? HIGHLIGHTER_OPACITY : 1));
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+      return path;
+    }),
+  );
+}
+
+// Measure again when a picture loads, a PDF page is drawn or the screen size changes.
+stage.addEventListener('load', drawInk, true);
+window.addEventListener('resize', drawInk);
+new MutationObserver((records) => {
+  if (records.some((record) => !inkLayer.contains(record.target))) drawInk();
+}).observe(stage, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-ink-ready'] });
+
 // --- Audio, played by the TV and controlled from the teacher's device -------------------------------------------
 
 let context: ReceiverContext | null = null;
@@ -336,6 +415,7 @@ window.setInterval(() => {
 }, 1000);
 
 function stop(): void {
+  ink = { key: '', strokes: [], live: null };
   render(null);
   runAudio({ type: 'audio', action: 'load', track: null });
 }
@@ -357,6 +437,7 @@ function start(): void {
     try {
       if (message.type === 'frame') render(message.frame);
       else if (message.type === 'end') stop();
+      else if (message.type === 'ink' || message.type === 'ink-live') onInk(message);
       else runAudio(message);
     } catch (error) {
       reportError(error);

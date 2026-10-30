@@ -58,6 +58,13 @@ const GUIDES = {
 
 type GuideKey = keyof typeof GUIDES;
 
+/** Tips that hold for every way of showing the lesson. */
+const WHILE_TEACHING = [
+  'Hide on TV (or the H key) puts the Little Ants logo on the TV and pauses the sound, while you keep the lesson on your screen: move to the next item or find a page, then tap Show on TV.',
+  'Wide (or the W key) fills your screen with the stage and a pen. Draw on a picture or page and the children see it on the TV in the same place. Each page keeps its drawing until the end of the lesson; use Move to swipe to the next page.',
+  'With a stylus on the tablet, your hand resting on the screen does not draw.',
+];
+
 /** How to show lessons on a classroom TV. Works offline once opened. */
 export default function TvHelpPage() {
   const [tab, setTab] = useState<GuideKey>('screen');
@@ -106,6 +113,14 @@ export default function TvHelpPage() {
             ))}
           </ul>
         </div>
+      </section>
+      <section className="flex flex-col gap-3 rounded-3xl bg-white p-6 ring-1 ring-cream-200">
+        <h2 className="text-lg font-extrabold text-bark-900">While you teach</h2>
+        <ul className="flex list-disc flex-col gap-2 pl-5 text-bark-700">
+          {WHILE_TEACHING.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </section>
     </main>
   );

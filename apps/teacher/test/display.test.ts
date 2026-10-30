@@ -7,8 +7,10 @@ import {
   displayPageCount,
   materialDisplay,
   pdfPageForStoryPage,
+  splashFrame,
 } from '../src/components/player/stage-content';
 import { formatBytes, formatClock } from '../src/lib/format';
+import { surfaceKey } from '../src/lib/ink';
 import { downloadState } from '../src/lib/release-diff';
 
 const media = (id: string, kind: ReleaseMedia['kind']): ReleaseMedia => ({
@@ -157,6 +159,26 @@ describe('buildStageFrame', () => {
     const frame = buildStageFrame(payload, step(null), 'material', 0);
     expect(frame).toMatchObject({ title: 'Sing hello', stepTitle: 'Sing hello', material: null });
     expect(frame.lead?.name).toBe('Andy');
+  });
+
+  it('names the page its ink belongs to', () => {
+    expect(surfaceKey(4, 'material', 2)).toBe('4:material:2');
+    expect(buildStageFrame(payload, step('SG1'), 'words', 1, surfaceKey(4, 'words', 1)).surface).toBe(
+      '4:words:1',
+    );
+  });
+
+  it('has nothing of the lesson in the frame sent while the stage is hidden', () => {
+    const frame = splashFrame();
+    expect(frame).toMatchObject({
+      splash: true,
+      material: null,
+      word: null,
+      lead: null,
+      title: '',
+      stepTitle: '',
+    });
+    expect(JSON.stringify(frame)).not.toContain('The big day');
   });
 
   it('stays small enough for one Cast message', () => {

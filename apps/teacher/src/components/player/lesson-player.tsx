@@ -7,9 +7,18 @@ import type { UnitReleasePayload } from '@little-ants/shared';
 import { Button, buttonClass } from '@little-ants/ui/button';
 import { Badge } from '@little-ants/ui/badge';
 import { useCast } from '../../lib/cast';
-import type { AudioStatus, ReceiverMessage } from '../../lib/cast-protocol';
+import type { AudioStatus, InkMessage, ReceiverMessage } from '../../lib/cast-protocol';
 import { formatClock, stageLabel } from '../../lib/format';
 import { useElapsedSeconds } from '../../lib/hooks';
+import {
+  EMPTY_SURFACE,
+  inkCommit,
+  inkRedo,
+  inkUndo,
+  surfaceKey,
+  type InkStroke,
+  type InkSurface,
+} from '../../lib/ink';
 import { links } from '../../lib/links';
 import { NOTE_SIZES, useNoteSize } from '../../lib/note-size';
 import { useScreenLink } from '../../lib/screen-link';
@@ -22,11 +31,13 @@ import {
 } from '../../lib/presenter';
 import { AudioBar } from './audio-bar';
 import { FinishDialog } from './finish-dialog';
+import { InkLayer } from './ink-layer';
 import { NotesPanel } from './notes-panel';
 import { Stage } from './stage';
-import { audioFor, buildStageFrame, clampPage, materialForStep } from './stage-content';
+import { audioFor, buildStageFrame, clampPage, materialForStep, splashFrame } from './stage-content';
 import { StepRail } from './step-rail';
 import { TvMenu } from './tv-menu';
+import { HiddenBadge, WideStage } from './wide-stage';
 
 interface Props {
   payload: UnitReleasePayload;
@@ -59,6 +70,11 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
   const [tvReady, setTvReady] = useState(0);
   const [noteSize, setNoteSize] = useNoteSize();
   const [finishing, setFinishing] = useState(false);
+  // The TV shows the logo instead of the stage until the teacher shows it again.
+  const [hidden, setHidden] = useState(false);
+  const [pauseSignal, setPauseSignal] = useState(0);
+  const [wide, setWide] = useState(false);
+  const [inks, setInks] = useState<Record<string, InkSurface>>({});
   const channel = useRef<BroadcastChannel | null>(null);
   const swipeStart = useRef<number | null>(null);
 
@@ -66,9 +82,12 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
   const material = view === 'material' ? materialForStep(payload, step) : undefined;
   const shownPage = clampPage(page, pageCount);
   const frame = useMemo(
-    () => buildStageFrame(payload, step, view, shownPage),
-    [payload, step, view, shownPage],
+    () => buildStageFrame(payload, step, view, shownPage, surfaceKey(stepIndex, view, shownPage)),
+    [payload, step, view, shownPage, stepIndex],
   );
+  // While hidden, the TV gets nothing of the lesson (no material, words or ink), only the logo.
+  const tvFrame = useMemo(() => (hidden ? splashFrame() : frame), [hidden, frame]);
+  const ink = inks[frame.surface] ?? EMPTY_SURFACE;
   // With a TV showing the stage, the teacher's screen puts the notes first.
   const withTv = casting || windowConnected;
   const lessonSeconds = useElapsedSeconds(lessonStart, true);
@@ -98,6 +117,13 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
 
   const onPageCount = useCallback((count: number) => setPageCount(Math.max(1, count)), []);
 
+  const toggleHidden = useCallback(() => {
+    // Hiding pauses the audio; showing again does not restart it.
+    if (!hidden) setPauseSignal((count) => count + 1);
+    setHidden(!hidden);
+  }, [hidden]);
+  const closeWide = useCallback(() => setWide(false), []);
+
   // Keyboard and presentation clickers (they send PageDown / PageUp).
   useEffect(() => {
     function onKey(event: KeyboardEvent): void {
@@ -113,11 +139,17 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
         goToStep(stepIndex + 1);
       } else if (event.key === 'ArrowUp') {
         goToStep(stepIndex - 1);
+      } else if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) {
+        return;
+      } else if (event.key.toLowerCase() === 'h' && withTv) {
+        toggleHidden();
+      } else if (event.key.toLowerCase() === 'w') {
+        setWide((open) => !open);
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [forward, backward, goToStep, stepIndex]);
+  }, [forward, backward, goToStep, stepIndex, withTv, toggleHidden]);
 
   // Presenter mode: keep the TV window in step with this one.
   useEffect(() => {
@@ -137,13 +169,52 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
   }, [session]);
 
   useEffect(() => {
-    channel.current?.postMessage({ type: 'state', frame } satisfies PresenterMessage);
-  }, [frame, windowConnected, session]);
+    channel.current?.postMessage({ type: 'state', frame: tvFrame } satisfies PresenterMessage);
+  }, [tvFrame, windowConnected, session]);
 
   // Chromecast or laptop screen: the TV follows the same frames; it asks again ('ready') when it (re)connects.
   useEffect(() => {
-    if (casting) sendToTv({ type: 'frame', frame });
-  }, [frame, casting, tvReady]);
+    if (casting) sendToTv({ type: 'frame', frame: tvFrame });
+  }, [tvFrame, casting, tvReady]);
+
+  const sendInk = useCallback(
+    (message: InkMessage) => {
+      if (hidden) return;
+      channel.current?.postMessage(message satisfies PresenterMessage);
+      if (casting) sendToTv(message);
+    },
+    [hidden, casting],
+  );
+
+  // The page's ink follows its frame, and again after Show on TV or when a TV (re)connects.
+  useEffect(() => {
+    sendInk({ type: 'ink', key: frame.surface, strokes: ink.strokes });
+  }, [sendInk, frame.surface, ink.strokes, windowConnected, tvReady]);
+
+  const surface = frame.surface;
+  const editInk = useCallback(
+    (change: (current: InkSurface) => InkSurface) =>
+      setInks((all) => ({ ...all, [surface]: change(all[surface] ?? EMPTY_SURFACE) })),
+    [surface],
+  );
+  const onLiveStroke = useCallback(
+    (stroke: InkStroke) => sendInk({ type: 'ink-live', key: surface, stroke }),
+    [sendInk, surface],
+  );
+  const onStroke = useCallback(
+    (stroke: InkStroke) => editInk((current) => inkCommit(current, [...current.strokes, stroke])),
+    [editInk],
+  );
+  const onErase = useCallback(
+    (ids: string[]) =>
+      editInk((current) =>
+        inkCommit(
+          current,
+          current.strokes.filter((stroke) => !ids.includes(stroke.id)),
+        ),
+      ),
+    [editInk],
+  );
 
   const onTvMessage = useCallback((message: ReceiverMessage) => {
     if (message.type === 'ready') setTvReady((count) => count + 1);
@@ -179,6 +250,10 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
 
   const tracks = view === 'material' ? audioFor(material, page) : [];
   const remoteAudio = casting ? { status: tvAudio, send: sendToTv, resync: tvReady } : undefined;
+  const pageLabel =
+    pageCount > 1
+      ? `Page ${clampPage(page, pageCount) + 1} / ${pageCount}`
+      : `Step ${stepIndex + 1} / ${steps.length}`;
 
   function onPointerDown(event: PointerEvent): void {
     swipeStart.current = event.clientX;
@@ -236,6 +311,25 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
           >
             Word cards
           </Button>
+          {withTv ? (
+            <Button
+              size="md"
+              variant={hidden ? 'primary' : 'secondary'}
+              onClick={toggleHidden}
+              aria-pressed={hidden}
+              title="Keyboard: H"
+            >
+              {hidden ? 'Show on TV' : 'Hide on TV'}
+            </Button>
+          ) : null}
+          <Button
+            size="md"
+            variant="secondary"
+            onClick={() => setWide(true)}
+            title="Draw on the stage (keyboard: W)"
+          >
+            Wide
+          </Button>
           {withTv ? null : (
             <Button
               size="md"
@@ -277,7 +371,8 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
           >
-            <Stage frame={frame} onPageCount={onPageCount} />
+            <Stage frame={frame} onPageCount={onPageCount} ink={<InkLayer strokes={ink.strokes} />} />
+            {hidden && withTv ? <HiddenBadge /> : null}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
@@ -285,16 +380,14 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
                 ◀
               </Button>
               <span className="min-w-20 text-center text-sm font-semibold tabular-nums text-bark-700">
-                {pageCount > 1
-                  ? `Page ${clampPage(page, pageCount) + 1} / ${pageCount}`
-                  : `Step ${stepIndex + 1} / ${steps.length}`}
+                {pageLabel}
               </span>
               <Button size="lg" onClick={forward} aria-label="Next">
                 ▶
               </Button>
             </div>
             <div className="min-w-64 flex-1">
-              <AudioBar tracks={tracks} remote={remoteAudio} />
+              <AudioBar tracks={tracks} remote={remoteAudio} pauseSignal={pauseSignal} />
               {casting && tvAudio?.blocked ? (
                 <p className="mt-1 text-sm font-semibold text-ant-700">
                   The TV is not allowed to play sound yet: tap the laptop screen once.
@@ -372,6 +465,28 @@ export function LessonPlayer({ payload, lessonNumber, classId, preview = false }
       <footer className="border-t border-cream-200 bg-white px-2 py-2">
         <StepRail steps={steps} current={stepIndex} onSelect={goToStep} />
       </footer>
+
+      {wide ? (
+        <WideStage
+          frame={frame}
+          strokes={ink.strokes}
+          onLive={onLiveStroke}
+          onStroke={onStroke}
+          onErase={onErase}
+          onUndo={() => editInk(inkUndo)}
+          onRedo={() => editInk(inkRedo)}
+          onClear={() => editInk((current) => inkCommit(current, []))}
+          canUndo={ink.undo.length > 0}
+          canRedo={ink.redo.length > 0}
+          pageLabel={pageLabel}
+          onBack={backward}
+          onForward={forward}
+          tv={withTv ? { hidden, onToggle: toggleHidden } : null}
+          onExit={closeWide}
+          onSwipeStart={onPointerDown}
+          onSwipeEnd={onPointerUp}
+        />
+      ) : null}
 
       {preview ? null : (
         <FinishDialog

@@ -80,11 +80,43 @@ export async function disconnectScreen(): Promise<void> {
   if (id) await api.del(`/screens/${id}`).catch(() => undefined);
 }
 
+/**
+ * Messages to the laptop go one request at a time, so they arrive in order (a Hide on TV must not be overtaken by
+ * the frame before it). While a request is out, a newer stroke in progress replaces the queued one, and a whole
+ * page of ink makes queued strokes in progress pointless.
+ */
+const outbox: SenderMessage[] = [];
+let sending = false;
+
+/** Adds a message to the queue of messages waiting to go (see `outbox`). */
+export function enqueue(queue: SenderMessage[], message: SenderMessage): void {
+  if (message.type === 'ink' || message.type === 'ink-live') {
+    for (let i = queue.length - 1; i >= 0; i--) if (queue[i]!.type === 'ink-live') queue.splice(i, 1);
+  }
+  queue.push(message);
+}
+
 export function sendToScreen(message: SenderMessage): void {
   if (!screenId || status !== 'connected') return;
-  api.post(`/screens/${screenId}/messages`, message).catch((error: unknown) => {
-    if (error instanceof ApiError && (error.status === 403 || error.status === 404)) forget();
-  });
+  enqueue(outbox, message);
+  void drainOutbox();
+}
+
+async function drainOutbox(): Promise<void> {
+  if (sending) return;
+  sending = true;
+  try {
+    for (let message = outbox.shift(); message; message = outbox.shift()) {
+      const id = screenId;
+      if (!id) break;
+      await api.post(`/screens/${id}/messages`, message).catch((error: unknown) => {
+        if (error instanceof ApiError && (error.status === 403 || error.status === 404)) forget();
+      });
+    }
+  } finally {
+    outbox.length = 0;
+    sending = false;
+  }
 }
 
 function subscribe(listener: () => void): () => void {

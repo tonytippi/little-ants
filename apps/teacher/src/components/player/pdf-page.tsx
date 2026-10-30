@@ -47,6 +47,8 @@ export function PdfPage({ url, page, onPageCount, label }: Props) {
 
   useEffect(() => {
     if (!size.width || !size.height) return;
+    // Until the new page is drawn, ink waits instead of lying over the old page.
+    if (canvas.current) delete canvas.current.dataset.inkReady;
     let cancelled = false;
     let task: { cancel(): void; promise: Promise<void> } | null = null;
     loadPdf(url)
@@ -72,6 +74,7 @@ export function PdfPage({ url, page, onPageCount, label }: Props) {
         target.style.width = `${Math.floor(viewport.width / ratio)}px`;
         target.style.height = `${Math.floor(viewport.height / ratio)}px`;
         target.getContext('2d')?.drawImage(offscreen, 0, 0);
+        target.dataset.inkReady = '1';
       })
       .catch((cause: unknown) => {
         if (cancelled || (cause instanceof Error && cause.name === 'RenderingCancelledException')) return;
@@ -88,7 +91,13 @@ export function PdfPage({ url, page, onPageCount, label }: Props) {
       {error ? (
         <p className="text-lg text-bark-500">{error}</p>
       ) : (
-        <canvas ref={canvas} role="img" aria-label={label} className="rounded-lg bg-white shadow-sm" />
+        <canvas
+          ref={canvas}
+          role="img"
+          aria-label={label}
+          className="rounded-lg bg-white shadow-sm"
+          data-ink-target=""
+        />
       )}
     </div>
   );

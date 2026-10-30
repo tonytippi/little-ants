@@ -21,6 +21,10 @@ export interface StageFrame {
   word: { text: string; image: ReleaseMedia | null } | null;
   wordCount: number;
   lead: { name: string; image: ReleaseMedia | null } | null;
+  /** Which page's ink goes with this frame (`surfaceKey` in lib/ink). */
+  surface: string;
+  /** The teacher hid the stage: the TV shows the Little Ants logo instead. */
+  splash?: boolean;
 }
 
 /** What the stage shows for a material, in order of preference. */
@@ -98,6 +102,7 @@ export function buildStageFrame(
   step: ReleaseStep | undefined,
   view: StageView,
   page: number,
+  surface = '',
 ): StageFrame {
   const found = materialForStep(payload, step);
   const material: StageMaterial | null = found
@@ -122,5 +127,22 @@ export function buildStageFrame(
     word: word ? { text: word.text, image: word.image } : null,
     wordCount: words.length,
     lead: lead ? { name: lead.name, image: lead.image } : null,
+    surface,
+  };
+}
+
+/** What the TV gets while the teacher hides the stage: nothing of the lesson, only the logo. */
+export function splashFrame(): StageFrame {
+  return {
+    title: '',
+    stepTitle: '',
+    view: 'material',
+    page: 0,
+    material: null,
+    word: null,
+    wordCount: 0,
+    lead: null,
+    surface: '',
+    splash: true,
   };
 }

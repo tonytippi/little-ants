@@ -1,5 +1,6 @@
 import type { ReleaseMedia } from '@little-ants/shared';
 import type { StageFrame } from '../components/player/stage-content';
+import type { InkStroke } from './ink';
 
 /** Google Cast receiver app registered for https://la-teacher.passionedu.org/cast-receiver (public ID). */
 export const CAST_APP_ID = 'B1587FA6';
@@ -12,8 +13,17 @@ export type AudioCommand =
   | { type: 'audio'; action: 'play' | 'pause' }
   | { type: 'audio'; action: 'seek'; time: number };
 
+/**
+ * Drawing on the stage. `ink` is the whole page's ink (sent on every change and when the page or TV changes);
+ * `ink-live` is the stroke being drawn so far, sent whole so a lost message is repaired by the next one.
+ * `key` is the page's `StageFrame.surface`.
+ */
+export type InkMessage =
+  { type: 'ink'; key: string; strokes: InkStroke[] } | { type: 'ink-live'; key: string; stroke: InkStroke };
+
 /** Teacher → TV. */
-export type SenderMessage = { type: 'frame'; frame: StageFrame } | { type: 'end' } | AudioCommand;
+export type SenderMessage =
+  { type: 'frame'; frame: StageFrame } | { type: 'end' } | AudioCommand | InkMessage;
 
 export interface AudioStatus {
   trackId: string | null;
@@ -33,7 +43,7 @@ function typeOf(value: unknown): unknown {
 
 export function isSenderMessage(value: unknown): value is SenderMessage {
   const type = typeOf(value);
-  return type === 'frame' || type === 'end' || type === 'audio';
+  return type === 'frame' || type === 'end' || type === 'audio' || type === 'ink' || type === 'ink-live';
 }
 
 export function isReceiverMessage(value: unknown): value is ReceiverMessage {

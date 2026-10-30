@@ -1,7 +1,9 @@
 import type { StageFrame } from '../components/player/stage-content';
+import type { InkMessage } from './cast-protocol';
 
 /** Messages between the teacher's window and the TV (presenter) window. */
-export type PresenterMessage = { type: 'state'; frame: StageFrame } | { type: 'hello' } | { type: 'bye' };
+export type PresenterMessage =
+  { type: 'state'; frame: StageFrame } | { type: 'hello' } | { type: 'bye' } | InkMessage;
 
 export type StageView = 'material' | 'words';
 
@@ -12,5 +14,5 @@ export function presenterChannelName(sessionId: string): string {
 export function isPresenterMessage(value: unknown): value is PresenterMessage {
   if (!value || typeof value !== 'object') return false;
   const type = (value as { type?: unknown }).type;
-  return type === 'state' || type === 'hello' || type === 'bye';
+  return type === 'state' || type === 'hello' || type === 'bye' || type === 'ink' || type === 'ink-live';
 }

@@ -22,7 +22,14 @@ const ROUTES = [
   '/listening',
   '/tv-help',
 ];
-const FILES = ['/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png', '/pdf.worker.min.mjs'];
+const FILES = [
+  '/manifest.webmanifest',
+  '/icon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/logo-horizontal.webp',
+  '/pdf.worker.min.mjs',
+];
 
 async function cacheShell() {
   const shell = await caches.open(SHELL_CACHE);

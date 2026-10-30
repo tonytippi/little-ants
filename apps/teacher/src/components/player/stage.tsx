@@ -18,6 +18,8 @@ interface StageProps {
   onPageCount?: (count: number) => void;
   /** Large type for the TV. */
   presenter?: boolean;
+  /** The drawing layer, placed over the stage body (it anchors itself to the picture or page). */
+  ink?: ReactNode;
 }
 
 const ignorePageCount = (): void => undefined;
@@ -32,6 +34,7 @@ function Picture({ src, alt, fade = false }: { src: string; alt: string; fade?: 
       alt={alt}
       className={`max-h-full max-w-full object-contain ${fade ? fadeClass : 'rounded-2xl'}`}
       draggable={false}
+      data-ink-target=""
     />
   );
 }
@@ -130,8 +133,9 @@ function WordCards({
 }
 
 /** The part of the lesson children see: shown in the teacher's window and on the TV. */
-export function Stage({ frame, onPageCount = ignorePageCount, presenter = false }: StageProps) {
+export function Stage({ frame, onPageCount = ignorePageCount, presenter = false, ink }: StageProps) {
   const { material, lead, page } = frame;
+  if (frame.splash) return <Splash />;
   return (
     <div className={`flex h-full w-full flex-col ${presenter ? 'p-8' : 'p-4 sm:p-6'}`}>
       <div className="mb-3 flex items-baseline justify-between gap-4">
@@ -139,7 +143,7 @@ export function Stage({ frame, onPageCount = ignorePageCount, presenter = false 
           {frame.title}
         </p>
       </div>
-      <div className="flex min-h-0 flex-1 items-center justify-center">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center">
         {frame.view === 'words' ? (
           <WordCards word={frame.word} wordCount={frame.wordCount} onPageCount={onPageCount} />
         ) : material ? (
@@ -152,7 +156,22 @@ export function Stage({ frame, onPageCount = ignorePageCount, presenter = false 
             onPageCount={onPageCount}
           />
         )}
+        {ink}
       </div>
+    </div>
+  );
+}
+
+/** What the TV shows while the teacher hides the stage. */
+function Splash() {
+  return (
+    <div className="flex h-full w-full items-center justify-center p-[6vmin]">
+      {/* eslint-disable-next-line @next/next/no-img-element -- a local logo */}
+      <img
+        src="/logo-horizontal.webp"
+        alt="Little Ants English"
+        className="max-h-[70%] max-w-[70%] object-contain"
+      />
     </div>
   );
 }

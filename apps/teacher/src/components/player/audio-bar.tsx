@@ -18,10 +18,13 @@ export function AudioBar({
   tracks,
   compact = false,
   remote,
+  pauseSignal = 0,
 }: {
   tracks: ReleaseMedia[];
   compact?: boolean;
   remote?: RemoteAudio;
+  /** Each change pauses the audio (the teacher hid the TV). */
+  pauseSignal?: number;
 }) {
   const audio = useRef<HTMLAudioElement>(null);
   const [index, setIndex] = useState(0);
@@ -38,6 +41,14 @@ export function AudioBar({
     element?.pause();
     return () => element?.pause();
   }, [trackKey]);
+
+  const pausedFor = useRef(pauseSignal);
+  useEffect(() => {
+    if (pauseSignal === pausedFor.current) return;
+    pausedFor.current = pauseSignal;
+    if (send) send({ type: 'audio', action: 'pause' });
+    else audio.current?.pause();
+  }, [pauseSignal, send]);
 
   // On the TV, a new step, page or track replaces (and so stops) what was loaded.
   useEffect(() => {
