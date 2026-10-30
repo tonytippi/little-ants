@@ -61,7 +61,7 @@ type GuideKey = keyof typeof GUIDES;
 /** Tips that hold for every way of showing the lesson. */
 const WHILE_TEACHING = [
   'Hide on TV (or the H key) puts the Little Ants logo on the TV and pauses the sound, while you keep the lesson on your screen: move to the next item or find a page, then tap Show on TV.',
-  'Wide (or the W key) fills your screen with the stage and a pen. Draw on a picture or page and the children see it on the TV in the same place. Each page keeps its drawing until the end of the lesson; use Move to swipe to the next page.',
+  'Wide (or the W key) fills your screen with the stage and a pen. Draw on a picture or page and the children see it on the TV in the same place. Each page keeps its drawing until the end of the lesson; turn on Draw to draw; with Draw off, swipe the stage to turn the page.',
   'With a stylus on the tablet, your hand resting on the screen does not draw.',
 ];
 

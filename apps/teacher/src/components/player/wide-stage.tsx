@@ -24,13 +24,12 @@ interface Props {
   /** Hide / show on the TV, when one is connected. */
   tv: { hidden: boolean; onToggle: () => void } | null;
   onExit: () => void;
-  /** Swipe to turn the page with the move tool. */
+  /** Swipe to turn the page while drawing is off. */
   onSwipeStart: (event: PointerEvent) => void;
   onSwipeEnd: (event: PointerEvent) => void;
 }
 
-const TOOLS: { tool: DrawTool; label: string; icon: string }[] = [
-  { tool: 'move', label: 'Move (swipe to turn the page)', icon: '✋' },
+const TOOLS: { tool: Exclude<DrawTool, 'move'>; label: string; icon: string }[] = [
   { tool: 'pen', label: 'Pen', icon: '✏️' },
   { tool: 'highlighter', label: 'Highlighter', icon: '🖍️' },
   { tool: 'eraser', label: 'Eraser', icon: '🧽' },
@@ -38,7 +37,10 @@ const TOOLS: { tool: DrawTool; label: string; icon: string }[] = [
 
 /** The stage on the teacher's whole screen, with a pen to draw on it (shown on the TV too). */
 export function WideStage(props: Props) {
-  const [tool, setTool] = useState<DrawTool>('pen');
+  // Drawing starts off, so a swipe turns the page; the teacher turns it on to draw.
+  const [drawing, setDrawing] = useState(false);
+  const [pick, setPick] = useState<Exclude<DrawTool, 'move'>>('pen');
+  const tool: DrawTool = drawing ? pick : 'move';
   const [color, setColor] = useState(INK_COLORS[0]!);
   const { onExit } = props;
 
@@ -121,41 +123,53 @@ export function WideStage(props: Props) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 px-3 py-2" role="toolbar" aria-label="Drawing tools">
-        {TOOLS.map((item) => (
-          <ToolButton
-            key={item.tool}
-            active={tool === item.tool}
-            label={item.label}
-            onClick={() => setTool(item.tool)}
-          >
-            {item.icon}
-          </ToolButton>
-        ))}
-        <span className="mx-1 h-8 w-px bg-cream-200" />
-        {INK_COLORS.map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => {
-              setColor(value);
-              if (tool === 'move' || tool === 'eraser') setTool('pen');
-            }}
-            className={`size-10 rounded-full ring-offset-2 ${color === value ? 'ring-4 ring-bark-700' : 'ring-1 ring-cream-200'}`}
-            style={{ backgroundColor: value }}
-            aria-label={`Colour ${value}`}
-            aria-pressed={color === value}
-          />
-        ))}
-        <span className="mx-1 h-8 w-px bg-cream-200" />
-        <ToolButton label="Undo" onClick={props.onUndo} disabled={!props.canUndo}>
-          ↶
+        <ToolButton
+          label={drawing ? 'Stop drawing' : 'Draw'}
+          active={drawing}
+          onClick={() => setDrawing((on) => !on)}
+        >
+          ✏️
         </ToolButton>
-        <ToolButton label="Redo" onClick={props.onRedo} disabled={!props.canRedo}>
-          ↷
-        </ToolButton>
-        <ToolButton label="Clear this page" onClick={props.onClear} disabled={props.strokes.length === 0}>
-          🗑
-        </ToolButton>
+        {drawing ? (
+          <>
+            <span className="mx-1 h-8 w-px bg-cream-200" />
+            {TOOLS.map((item) => (
+              <ToolButton
+                key={item.tool}
+                active={pick === item.tool}
+                label={item.label}
+                onClick={() => setPick(item.tool)}
+              >
+                {item.icon}
+              </ToolButton>
+            ))}
+            <span className="mx-1 h-8 w-px bg-cream-200" />
+            {INK_COLORS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setColor(value);
+                  if (pick === 'eraser') setPick('pen');
+                }}
+                className={`size-10 rounded-full ring-offset-2 ${color === value ? 'ring-4 ring-bark-700' : 'ring-1 ring-cream-200'}`}
+                style={{ backgroundColor: value }}
+                aria-label={`Colour ${value}`}
+                aria-pressed={color === value}
+              />
+            ))}
+            <span className="mx-1 h-8 w-px bg-cream-200" />
+            <ToolButton label="Undo" onClick={props.onUndo} disabled={!props.canUndo}>
+              ↶
+            </ToolButton>
+            <ToolButton label="Redo" onClick={props.onRedo} disabled={!props.canRedo}>
+              ↷
+            </ToolButton>
+            <ToolButton label="Clear this page" onClick={props.onClear} disabled={props.strokes.length === 0}>
+              🗑
+            </ToolButton>
+          </>
+        ) : null}
       </div>
     </div>
   );
