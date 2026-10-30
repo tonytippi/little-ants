@@ -158,7 +158,7 @@ export function Player({ payload, items, leaf, mode, onExit, onFinished }: Playe
             {plan.kindLabel}
           </div>
           <h2
-            className={`font-display leading-[1.05] font-extrabold ${school ? 'text-[clamp(30px,4vw,56px)]' : 'text-[clamp(26px,3.6vw,40px)]'}`}
+            className={`font-display leading-[1.05] font-extrabold ${school ? 'text-[clamp(30px,min(4vw,7dvh),56px)]' : 'text-[clamp(26px,3.6vw,40px)]'}`}
             style={{ color: plan.colour }}
           >
             {plan.title}

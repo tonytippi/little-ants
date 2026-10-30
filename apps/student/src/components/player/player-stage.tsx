@@ -55,7 +55,7 @@ export function PlayerText({ slide, colour, large }: { slide: Slide; colour: str
       {slide.big ? (
         <div className="flex flex-wrap items-baseline gap-3">
           <span
-            className={`leading-none ${slide.small ? 'font-display text-[clamp(64px,10vw,140px)] font-extrabold' : 'font-child text-[clamp(44px,7vw,96px)] font-bold'}`}
+            className={`leading-none ${slide.small ? 'font-display text-[clamp(48px,min(10vw,10dvh),140px)] font-extrabold' : 'font-child text-[clamp(40px,min(7vw,8dvh),96px)] font-bold'}`}
             style={{ color: colour }}
           >
             {slide.big}
