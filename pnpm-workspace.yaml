@@ -5,6 +5,7 @@ packages:
 allowBuilds:
   '@prisma/engines': true
   '@swc/core': true
+  canvas: false
   prisma: true
 minimumReleaseAgeExclude:
   - '@turbo/darwin-64@2.11.10'

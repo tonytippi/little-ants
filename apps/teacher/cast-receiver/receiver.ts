@@ -51,7 +51,7 @@ function picture(url: string, alt: string, fade = false): HTMLElement {
   return img;
 }
 
-// --- PDF pages (draft layouts), with pdf.js's legacy build for old browsers -------------------------------------
+// --- PDF pages (draft layouts), with pdf.js 3's legacy build: pdf.js 6 does not run on the TV's Chrome 92 ----------
 
 interface PdfDocument {
   numPages: number;
@@ -60,42 +60,37 @@ interface PdfDocument {
     render(o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }): { promise: Promise<void> };
   }>;
 }
-const PDF_LIBRARY = '/pdfjs-legacy/pdf.min.mjs';
+interface PdfLibrary {
+  GlobalWorkerOptions: { workerSrc: string };
+  // isEvalSupported: false closes CVE-2024-4367 (font code execution) in pdf.js 3.
+  getDocument(o: { url: string; isEvalSupported: boolean }): { promise: Promise<PdfDocument> };
+}
+let library: Promise<PdfLibrary> | null = null;
 const documents = new Map<string, Promise<PdfDocument>>();
 
-function polyfill(): void {
-  // Used by pdf.js and missing in Chrome 92.
-  const promise = Promise as unknown as { withResolvers?: unknown };
-  if (!promise.withResolvers) {
-    promise.withResolvers = function withResolvers<T>() {
-      let resolve!: (value: T) => void;
-      let reject!: (reason: unknown) => void;
-      const created = new Promise<T>((yes, no) => {
-        resolve = yes;
-        reject = no;
-      });
-      return { promise: created, resolve, reject };
+function loadLibrary(): Promise<PdfLibrary> {
+  library ??= new Promise<PdfLibrary>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = '/pdfjs-legacy/pdf.min.js';
+    script.onload = () => {
+      const pdfjs = (window as unknown as { pdfjsLib?: PdfLibrary }).pdfjsLib;
+      if (!pdfjs) return reject(new Error('pdf.js did not load'));
+      pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs-legacy/pdf.worker.min.js';
+      resolve(pdfjs);
     };
-  }
-  const object = Object as unknown as { hasOwn?: unknown };
-  if (!object.hasOwn) {
-    object.hasOwn = (target: object, key: PropertyKey) => Object.prototype.hasOwnProperty.call(target, key);
-  }
+    script.onerror = () => reject(new Error('pdf.js did not load'));
+    document.head.appendChild(script);
+  });
+  library.catch(() => {
+    library = null;
+  });
+  return library;
 }
 
 function loadPdf(url: string): Promise<PdfDocument> {
   let pending = documents.get(url);
   if (!pending) {
-    pending = (async () => {
-      polyfill();
-      const library = PDF_LIBRARY;
-      const pdfjs = (await import(library)) as {
-        GlobalWorkerOptions: { workerSrc: string };
-        getDocument(o: { url: string }): { promise: Promise<PdfDocument> };
-      };
-      pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs-legacy/pdf.worker.min.mjs';
-      return pdfjs.getDocument({ url }).promise;
-    })();
+    pending = loadLibrary().then((pdfjs) => pdfjs.getDocument({ url, isEvalSupported: false }).promise);
     documents.set(url, pending);
     pending.catch(() => documents.delete(url));
   }
