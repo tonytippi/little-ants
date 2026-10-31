@@ -69,6 +69,17 @@ export function Player({ payload, items, leaf, mode, onExit, onFinished }: Playe
     };
   });
 
+  // The page behind the full-screen player must not scroll (or show its scrollbar).
+  useEffect(() => {
+    if (finished) return;
+    const root = document.documentElement;
+    const before = root.style.overflow;
+    root.style.overflow = 'hidden';
+    return () => {
+      root.style.overflow = before;
+    };
+  }, [finished]);
+
   // One <audio> element for the whole leaf: once a tap has started it, iPhone lets it play on by itself.
   useEffect(() => {
     const audio = new Audio();
@@ -111,100 +122,116 @@ export function Player({ payload, items, leaf, mode, onExit, onFinished }: Playe
   const backLabel = leaf === null ? 'Library' : school ? `Lesson ${leaf}` : `Leaf ${leaf}`;
 
   return (
+    // The whole screen while playing: the app's header and tabs stay hidden and the controls sit at the bottom,
+    // so nothing ever needs scrolling.
     <div
-      className="grid items-start gap-6 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]"
+      className="fixed inset-0 z-30 flex flex-col bg-cream-50 pt-[max(8px,env(safe-area-inset-top))] pb-[max(10px,env(safe-area-inset-bottom))]"
       style={{ ['--c' as string]: plan.colour }}
+      role="dialog"
+      aria-label={plan.title}
     >
-      <div className="flex flex-wrap items-center gap-2.5 md:col-span-2">
-        <button
-          type="button"
-          onClick={() => {
-            runner.current?.stop();
-            onExit();
-          }}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 font-semibold text-bark-500 hover:bg-cream-100"
-        >
-          <BackIcon className="size-5" />
-          {backLabel}
-        </button>
-        <span
-          className="rounded-full px-3 py-1.5 text-xs leading-none font-bold tracking-wide text-white"
-          style={{ background: plan.colour }}
-        >
-          {plan.act}
-        </span>
-        {plans.length > 1 ? (
-          <span
-            className="ml-auto flex flex-wrap gap-1.5"
-            aria-label={`Part ${index + 1} of ${plans.length}`}
-            role="img"
-          >
-            {plans.map((entry, position) => (
-              <i
-                key={position}
-                className={`block size-3 rounded-full ${position < index ? 'bg-bark-500/45' : position === index ? '' : 'bg-cream-200'}`}
-                style={position === index ? { background: plan.colour } : undefined}
-              />
-            ))}
-          </span>
-        ) : null}
-      </div>
-
-      <PlayerStage slide={slide} colour={plan.colour} cover={plan.kind === 'TALK_SCENE'} />
-
-      <div className="flex min-w-0 flex-col gap-3.5">
-        <div>
-          <div className="text-[13px] font-semibold tracking-wider text-bark-500 uppercase">
-            {plan.kindLabel}
-          </div>
-          <h2
-            className={`font-display leading-[1.05] font-extrabold ${school ? 'text-[clamp(30px,min(4vw,7dvh),56px)]' : 'text-[clamp(26px,3.6vw,40px)]'}`}
-            style={{ color: plan.colour }}
-          >
-            {plan.title}
-          </h2>
-        </div>
-        <div className="rounded-2xl bg-cream-100 px-3.5 py-3 font-semibold">
-          <b
-            className="mb-0.5 block font-display text-lg leading-tight font-extrabold"
-            style={{ color: plan.colour }}
-          >
-            {plan.act}
-          </b>
-          {plan.cue}
-        </div>
-        <PlayerText slide={slide} colour={plan.colour} large={school} />
-        <div className="flex flex-wrap items-center gap-3.5">
-          <ControlButton label="Previous" onClick={() => advance.current('previous')} disabled={index === 0}>
-            <PrevIcon className="size-7" />
-          </ControlButton>
+      <div className="mx-auto flex min-h-0 w-full max-w-[1180px] flex-1 flex-col gap-3 px-[max(16px,env(safe-area-inset-left))] 2xl:max-w-[1600px]">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
-            onClick={togglePause}
-            aria-label={paused ? 'Play' : 'Pause'}
-            className="grid size-20 place-items-center rounded-full text-white shadow-[0_5px_0_rgba(0,0,0,0.18)] active:translate-y-0.5"
+            onClick={() => {
+              runner.current?.stop();
+              onExit();
+            }}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 font-semibold text-bark-500 hover:bg-cream-100"
+          >
+            <BackIcon className="size-5" />
+            {backLabel}
+          </button>
+          <span
+            className="rounded-full px-3 py-1.5 text-xs leading-none font-bold tracking-wide text-white"
             style={{ background: plan.colour }}
           >
-            {paused ? <PlayIcon className="size-9" /> : <PauseIcon className="size-9" />}
-          </button>
-          <ControlButton label="Next" onClick={() => advance.current('next')}>
-            <NextIcon className="size-7" />
-          </ControlButton>
-          <ControlButton label="Again" onClick={() => advance.current('again')}>
-            <AgainIcon className="size-7" />
-          </ControlButton>
-          <span className="h-1.5 min-w-32 flex-1 overflow-hidden rounded-md bg-cream-200" aria-hidden>
+            {plan.act}
+          </span>
+          {plans.length > 1 ? (
+            <span
+              className="ml-auto flex flex-wrap gap-1.5"
+              aria-label={`Part ${index + 1} of ${plans.length}`}
+              role="img"
+            >
+              {plans.map((entry, position) => (
+                <i
+                  key={position}
+                  className={`block size-3 rounded-full ${position < index ? 'bg-bark-500/45' : position === index ? '' : 'bg-cream-200'}`}
+                  style={position === index ? { background: plan.colour } : undefined}
+                />
+              ))}
+            </span>
+          ) : null}
+        </div>
+
+        {/* Upright tablets and phones: picture above the words. Wide screens: side by side. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-4 md:landscape:grid md:landscape:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] md:landscape:gap-6">
+          <div className="h-[38dvh] shrink-0 md:landscape:h-full">
+            <PlayerStage slide={slide} colour={plan.colour} cover={plan.kind === 'TALK_SCENE'} />
+          </div>
+
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+            <div>
+              <div className="text-[13px] font-semibold tracking-wider text-bark-500 uppercase">
+                {plan.kindLabel}
+              </div>
+              <h2
+                className={`font-display leading-[1.05] font-extrabold ${school ? 'text-[clamp(28px,min(4vw,6dvh),56px)]' : 'text-[clamp(24px,min(3.6vw,5dvh),40px)]'}`}
+                style={{ color: plan.colour }}
+              >
+                {plan.title}
+              </h2>
+            </div>
+            <div className="rounded-2xl bg-cream-100 px-3.5 py-2.5 font-semibold">
+              <b className="font-display font-extrabold" style={{ color: plan.colour }}>
+                {plan.act}
+              </b>
+              {' · '}
+              {plan.cue}
+            </div>
+            <PlayerText slide={slide} colour={plan.colour} large={school} />
+            {voiceOnly ? (
+              <p className="text-xs font-medium text-bark-500">
+                Practice voice – the studio recording is coming soon.
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-2.5">
+          <span className="block h-1.5 overflow-hidden rounded-md bg-cream-200" aria-hidden>
             <i
               className="block h-full transition-[width] duration-300"
               style={{ width: `${Math.round(progress * 100)}%`, background: plan.colour }}
             />
           </span>
+          <div className="flex items-center justify-center gap-4 sm:gap-6">
+            <ControlButton
+              label="Previous"
+              onClick={() => advance.current('previous')}
+              disabled={index === 0}
+            >
+              <PrevIcon className="size-7" />
+            </ControlButton>
+            <button
+              type="button"
+              onClick={togglePause}
+              aria-label={paused ? 'Play' : 'Pause'}
+              className="grid size-20 place-items-center rounded-full text-white shadow-md active:scale-95"
+              style={{ background: plan.colour }}
+            >
+              {paused ? <PlayIcon className="size-9" /> : <PauseIcon className="size-9" />}
+            </button>
+            <ControlButton label="Next" onClick={() => advance.current('next')}>
+              <NextIcon className="size-7" />
+            </ControlButton>
+            <ControlButton label="Again" onClick={() => advance.current('again')}>
+              <AgainIcon className="size-7" />
+            </ControlButton>
+          </div>
         </div>
-        {voiceOnly ? (
-          <p className="text-xs font-medium text-bark-500">
-            Practice voice – the studio recording is coming soon.
-          </p>
-        ) : null}
       </div>
     </div>
   );
