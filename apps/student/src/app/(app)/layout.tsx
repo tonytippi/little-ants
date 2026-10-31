@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { andika } from '@little-ants/ui/lib/font-andika';
 import { baloo } from '@little-ants/ui/lib/font-baloo';
 import { poppins } from '@little-ants/ui/lib/font-poppins';
-import './globals.css';
+import '../globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {

@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 // Loaded first so the browser's install prompt is caught even before a screen with the Install button mounts.
 import '@little-ants/ui/lib/install';
-import { startOutbox } from '../lib/outbox';
-import { warmUpVoices } from '../lib/player-runner';
+import { startOutbox } from '../../lib/outbox';
+import { warmUpVoices } from '../../lib/player-runner';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(

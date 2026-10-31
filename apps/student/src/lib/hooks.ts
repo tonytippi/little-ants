@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ListeningSummary } from '@little-ants/shared';
 import { ApiError } from '@little-ants/ui/lib/api-client';
+import { SIGNED_IN_KEY } from '../components/landing/landing-script';
 import { api } from './api';
 import { clearFamilyData, kvGet, kvSet } from './local-db';
 import { isOffline, loadUnit, type PayloadSource } from './media-cache';
@@ -234,5 +235,16 @@ export async function signOutParent(): Promise<void> {
   }
   await clearFamilyData();
   remember('la-student-child', null);
+  rememberSignedIn(false);
   window.location.replace('/signin');
+}
+
+/** Whether a parent or staff user is signed in on this device (read by the landing page before it paints). */
+export function rememberSignedIn(signedIn: boolean): void {
+  try {
+    if (signedIn) localStorage.setItem(SIGNED_IN_KEY, '1');
+    else localStorage.removeItem(SIGNED_IN_KEY);
+  } catch {
+    /* private mode */
+  }
 }

@@ -10,9 +10,9 @@ export const TEACHER_APP_URL = process.env.NEXT_PUBLIC_TEACHER_APP_URL ?? 'http:
 export const api = createApiClient(API_URL);
 
 /** Where the browser goes to sign a parent in with Google; the API sends it back to `returnPath`. */
-export function parentSignInUrl(returnPath = '/', hint?: string): string {
+export function parentSignInUrl(returnPath = '/app', hint?: string): string {
   const url = new URL(`${api.baseUrl}/api/parent/auth/google/start`);
-  url.searchParams.set('return', returnPath.startsWith('/') ? returnPath : '/');
+  url.searchParams.set('return', returnPath.startsWith('/') ? returnPath : '/app');
   if (hint) url.searchParams.set('hint', hint);
   return url.toString();
 }

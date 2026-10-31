@@ -79,3 +79,11 @@ export const DownloadIcon = stroked(
     <path d="M5 20h14" />
   </>,
 );
+
+export const TvIcon = stroked(
+  <>
+    <rect x="3" y="5" width="18" height="12" rx="2" />
+    <path d="M8 21h8" />
+    <path d="M12 17v4" />
+  </>,
+);

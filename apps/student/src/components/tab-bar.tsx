@@ -31,7 +31,7 @@ export function useTab(mode: Mode): [Tab, (tab: Tab) => void] {
     if (next === 'path') query.delete('tab');
     else query.set('tab', next);
     const search = query.toString();
-    router.replace(search ? `/?${search}` : '/', { scroll: false });
+    router.replace(search ? `/app?${search}` : '/app', { scroll: false });
     window.scrollTo({ top: 0 });
   };
   return [tab, select];

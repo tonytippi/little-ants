@@ -5,7 +5,14 @@ import { useEffect, type ReactNode } from 'react';
 import { ApiError } from '@little-ants/ui/lib/api-client';
 import { Button } from '@little-ants/ui/button';
 import { ErrorNotice, Spinner } from '@little-ants/ui/feedback';
-import { remember, useParentMe, useRefreshAfterSync, useRemembered, useStaffMe } from '../lib/hooks';
+import {
+  remember,
+  rememberSignedIn,
+  useParentMe,
+  useRefreshAfterSync,
+  useRemembered,
+  useStaffMe,
+} from '../lib/hooks';
 import type { Mode } from '../lib/types';
 import { AccountMenu } from './account-menu';
 import { AppHeader } from './app-header';
@@ -33,6 +40,13 @@ export function ListeningApp() {
   useEffect(() => {
     if (nobody && parentSignedOut) router.replace('/signin');
   }, [nobody, parentSignedOut, router]);
+
+  // The landing page sends a signed-in device straight here.
+  const signedIn = !!parentMe || !!staffMe;
+  useEffect(() => {
+    if (signedIn) rememberSignedIn(true);
+    else if (nobody && parentSignedOut) rememberSignedIn(false);
+  }, [signedIn, nobody, parentSignedOut]);
 
   if (parent.isPending || staff.isPending || (nobody && parentSignedOut))
     return (

@@ -2,7 +2,7 @@
   "name": "Little Ants Student",
   "short_name": "Little Ants Student",
   "description": "Listening Time: the songs, stories and rhymes of Little Ants English, a few minutes a day.",
-  "start_url": "/",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

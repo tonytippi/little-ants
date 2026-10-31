@@ -87,13 +87,13 @@ export class ParentAuthService {
   }
 
   /**
-   * Where to return in the student app: a page on it, never another site. The URL is resolved first and its
+   * Where to return in the student app (the app itself by default): a page on it, never another site. The URL is resolved first and its
    * origin compared, because the URL parser turns "/\evil.com" or "/\t/evil.com" into another host.
    */
   returnUrl(path: string | undefined): string {
     const home = new URL('/', loadEnv().STUDENT_APP_URL);
     try {
-      const target = new URL(path || '/', home);
+      const target = new URL(path || '/app', home);
       return target.origin === home.origin ? target.toString() : home.toString();
     } catch {
       return home.toString();

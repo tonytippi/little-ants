@@ -2,13 +2,13 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Button } from '@little-ants/ui/button';
 import { ErrorNotice, Spinner } from '@little-ants/ui/feedback';
 import { ctaClass } from '@little-ants/ui/storybook';
 import { TEACHER_APP_URL, api, parentSignInUrl } from '../lib/api';
-import { useStaffMe } from '../lib/hooks';
+import { useParentMe, useStaffMe } from '../lib/hooks';
 import type { PendingDevices } from '../lib/types';
 import { Notice, Vi, lastUsed } from './bits';
 
@@ -50,6 +50,13 @@ export function SignInScreen() {
   const params = useSearchParams();
   const error = params.get('error');
   const pendingToken = params.get('devices');
+  const router = useRouter();
+  const parent = useParentMe();
+  // Already signed in (e.g. pressed Sign in on the landing page): go straight to the app.
+  const signedIn = !!parent.data && !error && !pendingToken;
+  useEffect(() => {
+    if (signedIn) router.replace('/app');
+  }, [signedIn, router]);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-xl flex-col items-center px-5 pt-[max(24px,env(safe-area-inset-top))] pb-10 text-center">
@@ -78,7 +85,7 @@ function SignInCard({ error }: { error: string | null }) {
           <Vi>{message.vi}</Vi>
         </Notice>
       ) : null}
-      <a href={parentSignInUrl('/')} className={`${ctaClass} min-h-14 w-full max-w-sm`}>
+      <a href={parentSignInUrl('/app')} className={`${ctaClass} min-h-14 w-full max-w-sm`}>
         <GoogleMark />
         <span className="flex flex-col items-start text-left leading-tight">
           Sign in with Google
@@ -96,7 +103,7 @@ function SignInCard({ error }: { error: string | null }) {
         {staff.data ? (
           <p className="mt-1">
             You are signed in as {staff.data.user.name}.{' '}
-            <Link href="/" className="font-semibold text-leaf-700 underline">
+            <Link href="/app" className="font-semibold text-leaf-700 underline">
               Open At school
             </Link>
           </p>
@@ -125,7 +132,7 @@ function DeviceChooser({ token }: { token: string }) {
   const replace = useMutation({
     mutationFn: (signOutSessionId: string) =>
       api.post(`/parent/auth/pending/${encodeURIComponent(token)}`, { signOutSessionId }),
-    onSuccess: () => window.location.replace('/'),
+    onSuccess: () => window.location.replace('/app'),
   });
 
   if (pending.isPending) return <Spinner label="Loading your devices" />;

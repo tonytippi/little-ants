@@ -10,7 +10,7 @@ const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const SHELL_CACHE = `la-listen-shell-${VERSION}`;
 const STATIC_CACHE = `la-listen-static-${VERSION}`;
 const MEDIA_CACHE = 'la-media-v1';
-const ROUTES = ['/', '/signin'];
+const ROUTES = ['/app', '/signin'];
 const FILES = [
   '/manifest.webmanifest',
   '/favicon.png',
@@ -81,7 +81,7 @@ async function navigate(request) {
     }
     return response;
   } catch {
-    const cached = (await caches.match(url.pathname, { ignoreSearch: true })) || (await caches.match('/'));
+    const cached = (await caches.match(url.pathname, { ignoreSearch: true })) || (await caches.match('/app'));
     return cached || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
   }
 }
