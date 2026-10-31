@@ -3,7 +3,7 @@ import { firstValueFrom, take, toArray } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { NewScreen } from '@little-ants/shared';
 import type { StaffUser } from '../src/auth/staff-access.js';
-import { ScreensService } from '../src/screens/screens.service.js';
+import { ScreensService, type ScreenController } from '../src/screens/screens.service.js';
 import { TEST_USER_HEADER, createSchool, createStaff, createTestApp, type TestApp } from './test-app.js';
 
 describe('laptop screens driven by a tablet', () => {
@@ -67,6 +67,21 @@ describe('laptop screens driven by a tablet', () => {
       .expect(404);
   });
 
+  it('keeps the parent routes for signed-in parents', async () => {
+    const screen = await newScreen();
+    await request(server()).post('/api/screens/parent/pair').send({ code: screen.code }).expect(401);
+    // A staff session is not a parent session.
+    await request(server())
+      .post('/api/screens/parent/pair')
+      .set(as(teacher))
+      .send({ code: screen.code })
+      .expect(401);
+    await request(server())
+      .post(`/api/screens/parent/${screen.screenId}/messages`)
+      .send({ type: 'listen', frame: {} })
+      .expect(401);
+  });
+
   it('accepts laptop messages only with its display token', async () => {
     const screen = await newScreen();
     const post = (token: string) =>
@@ -96,7 +111,8 @@ describe('laptop screens driven by a tablet', () => {
 });
 
 describe('ScreensService streams', () => {
-  const user = { id: 'u1', name: 'Ms Lan', email: '', image: null, roles: [], schools: [] } as StaffUser;
+  const user: ScreenController = { kind: 'staff', id: 'u1', name: 'Ms Lan' };
+  const parent: ScreenController = { kind: 'parent', id: 'u1', name: '' };
 
   it('relays messages both ways and tells the teacher when the laptop comes and goes', async () => {
     const service = new ScreensService();
@@ -108,7 +124,7 @@ describe('ScreensService streams', () => {
     service.toDisplay(user, screenId, { type: 'frame', frame: { title: 'Hello' } });
     expect((await displayEvents).map((event) => event.data)).toEqual([
       { type: 'code', code: screen.code, codeExpiresAt: screen.codeExpiresAt },
-      { type: 'paired', teacherName: 'Ms Lan' },
+      { type: 'paired', kind: 'staff', name: 'Ms Lan' },
       { type: 'frame', frame: { title: 'Hello' } },
     ]);
 
@@ -121,6 +137,17 @@ describe('ScreensService streams', () => {
       { type: 'screen-online' },
       { type: 'ready' },
     ]);
+    service.onModuleDestroy();
+  });
+
+  it('pairs a parent, and keeps a teacher and a parent with the same id apart', () => {
+    const service = new ScreensService();
+    const screen = service.create();
+    const { screenId } = service.pair(parent, screen.code);
+    expect(() => service.toDisplay(user, screenId, { type: 'end' })).toThrow('someone else');
+    service.toDisplay(parent, screenId, { type: 'listen', frame: { title: 'Hello' } });
+    service.unpair(parent, screenId);
+    expect(() => service.toDisplay(parent, screenId, { type: 'end' })).toThrow('someone else');
     service.onModuleDestroy();
   });
 

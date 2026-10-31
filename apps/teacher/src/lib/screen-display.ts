@@ -1,6 +1,6 @@
 'use client';
 
-import type { NewScreen, ScreenDisplayEvent } from '@little-ants/shared';
+import type { ListenMessage, NewScreen, ScreenControllerKind, ScreenDisplayEvent } from '@little-ants/shared';
 import type { DisplayLink } from '../components/tv-display';
 import { API_URL } from './api';
 import type { SenderMessage } from './cast-protocol';
@@ -8,7 +8,7 @@ import type { SenderMessage } from './cast-protocol';
 export type ScreenState =
   | { kind: 'starting' }
   | { kind: 'code'; code: string }
-  | { kind: 'paired'; teacherName: string }
+  | { kind: 'paired'; by: ScreenControllerKind; name: string }
   | { kind: 'offline' };
 
 const STORAGE_KEY = 'la-screen';
@@ -70,7 +70,7 @@ export function createScreenLink(onState: (state: ScreenState) => void): Display
         const url = `${API_URL}/api/screens/${session.screenId}/display-events?token=${encodeURIComponent(session.displayToken)}`;
         source = new EventSource(url);
         source.onmessage = (event: MessageEvent<string>) => {
-          const message = JSON.parse(event.data) as ScreenDisplayEvent | SenderMessage;
+          const message = JSON.parse(event.data) as ScreenDisplayEvent | SenderMessage | ListenMessage;
           if (message.type === 'ping') return;
           if (message.type === 'code') {
             if (paired) onIdle();
@@ -78,8 +78,8 @@ export function createScreenLink(onState: (state: ScreenState) => void): Display
             onState({ kind: 'code', code: message.code });
           } else if (message.type === 'paired') {
             paired = true;
-            onState({ kind: 'paired', teacherName: message.teacherName });
-            // After a (re)connection the tablet resends the current frame and track.
+            onState({ kind: 'paired', by: message.kind, name: message.name });
+            // After a (re)connection the tablet or phone resends the current frame and track.
             void post({ type: 'ready' });
           } else {
             onMessage(message);

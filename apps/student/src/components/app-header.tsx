@@ -9,11 +9,14 @@ export function AppHeader({
   mode,
   canSchool,
   onMode,
+  tv,
   account,
 }: {
   mode: Mode;
   canSchool: boolean;
   onMode: (mode: Mode) => void;
+  /** Watch on TV (At home only). */
+  tv?: ReactNode;
   account: ReactNode;
 }) {
   return (
@@ -38,6 +41,7 @@ export function AppHeader({
           At school
         </ModeButton>
       </div>
+      {tv}
       {account}
     </header>
   );

@@ -1,4 +1,4 @@
-import type { ReleaseMedia } from '@little-ants/shared';
+import type { ListenMessage, ReleaseMedia } from '@little-ants/shared';
 import type { StageFrame } from '../components/player/stage-content';
 import type { InkStroke } from './ink';
 
@@ -44,6 +44,11 @@ function typeOf(value: unknown): unknown {
 export function isSenderMessage(value: unknown): value is SenderMessage {
   const type = typeOf(value);
   return type === 'frame' || type === 'end' || type === 'audio' || type === 'ink' || type === 'ink-live';
+}
+
+/** A Listening Time slide from a parent's phone (laptop/TV-browser screens only, never over Cast). */
+export function isListenMessage(value: unknown): value is ListenMessage {
+  return typeOf(value) === 'listen';
 }
 
 export function isReceiverMessage(value: unknown): value is ReceiverMessage {

@@ -3,12 +3,14 @@
 import QRCode from 'qrcode';
 import { useEffect, useMemo, useState } from 'react';
 import { TvDisplay } from '../../components/tv-display';
-import { links } from '../../lib/links';
+import { screenPairUrl } from '@little-ants/shared';
+import { STUDENT_APP_URL } from '../../lib/api';
 import { createScreenLink, type ScreenState } from '../../lib/screen-display';
 
 /**
- * The classroom TV's own web browser, or a laptop plugged into the TV (display mode Duplicate). No sign-in: it shows a code until the teacher's
- * tablet pairs, then shows the lesson and plays its audio.
+ * A TV's own web browser, or a laptop plugged into the TV (display mode Duplicate). No sign-in: it shows a code
+ * until a teacher's tablet (a lesson) or a parent's phone (Listening Time at home) pairs, then shows what that
+ * device sends and plays its audio.
  */
 export default function ScreenPage() {
   const [state, setState] = useState<ScreenState>({ kind: 'starting' });
@@ -64,7 +66,8 @@ function Waiting({ state }: { state: ScreenState }) {
 
   useEffect(() => {
     if (!code) return;
-    const url = `${window.location.origin}${links.screenPair(code)}`;
+    // One address for everyone: the Student app sends teachers on to the Teacher app's pairing page.
+    const url = screenPairUrl(STUDENT_APP_URL, code);
     void QRCode.toDataURL(url, { margin: 1, width: 480, color: { dark: '#4a2e20', light: '#ffffff' } }).then(
       setQr,
     );
@@ -75,7 +78,7 @@ function Waiting({ state }: { state: ScreenState }) {
       {state.kind === 'code' ? (
         <>
           <p className="font-display text-[clamp(2rem,4vw,3.5rem)] font-extrabold leading-tight text-bark-900">
-            Scan with the Little Ants app on your tablet
+            Scan with the Little Ants app
           </p>
           {qr ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -85,8 +88,10 @@ function Waiting({ state }: { state: ScreenState }) {
             {state.code}
           </p>
           <p className="max-w-3xl text-xl text-bark-500">
-            On the tablet: open the lesson → Show on TV → TV browser or laptop, then scan this code or type
-            it.
+            Parents: Listening Time → Watch on TV. Teachers: in a lesson, Show on TV → TV browser or laptop.
+            <span lang="vi" className="mt-1 block">
+              Phụ huynh: mở Listening Time → Xem trên TV, rồi quét mã này.
+            </span>
           </p>
         </>
       ) : (
@@ -98,7 +103,9 @@ function Waiting({ state }: { state: ScreenState }) {
           </p>
           <p className="text-2xl text-bark-500">
             {state.kind === 'paired'
-              ? `Connected to ${state.teacherName}. Open a lesson on the tablet.`
+              ? state.by === 'parent'
+                ? 'Connected to a phone. Choose a leaf on the phone. · Đã kết nối. Chọn một chiếc lá trên điện thoại.'
+                : `Connected to ${state.name}. Open a lesson on the tablet.`
               : state.kind === 'offline'
                 ? 'No connection to Little Ants. Check the internet; trying again…'
                 : 'Starting…'}

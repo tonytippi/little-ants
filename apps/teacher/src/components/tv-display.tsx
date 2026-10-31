@@ -1,10 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import type { ListenFrame, ListenMessage } from '@little-ants/shared';
+import { ListenSlide } from './listen-slide';
 import type { StageFrame } from './player/stage-content';
 import { ReceivedInkLayer, useReceivedInk } from './player/ink-layer';
 import { Stage } from './player/stage';
 import {
+  isListenMessage,
   isSenderMessage,
   type AudioCommand,
   type ReceiverMessage,
@@ -14,16 +17,20 @@ import {
 /** How a TV screen talks to the teacher's device: Google Cast, or the API relay for laptop screens. */
 export interface DisplayLink {
   /** Starts receiving; `onIdle` means no teacher is connected any more. Returns a cleanup. */
-  connect(handlers: { onMessage: (message: SenderMessage) => void; onIdle: () => void }): () => void;
+  connect(handlers: {
+    onMessage: (message: SenderMessage | ListenMessage) => void;
+    onIdle: () => void;
+  }): () => void;
   send(message: ReceiverMessage): void;
 }
 
 /**
- * What runs on the classroom TV: shows the stage frames and plays the audio the teacher's device sends.
- * It has no data of its own.
+ * What runs on the TV: shows the stage frames (a teacher's lesson) or Listening Time slides (a parent's phone) and
+ * plays the audio the controlling device sends. It has no data of its own.
  */
 export function TvDisplay({ link, waiting }: { link: DisplayLink | null; waiting?: ReactNode }) {
   const [frame, setFrame] = useState<StageFrame | null>(null);
+  const [listen, setListen] = useState<ListenFrame | null>(null);
   const [ink, onInk, clearInk] = useReceivedInk();
   const audio = useRef<HTMLAudioElement | null>(null);
   const blocked = useRef(false);
@@ -94,14 +101,22 @@ export function TvDisplay({ link, waiting }: { link: DisplayLink | null; waiting
     if (!link) return;
     const stop = (): void => {
       setFrame(null);
+      setListen(null);
       clearInk();
       runAudio({ type: 'audio', action: 'load', track: null });
     };
     return link.connect({
       onMessage: (message) => {
+        if (isListenMessage(message)) {
+          setFrame(null);
+          setListen(message.frame);
+          return;
+        }
         if (!isSenderMessage(message)) return;
-        if (message.type === 'frame') setFrame(message.frame);
-        else if (message.type === 'end') stop();
+        if (message.type === 'frame') {
+          setListen(null);
+          setFrame(message.frame);
+        } else if (message.type === 'end') stop();
         else if (message.type === 'ink' || message.type === 'ink-live') onInk(message);
         else runAudio(message);
       },
@@ -112,7 +127,9 @@ export function TvDisplay({ link, waiting }: { link: DisplayLink | null; waiting
   return (
     <div className="fixed inset-0 overflow-hidden bg-cream-50">
       <audio ref={audio} preload="auto" />
-      {frame ? (
+      {listen ? (
+        <ListenSlide frame={listen} />
+      ) : frame ? (
         <Stage presenter frame={frame} ink={<ReceivedInkLayer ink={ink} surface={frame.surface} />} />
       ) : (
         (waiting ?? (

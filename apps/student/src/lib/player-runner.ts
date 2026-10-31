@@ -15,6 +15,12 @@ export interface RunnerEvents {
   end(): void;
 }
 
+/** What the runner needs from a sound player: the page's <audio> element, or the TV's (see tv-audio). */
+export type RunnerAudio = Pick<
+  HTMLAudioElement,
+  'src' | 'play' | 'pause' | 'currentTime' | 'duration' | 'onended' | 'onerror' | 'ontimeupdate'
+>;
+
 type Result = 'done' | 'failed' | 'interrupted';
 
 let chosenVoice: SpeechSynthesisVoice | null | undefined;
@@ -56,7 +62,7 @@ export class ItemRunner {
   private cancelCurrent: (() => void) | null = null;
 
   constructor(
-    private readonly audio: HTMLAudioElement,
+    private readonly audio: RunnerAudio,
     private readonly events: RunnerEvents,
   ) {}
 

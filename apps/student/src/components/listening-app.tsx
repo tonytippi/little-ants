@@ -18,6 +18,7 @@ import { AccountMenu } from './account-menu';
 import { AppHeader } from './app-header';
 import { CHILD_KEY, HomeMode } from './home-mode';
 import { SchoolMode } from './school-mode';
+import { TvButton } from './tv/tv-button';
 
 const MODE_KEY = 'la-student-mode';
 
@@ -80,6 +81,7 @@ export function ListeningApp() {
           mode={mode}
           canSchool={!!staffMe}
           onMode={changeMode}
+          tv={mode === 'home' && parentMe ? <TvButton /> : undefined}
           account={<AccountMenu parent={parentMe} staff={staffMe} onChangeChild={changeChild} />}
         />
       }

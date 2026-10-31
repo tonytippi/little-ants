@@ -3,6 +3,7 @@ import type { ListeningPayload, ReleaseMedia } from '@little-ants/shared';
 import { libraryShelves, unitItems } from '../src/lib/library';
 import {
   audioFrame,
+  listenFrame,
   planItem,
   playableItems,
   soundParts,
@@ -238,5 +239,23 @@ describe('playableItems', () => {
     expect(playableItems(items).map((item) => item.kind)).toEqual(['words', 'material', 'sound']);
     const recorded = { ...items[0]!, audio: media('old-song', 'AUDIO') } as (typeof items)[number];
     expect(playableItems([recorded, ...items.slice(1)])).toHaveLength(4);
+  });
+});
+
+describe('listenFrame', () => {
+  it('sends the TV what the phone shows', () => {
+    const plan = planItem(payload.leaves[0]!.items[2]!, payload, 'home');
+    const slide = { picture: media('p1'), lines: ['a', 'b'], current: 1 };
+    expect(listenFrame(plan, slide)).toEqual({
+      colour: plan.colour,
+      kindLabel: plan.kindLabel,
+      title: 'In Our Yummy Garden',
+      act: plan.act,
+      cue: plan.cue,
+      picture: slide.picture,
+      cover: false,
+      lines: ['a', 'b'],
+      current: 1,
+    });
   });
 });

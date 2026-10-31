@@ -144,6 +144,9 @@ Create the scratch database once with `$COMPOSE exec postgres createdb -U little
 
 ## TV screen driven by a tablet
 
+- The same page is used at home: a parent opens `littleantsenglish.com` → **Watch on TV** in the TV's browser and pairs it from the Student app (**Watch on TV** button, or the phone camera). The phone keeps running the leaf and records progress as usual; the TV shows each slide (`listen` messages) and plays the recordings, reporting its position so the lyrics follow the TV's sound. Practice-voice parts are spoken by the phone. Parents may only send `listen`, `audio` and `end` (`/api/screens/parent/...`).
+- The QR code opens `littleantsenglish.com/tv/pair?code=…` for everyone: a parent is paired there, a teacher is sent on to the Teacher app's pairing page, anyone else signs in first. The Teacher app's scanner also reads the older `…/screen/pair` codes.
+
 - Where the TV cannot run the Cast receiver, `https://teacher.littleantsenglish.com/screen` is opened without signing in (on a TV remote it is shorter to type `littleantsenglish.com` and press **Watch on TV**, which goes to `/tv` and on to that page), either in the TV's own web browser (tested in October 2026 on the classroom Android TV's browser) or on a laptop plugged into the TV (display mode Duplicate). It shows a QR code; the teacher's signed-in tablet scans it in a lesson (Show on TV → TV browser or laptop) and drives the lesson. Both need internet.
 - TV browsers are old: the page avoids newer CSS such as `dvh` units, and draws PDFs with the same pdf.js 3 legacy build as the Cast receiver when the browser lacks what pdf.js 6 needs (`apps/teacher/src/lib/pdf-legacy.ts`).
 - The API relays the messages (`/api/screens`, server-sent events both ways). The laptop's side is authorised by a secret token it got when opening the screen; only the teacher who paired can send to it. Pairing codes are single use and change every 15 minutes.

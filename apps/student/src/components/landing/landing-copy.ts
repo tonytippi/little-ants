@@ -95,6 +95,7 @@ export const LANDING_COPY: Record<Lang, LandingCopy> = {
       points: [
         'Theo đúng bài bé đang học ở lớp.',
         'Tải về máy để nghe không cần mạng.',
+        'Chiếu lên TV để cả nhà cùng hát: điện thoại thành điều khiển.',
         'Nút to, ít chữ, bé tự bấm được.',
       ],
       picture: 'Bà Kiến, Annie và Tiny với giỏ trái cây trong vườn',
@@ -173,6 +174,7 @@ export const LANDING_COPY: Record<Lang, LandingCopy> = {
       points: [
         'Follows what your child is learning in class.',
         'Download to listen without internet.',
+        'Show it on the TV and sing together, with the phone as the remote.',
         'Big buttons and few words, so children can use it alone.',
       ],
       picture: 'Grandma Ant, Annie and Tiny with a basket of fruit in the garden',

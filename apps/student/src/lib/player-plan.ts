@@ -8,6 +8,7 @@ import {
   LISTENING_KIND_LABELS,
   listeningItemKey,
   listeningItemKind,
+  type ListenFrame,
   type ListeningItem,
   type ListeningPayload,
   type ReleaseMedia,
@@ -353,6 +354,23 @@ export function planItem(item: ListeningItem, payload: ListeningPayload, mode: M
     act: activity.act,
     cue: activity.cue,
     segments,
+  };
+}
+
+/** What the TV shows for the slide on the phone (Watch on TV at home). */
+export function listenFrame(plan: ItemPlan, slide: Slide): ListenFrame {
+  return {
+    colour: plan.colour,
+    kindLabel: plan.kindLabel,
+    title: plan.title,
+    act: plan.act,
+    cue: plan.cue,
+    picture: slide.picture,
+    cover: plan.kind === 'TALK_SCENE',
+    ...(slide.big ? { big: slide.big } : {}),
+    ...(slide.small ? { small: slide.small } : {}),
+    lines: slide.lines,
+    current: slide.current,
   };
 }
 

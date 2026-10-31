@@ -13,10 +13,10 @@ import {
   SCREEN_CODE_ALPHABET,
   SCREEN_CODE_LENGTH,
   type NewScreen,
+  type ScreenControllerKind,
   type ScreenDisplayEvent,
   type ScreenTeacherEvent,
 } from '@little-ants/shared';
-import type { StaffUser } from '../auth/staff-access.js';
 
 /** One event on a server-sent stream (Nest writes `data` as JSON). */
 export interface StreamEvent {
@@ -26,12 +26,19 @@ export interface StreamEvent {
 /** A relayed message: the API only checks its type and size (see the controller). */
 export type RelayedMessage = { type: string } & Record<string, unknown>;
 
+/** Who drives a screen: a teacher in class, or a parent at home. */
+export interface ScreenController {
+  kind: ScreenControllerKind;
+  id: string;
+  name: string;
+}
+
 interface Screen {
   id: string;
   displayToken: Buffer;
   code: string | null;
   codeExpiresAt: number;
-  owner: { id: string; name: string } | null;
+  owner: ScreenController | null;
   toDisplay: Subject<object>;
   toTeacher: Subject<object>;
   displayConnections: number;
@@ -48,7 +55,7 @@ const HEARTBEAT_MS = 20_000;
 export const MAX_SCREENS = 1_000;
 
 /**
- * Laptop screens and their teacher, kept in memory (one API instance). A deploy drops them; the laptop then opens
+ * Laptop and TV-browser screens and the teacher or parent driving them, kept in memory (one API instance). A deploy drops them; the laptop then opens
  * a new screen and shows a new code.
  */
 @Injectable()
@@ -98,7 +105,7 @@ export class ScreensService implements OnModuleDestroy {
     const screen = this.display(screenId, token);
     return new Observable<StreamEvent>((subscriber) => {
       const first: ScreenDisplayEvent = screen.owner
-        ? { type: 'paired', teacherName: screen.owner.name }
+        ? { type: 'paired', kind: screen.owner.kind, name: screen.owner.name }
         : { type: 'code', code: screen.code!, codeExpiresAt: new Date(screen.codeExpiresAt).toISOString() };
       subscriber.next({ data: first });
       screen.displayConnections += 1;
@@ -117,8 +124,8 @@ export class ScreensService implements OnModuleDestroy {
     });
   }
 
-  /** The teacher's stream: whether the laptop is connected, then everything the laptop sends. */
-  teacherStream(user: StaffUser, screenId: string): Observable<StreamEvent> {
+  /** The controller's stream: whether the laptop is connected, then everything the laptop sends. */
+  teacherStream(user: ScreenController, screenId: string): Observable<StreamEvent> {
     const screen = this.owned(user, screenId);
     return new Observable<StreamEvent>((subscriber) => {
       const online: ScreenTeacherEvent = {
@@ -129,7 +136,7 @@ export class ScreensService implements OnModuleDestroy {
     });
   }
 
-  pair(user: StaffUser, code: string): { screenId: string } {
+  pair(user: ScreenController, code: string): { screenId: string } {
     const screenId = this.byCode.get(code);
     const screen = screenId ? this.screens.get(screenId) : undefined;
     if (!screen || screen.code !== code || screen.codeExpiresAt < Date.now()) {
@@ -137,14 +144,14 @@ export class ScreensService implements OnModuleDestroy {
     }
     this.byCode.delete(code);
     screen.code = null;
-    screen.owner = { id: user.id, name: user.name };
+    screen.owner = { kind: user.kind, id: user.id, name: user.name };
     screen.lastActivity = Date.now();
-    screen.toDisplay.next({ type: 'paired', teacherName: user.name } satisfies ScreenDisplayEvent);
+    screen.toDisplay.next({ type: 'paired', kind: user.kind, name: user.name } satisfies ScreenDisplayEvent);
     return { screenId: screen.id };
   }
 
-  /** Disconnects the teacher; the laptop shows a new code. */
-  unpair(user: StaffUser, screenId: string): void {
+  /** Disconnects the teacher or parent; the laptop shows a new code. */
+  unpair(user: ScreenController, screenId: string): void {
     const screen = this.owned(user, screenId);
     screen.owner = null;
     screen.toTeacher.complete();
@@ -152,7 +159,7 @@ export class ScreensService implements OnModuleDestroy {
     this.newCode(screen);
   }
 
-  toDisplay(user: StaffUser, screenId: string, message: RelayedMessage): void {
+  toDisplay(user: ScreenController, screenId: string, message: RelayedMessage): void {
     const screen = this.owned(user, screenId);
     screen.lastActivity = Date.now();
     screen.toDisplay.next(message);
@@ -215,10 +222,10 @@ export class ScreensService implements OnModuleDestroy {
     return screen;
   }
 
-  private owned(user: StaffUser, screenId: string): Screen {
+  private owned(user: ScreenController, screenId: string): Screen {
     const screen = this.screens.get(screenId);
     if (!screen) throw new NotFoundException('This screen has closed');
-    if (screen.owner?.id !== user.id)
+    if (screen.owner?.kind !== user.kind || screen.owner?.id !== user.id)
       throw new ForbiddenException('This screen is connected to someone else');
     return screen;
   }

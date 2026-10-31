@@ -50,13 +50,16 @@ export function SignInScreen() {
   const params = useSearchParams();
   const error = params.get('error');
   const pendingToken = params.get('devices');
+  // Where to go after signing in, e.g. back to pairing a TV (a page of this app only).
+  const raw = params.get('next');
+  const next = raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/app';
   const router = useRouter();
   const parent = useParentMe();
   // Already signed in (e.g. pressed Sign in on the landing page): go straight to the app.
   const signedIn = !!parent.data && !error && !pendingToken;
   useEffect(() => {
-    if (signedIn) router.replace('/app');
-  }, [signedIn, router]);
+    if (signedIn) router.replace(next);
+  }, [signedIn, router, next]);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-xl flex-col items-center px-5 pt-[max(24px,env(safe-area-inset-top))] pb-10 text-center">
@@ -68,13 +71,13 @@ export function SignInScreen() {
         <Vi>Bài hát, câu chuyện và vè ở lớp, mỗi ngày vài phút.</Vi>
       </p>
       <div className="mt-8 w-full">
-        {pendingToken ? <DeviceChooser token={pendingToken} /> : <SignInCard error={error} />}
+        {pendingToken ? <DeviceChooser token={pendingToken} /> : <SignInCard error={error} next={next} />}
       </div>
     </main>
   );
 }
 
-function SignInCard({ error }: { error: string | null }) {
+function SignInCard({ error, next }: { error: string | null; next: string }) {
   const staff = useStaffMe();
   const message = error ? (ERRORS[error] ?? OTHER_ERROR) : null;
   return (
@@ -85,7 +88,7 @@ function SignInCard({ error }: { error: string | null }) {
           <Vi>{message.vi}</Vi>
         </Notice>
       ) : null}
-      <a href={parentSignInUrl('/app')} className={`${ctaClass} min-h-14 w-full max-w-sm`}>
+      <a href={parentSignInUrl(next)} className={`${ctaClass} min-h-14 w-full max-w-sm`}>
         <GoogleMark />
         <span className="flex flex-col items-start text-left leading-tight">
           Sign in with Google

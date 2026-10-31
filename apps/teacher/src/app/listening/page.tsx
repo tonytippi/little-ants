@@ -7,12 +7,10 @@ import { Suspense, useEffect, useState } from 'react';
 import { Button } from '@little-ants/ui/button';
 import { ErrorNotice, Spinner } from '@little-ants/ui/feedback';
 import { AppShell } from '../../components/app-shell';
-import { api } from '../../lib/api';
+import { STUDENT_APP_URL, api } from '../../lib/api';
 import { useTeachClasses } from '../../lib/queries';
 import { RequireStaff } from '../../lib/session';
 
-/** The student (Listening Time) app that parents open (set NEXT_PUBLIC_STUDENT_APP_URL in production). */
-const STUDENT_APP_URL = process.env.NEXT_PUBLIC_STUDENT_APP_URL ?? 'http://localhost:3003';
 /** The program's class goal: this share of children listen on 4+ days a week. */
 const CLASS_GOAL = 0.8;
 

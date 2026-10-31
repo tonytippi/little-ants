@@ -5,6 +5,7 @@ import type { ListeningItem, ListeningPayload } from '@little-ants/shared';
 import { ctaClass } from '@little-ants/ui/storybook';
 import {
   firstSlide,
+  listenFrame,
   planItem,
   playableItems,
   stepAfter,
@@ -12,10 +13,12 @@ import {
   type PlayerAction,
   type Slide,
 } from '../../lib/player-plan';
-import { ItemRunner } from '../../lib/player-runner';
+import { ItemRunner, type RunnerAudio } from '../../lib/player-runner';
+import { TvAudio } from '../../lib/tv-audio';
+import { onTvAudio, onTvReady, send as sendToTv, stopTv, useTvStatus } from '../../lib/tv-link';
 import type { Mode } from '../../lib/types';
 import { Vi } from '../bits';
-import { AgainIcon, BackIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon } from '../icons';
+import { AgainIcon, BackIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon, TvIcon } from '../icons';
 import { PlayerStage, PlayerText } from './player-stage';
 
 export interface PlayerProps {
@@ -80,10 +83,22 @@ export function Player({ payload, items, leaf, mode, onExit, onFinished }: Playe
     };
   }, [finished]);
 
+  // Watch on TV: while a TV is connected its screen shows the slides and plays the recordings; the phone is the
+  // remote. Switching (TV connected or lost) starts the current part again on the new sound.
+  const onTv = useTvStatus() === 'online' && mode === 'home';
+  const tvAudio = useRef<TvAudio | null>(null);
+
   // One <audio> element for the whole leaf: once a tap has started it, iPhone lets it play on by itself.
   useEffect(() => {
-    const audio = new Audio();
-    audio.preload = 'auto';
+    let audio: RunnerAudio;
+    if (onTv) {
+      tvAudio.current = new TvAudio(sendToTv, onTvAudio);
+      audio = tvAudio.current;
+    } else {
+      const element = new Audio();
+      element.preload = 'auto';
+      audio = element;
+    }
     let timer: ReturnType<typeof setTimeout> | undefined;
     runner.current = new ItemRunner(audio, {
       slide: setSlide,
@@ -97,14 +112,39 @@ export function Player({ payload, items, leaf, mode, onExit, onFinished }: Playe
       clearTimeout(timer);
       runner.current?.stop();
       runner.current = null;
-      audio.removeAttribute('src');
+      if (audio instanceof HTMLAudioElement) audio.removeAttribute('src');
+      tvAudio.current?.dispose();
+      tvAudio.current = null;
     };
-  }, []);
+  }, [onTv]);
 
   useEffect(() => {
     const plan = plans[index];
     if (plan && !finished) runner.current?.start(plan.segments);
-  }, [plans, index, run, finished]);
+  }, [plans, index, run, finished, onTv]);
+
+  // The TV shows what the phone shows; when it (re)connects it gets the slide and the sound again.
+  const plan = plans[index];
+  useEffect(() => {
+    if (onTv && plan && !finished) sendToTv({ type: 'listen', frame: listenFrame(plan, slide) });
+  }, [onTv, plan, slide, finished]);
+  const latest = useRef({ plan, slide });
+  useEffect(() => {
+    latest.current = { plan, slide };
+  });
+  useEffect(() => {
+    if (!onTv) return;
+    const unsubscribe = onTvReady(() => {
+      const { plan: shown, slide: now } = latest.current;
+      if (shown) sendToTv({ type: 'listen', frame: listenFrame(shown, now) });
+      tvAudio.current?.resync();
+    });
+    return () => {
+      unsubscribe();
+      // Leaving the player (or the leaf finished): the TV goes back to waiting for the next leaf.
+      sendToTv({ type: 'end' });
+    };
+  }, [onTv, finished]);
 
   const togglePause = (): void => {
     const current = runner.current;
@@ -115,7 +155,6 @@ export function Player({ payload, items, leaf, mode, onExit, onFinished }: Playe
   };
 
   if (finished) return <FinishScreen leaf={leaf} mode={mode} onExit={onExit} />;
-  const plan = plans[index];
   if (!plan) return null;
   const voiceOnly =
     usesDeviceVoice(plan.segments) && !plan.segments.some((segment) => segment.type === 'audio');
@@ -149,6 +188,18 @@ export function Player({ payload, items, leaf, mode, onExit, onFinished }: Playe
           >
             {plan.act}
           </span>
+          {onTv ? (
+            <button
+              type="button"
+              onClick={() => void stopTv()}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-leaf-50 px-3 text-sm font-bold text-leaf-700"
+              title="Stop showing on the TV"
+            >
+              <TvIcon className="size-4" />
+              On TV · Đang chiếu
+              <span aria-hidden>✕</span>
+            </button>
+          ) : null}
           {plans.length > 1 ? (
             <span
               className="ml-auto flex flex-wrap gap-1.5"
