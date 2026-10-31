@@ -37,7 +37,9 @@ describe('clampNoteSize', () => {
 
 describe('screen pairing codes', () => {
   it('reads the code from a scanned link or typed text', () => {
-    expect(screenCodeFromScan('https://la-teacher.passionedu.org/screen/pair?code=ABC234')).toBe('ABC234');
+    expect(screenCodeFromScan('https://teacher.littleantsenglish.com/screen/pair?code=ABC234')).toBe(
+      'ABC234',
+    );
     expect(screenCodeFromScan(' abc-234 ')).toBe('ABC234');
     expect(screenCodeFromScan('https://example.com/other?code=ABC234')).toBeNull();
     // Look-alike characters are not in codes.

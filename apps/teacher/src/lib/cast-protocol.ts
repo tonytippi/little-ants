@@ -2,7 +2,7 @@ import type { ReleaseMedia } from '@little-ants/shared';
 import type { StageFrame } from '../components/player/stage-content';
 import type { InkStroke } from './ink';
 
-/** Google Cast receiver app registered for https://la-teacher.passionedu.org/cast-receiver (public ID). */
+/** Google Cast receiver app registered for https://teacher.littleantsenglish.com/cast-receiver (public ID). */
 export const CAST_APP_ID = 'B1587FA6';
 
 /** Custom message channel between the teacher's device and the TV. */

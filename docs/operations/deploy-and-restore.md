@@ -4,7 +4,7 @@ One VPS runs everything with Docker Compose. Cloudflare Tunnel is the only way i
 
 ```
 Browser ─► Cloudflare ─► Tunnel (cloudflared) ─► 127.0.0.1:9200-9202, 9204 ─► admin · teacher · api · student · postgres · backup
-        └► la-media.passionedu.org ─► R2 bucket (approved files, cached for a year)
+        └► media.littleantsenglish.com ─► R2 bucket (approved files, cached for a year)
 ```
 
 Files: [`infra/docker-compose.prod.yml`](../../infra/docker-compose.prod.yml), [`infra/Dockerfile`](../../infra/Dockerfile), [`infra/deploy.sh`](../../infra/deploy.sh), [`infra/backup-job/`](../../infra/backup-job), [`infra/env.production.example`](../../infra/env.production.example), [`infra/r2-cors.json`](../../infra/r2-cors.json).
@@ -17,15 +17,16 @@ Files: [`infra/docker-compose.prod.yml`](../../infra/docker-compose.prod.yml), [
      - a private files bucket (e.g. `little-ants-files`) for every upload, drafts included. It has no public access.
      - a public media bucket (e.g. `little-ants-media`). Approved files are copied here when a reviewer approves them.
      - a backups bucket (e.g. `little-ants-backups`).
-   - Connect a custom domain `la-media.passionedu.org` to the **media** bucket only. Never make the files bucket public: drafts must stay private.
+   - Connect a custom domain `media.littleantsenglish.com` to the **media** bucket only. Published units store full media URLs, so after changing this domain republish every unit. Never make the files bucket public: drafts must stay private.
    - Apply `infra/r2-cors.json` to both the files and the media bucket (change the origins to your domains). Admin uploads to the files bucket directly, the Teacher app downloads from both, and the Student app downloads a unit's media for offline listening.
    - Create an R2 API token with read/write on all three buckets.
-3. **Google sign-in**: create an OAuth web client. Authorised redirect URIs: `https://la-api.passionedu.org/api/auth/callback/google` (staff) and `https://la-api.passionedu.org/api/parent/auth/google/callback` (parents in the student app).
+3. **Google sign-in**: create an OAuth web client. Authorised redirect URIs: `https://api.littleantsenglish.com/api/auth/callback/google` (staff) and `https://api.littleantsenglish.com/api/parent/auth/google/callback` (parents in the student app).
 4. **Tunnel**: in Zero Trust → Networks → Tunnels, add public hostnames to the tunnel whose `cloudflared` runs on this server:
-   - `la-admin.passionedu.org` → `http://localhost:9200`
-   - `la-teacher.passionedu.org` → `http://localhost:9201`
-   - `la-api.passionedu.org` → `http://localhost:9202` (the browser apps and Google sign-in call the API directly)
-   - `la-student.passionedu.org` → `http://localhost:9204` (Listening Time for children and parents)
+   - `admin.littleantsenglish.com` → `http://localhost:9200`
+   - `teacher.littleantsenglish.com` → `http://localhost:9201`
+   - `api.littleantsenglish.com` → `http://localhost:9202` (the browser apps and Google sign-in call the API directly)
+   - `littleantsenglish.com` → `http://localhost:9204` (landing page and Listening Time for children and parents)
+   - `www.littleantsenglish.com` → the same, plus a Cloudflare redirect rule (301) to `https://littleantsenglish.com`
 
    The containers listen on `127.0.0.1` only. PostgreSQL is also published on `127.0.0.1:9203` for `psql` and the importer; do not add it to the tunnel. To run the tunnel in Docker instead, set `CLOUDFLARE_TUNNEL_TOKEN`, add `--profile tunnel` to the compose commands, and point the hostnames at `http://admin:3000`, `http://teacher:3002`, `http://student:3003` and `http://api:3001`.
 5. **Settings**: `cp infra/env.production.example .env.production` at the repository root and fill in every value. The compose file sets `NODE_ENV`, `DATABASE_URL` (the `postgres` container), the public URLs and `CORS_ORIGINS` itself. Changing a hostname needs a rebuild, because the URLs are baked into the browser bundles.
@@ -119,31 +120,31 @@ Create the scratch database once with `$COMPOSE exec postgres createdb -U little
 
 ## Monitoring
 
-- Point an uptime checker (Cloudflare health checks or UptimeRobot) at `https://la-api.passionedu.org/health`.
+- Point an uptime checker (Cloudflare health checks or UptimeRobot) at `https://api.littleantsenglish.com/health`.
 - Logs: `$COMPOSE logs -f api` (Docker rotates logs with the default json-file driver; set `max-size` in `/etc/docker/daemon.json`).
 - Error tracking (e.g. Sentry) is not set up yet.
 
 ## Listening Time (student app)
 
-- Parents open `https://la-student.passionedu.org` (the Teacher app's **Home listening** page shows the link and a QR code) and sign in with the Google account whose email the school entered for their child (Admin → class → child → **Parents**). Two devices per parent; a third asks which one to sign out.
+- Parents open `https://littleantsenglish.com` (the Teacher app's **Home listening** page shows the link and a QR code): a landing page in Vietnamese (`/en` in English) with **Sign in**. The app itself is at `/app`, which the installed app opens; a device that is signed in skips the landing page. Parents sign in with the Google account whose email the school entered for their child (Admin → class → child → **Parents**). Two devices per parent; a third asks which one to sign out.
 - When a child leaves (or their class is stopped), the parents lose access at once; moving to another class or school keeps the child's progress and studied units.
 - Teachers signed in to the Teacher app can switch the student app to **At school** to play the lesson's leaf on the classroom screen.
 
 ## Showing lessons on a TV (Google Cast)
 
-- Teachers tap **Show on TV → Chromecast / Android TV** in a lesson (Chrome only, same Wi-Fi as the TV). The TV shows the stage and plays the audio; the teacher's screen keeps the notes. The in-app guide is `https://la-teacher.passionedu.org/tv-help`.
-- The TV runs the Cast receiver app **`B1587FA6`**, registered in the [Google Cast SDK Developer Console](https://cast.google.com/publish) and pointing at `https://la-teacher.passionedu.org/cast-receiver`. The ID lives in `apps/teacher/src/lib/cast-protocol.ts`. Changing the receiver URL in the console changes it for every TV.
+- Teachers tap **Show on TV → Chromecast / Android TV** in a lesson (Chrome only, same Wi-Fi as the TV). The TV shows the stage and plays the audio; the teacher's screen keeps the notes. The in-app guide is `https://teacher.littleantsenglish.com/tv-help`.
+- The TV runs the Cast receiver app **`B1587FA6`**, registered in the [Google Cast SDK Developer Console](https://cast.google.com/publish) and pointing at `https://teacher.littleantsenglish.com/cast-receiver`. The ID lives in `apps/teacher/src/lib/cast-protocol.ts`. Changing the receiver URL in the console changes it for every TV.
 - Until the receiver is **published** in the console, only TVs whose serial number is registered there (**Add New Device**, then unplug and restart the TV once it shows "Ready For Testing", about 15 minutes) can run it. Use the **Google Cast serial** from the TV's Settings → Google Cast → About → Serial number (a long code such as `HB0pZFuEEGpYghvlnK3a`), not the TV's own serial number: with the wrong one, Chrome's built-in Cast still finds the TV but the app does not.
 - Publishing is slow to reach TVs: in October 2026 the first TV accepted the published app about 16 hours after publishing, although Google's config URL (`https://clients3.google.com/cast/chromecast/device/app?a=B1587FA6`) served it much earlier. Check what a TV accepts with a Cast `GET_APP_AVAILABILITY` request to port 8009 before looking for a bug.
 - Classroom TVs run an old browser (Casper Android TV: Chrome 92, Cast 1.56), which cannot run the Next.js app. The receiver is therefore a static page (`apps/teacher/public/cast-receiver/`) with code compiled for ES2020 from `apps/teacher/cast-receiver/receiver.ts`; `/cast-receiver` is rewritten to it. Draft PDFs on the TV use pdf.js 3's legacy build (package alias `pdfjs-tv`, with eval disabled), because pdf.js 6 needs newer browsers even in its legacy build. Errors show on the TV in a red box with the browser version.
 - The receiver's modules (`receiver.ts` and the Teacher app files it imports) are loaded by the TV as plain ES modules, so their runtime imports must end in `.js`; a test in `apps/teacher/test/cast.test.ts` checks this, because a missing extension stops the receiver from starting.
 - **Hide on TV** sends the TV a frame with only `splash: true` (the Little Ants logo) and no ink, so nothing hidden reaches the TV. **Wide** mode's drawing goes over the same three paths (Cast, laptop screen relay, second window) as `ink` / `ink-live` messages, anchored to the picture or page shown (`apps/teacher/src/lib/ink.ts`).
-- The receiver has no login and no data of its own: it shows what the teacher's device sends. It loads pictures and audio from `la-media`, so the TV needs internet even when the unit is downloaded on the teacher's device.
+- The receiver has no login and no data of its own: it shows what the teacher's device sends. It loads pictures and audio from the media domain, so the TV needs internet even when the unit is downloaded on the teacher's device.
 - Debug the receiver from a computer on the same network with `chrome://inspect` (registered devices only), or with Google's Cast Command and Control tool.
 
 ## TV screen driven by a tablet
 
-- Where the TV cannot run the Cast receiver, `https://la-teacher.passionedu.org/screen` is opened without signing in, either in the TV's own web browser (tested in October 2026 on the classroom Android TV's browser) or on a laptop plugged into the TV (display mode Duplicate). It shows a QR code; the teacher's signed-in tablet scans it in a lesson (Show on TV → TV browser or laptop) and drives the lesson. Both need internet.
+- Where the TV cannot run the Cast receiver, `https://teacher.littleantsenglish.com/screen` is opened without signing in (on a TV remote it is shorter to type `littleantsenglish.com` and press **Watch on TV**, which goes to `/tv` and on to that page), either in the TV's own web browser (tested in October 2026 on the classroom Android TV's browser) or on a laptop plugged into the TV (display mode Duplicate). It shows a QR code; the teacher's signed-in tablet scans it in a lesson (Show on TV → TV browser or laptop) and drives the lesson. Both need internet.
 - TV browsers are old: the page avoids newer CSS such as `dvh` units, and draws PDFs with the same pdf.js 3 legacy build as the Cast receiver when the browser lacks what pdf.js 6 needs (`apps/teacher/src/lib/pdf-legacy.ts`).
 - The API relays the messages (`/api/screens`, server-sent events both ways). The laptop's side is authorised by a secret token it got when opening the screen; only the teacher who paired can send to it. Pairing codes are single use and change every 15 minutes.
 - Screens live in the API's memory: **a deploy disconnects every laptop screen** (the laptop shows a new code and the teacher scans again). Deploy outside teaching hours. Screens whose laptop left close after 2 minutes, idle ones after 12 hours, and at most 1,000 can be open.

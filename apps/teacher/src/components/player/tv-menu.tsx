@@ -28,7 +28,7 @@ const castHint: Record<CastState['status'], string> = {
 };
 
 const screenHint: Record<ScreenLinkStatus, string> = {
-  none: 'Open la-teacher.passionedu.org/screen on the TV, then scan its code',
+  none: 'Open littleantsenglish.com/tv on the TV, then scan its code',
   connecting: 'Connecting…',
   connected: '',
   'screen-offline': 'The TV screen is not connected',

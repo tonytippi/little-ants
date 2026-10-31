@@ -113,7 +113,7 @@ export function ScreenPairDialog({ onClose }: { onClose: () => void }) {
         <h2 className="text-xl font-extrabold">Connect to the TV screen</h2>
         <p className="text-sm text-bark-500">
           In the TV&apos;s web browser (or on a laptop plugged into the TV), open{' '}
-          <strong>la-teacher.passionedu.org/screen</strong>. Point the camera at the code on the TV.
+          <strong>littleantsenglish.com/tv</strong>. Point the camera at the code on the TV.
         </p>
         {cameraNote ? (
           <p className="rounded-2xl bg-cream-100 p-3 text-sm text-bark-700">{cameraNote}</p>

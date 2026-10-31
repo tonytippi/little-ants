@@ -10,7 +10,7 @@ const GUIDES = {
     intro:
       'The TV shows the lesson in its own web browser (or a laptop plugged into the TV does); you walk around the class with your tablet, which has the notes and the controls. Sound comes from the TV.',
     steps: [
-      'Open the web browser on the TV and go to la-teacher.passionedu.org/screen (no sign-in needed). Bookmark it for next time. No browser on the TV: plug a laptop into it with an HDMI cable, choose "Duplicate" in the display settings, and open the page in Chrome on the laptop.',
+      'Open the web browser on the TV and go to littleantsenglish.com/tv (no sign-in needed). Bookmark it for next time. No browser on the TV: plug a laptop into it with an HDMI cable, choose "Duplicate" in the display settings, and open the page in Chrome on the laptop.',
       'Press Start (OK on the TV remote). The TV shows a QR code and a 6-letter code.',
       'On your tablet, open the lesson in the Little Ants app and tap Show on TV → TV browser or laptop (scan QR).',
       'Point the camera at the QR code (allow the camera the first time), or type the code.',

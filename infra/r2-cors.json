@@ -1,15 +1,15 @@
 [
   {
-    "AllowedOrigins": ["https://la-admin.passionedu.org"],
+    "AllowedOrigins": ["https://admin.littleantsenglish.com"],
     "AllowedMethods": ["PUT"],
     "AllowedHeaders": ["Content-Type", "Content-Length"],
     "MaxAgeSeconds": 3600
   },
   {
     "AllowedOrigins": [
-      "https://la-admin.passionedu.org",
-      "https://la-teacher.passionedu.org",
-      "https://la-student.passionedu.org"
+      "https://admin.littleantsenglish.com",
+      "https://teacher.littleantsenglish.com",
+      "https://littleantsenglish.com"
     ],
     "AllowedMethods": ["GET", "HEAD"],
     "AllowedHeaders": ["*"],

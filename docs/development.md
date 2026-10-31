@@ -80,7 +80,7 @@ pnpm dev
 | `CORS_ORIGINS` | api | Comma-separated app origins |
 | `BETTER_AUTH_SECRET` | api | Required in production (32+ characters) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | api | Enables "Continue with Google"; redirect URIs `<API_PUBLIC_URL>/api/auth/callback/google` (staff) and `<API_PUBLIC_URL>/api/parent/auth/google/callback` (parents) |
-| `AUTH_COOKIE_DOMAIN` | api | e.g. `.passionedu.org` so la-admin/la-teacher/la-student/la-api share the staff and parent sessions |
+| `AUTH_COOKIE_DOMAIN` | api | e.g. `.littleantsenglish.com` so admin., teacher., the root (student) and api. share the staff and parent sessions |
 | `STUDENT_APP_URL` | api | Student app origin; parent sign-in returns there (default `http://localhost:3003`) |
 | `SEED_TEST_PARENT_EMAILS` | seed-test | Testing: Google emails linked as parents of the test class's first children |
 | `AUTH_DEV_PASSWORD_LOGIN` | api | `true` enables email + password sign-in for invited staff. Refused in production |

@@ -1,11 +1,12 @@
 # Production stack on one host. Public traffic arrives through Cloudflare Tunnel, which points at
 # these ports on 127.0.0.1 (nothing listens on a public interface):
 #
-#   la-admin.passionedu.org   → http://localhost:9200   (admin)
-#   la-teacher.passionedu.org → http://localhost:9201   (teacher)
-#   la-api.passionedu.org     → http://localhost:9202   (api; the browser apps and Google sign-in call it)
-#   la-student.passionedu.org → http://localhost:9204   (student: Listening Time for children and parents)
-#   127.0.0.1:9203            → postgres, for psql and the importer on the host only
+#   admin.littleantsenglish.com   → http://localhost:9200   (admin)
+#   teacher.littleantsenglish.com → http://localhost:9201   (teacher)
+#   api.littleantsenglish.com     → http://localhost:9202   (api; the browser apps and Google sign-in call it)
+#   littleantsenglish.com         → http://localhost:9204   (student: landing page and Listening Time;
+#   www.littleantsenglish.com       is redirected here by a Cloudflare rule)
+#   127.0.0.1:9203                → postgres, for psql and the importer on the host only
 #
 #   docker compose -f infra/docker-compose.prod.yml --env-file .env.production up -d
 #
@@ -28,11 +29,11 @@ x-server-env: &server-env
 # API settings, shared by the api service and by seed-test, which import-worker runs after each sync.
 x-api-env: &api-env
   <<: *server-env
-  API_PUBLIC_URL: https://${API_HOST:-la-api.passionedu.org}
-  STUDENT_APP_URL: https://${STUDENT_HOST:-la-student.passionedu.org}
-  CORS_ORIGINS: https://${ADMIN_HOST:-la-admin.passionedu.org},https://${TEACHER_HOST:-la-teacher.passionedu.org},https://${STUDENT_HOST:-la-student.passionedu.org}
+  API_PUBLIC_URL: https://${API_HOST:-api.littleantsenglish.com}
+  STUDENT_APP_URL: https://${STUDENT_HOST:-littleantsenglish.com}
+  CORS_ORIGINS: https://${ADMIN_HOST:-admin.littleantsenglish.com},https://${TEACHER_HOST:-teacher.littleantsenglish.com},https://${STUDENT_HOST:-littleantsenglish.com}
   # Shares the session cookie between the admin, teacher and api hosts.
-  AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.passionedu.org}
+  AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.littleantsenglish.com}
 
 services:
   postgres:
@@ -64,9 +65,9 @@ services:
       target: migrate
       args:
         # Baked into the browser bundles at build time.
-        NEXT_PUBLIC_API_URL: https://${API_HOST:-la-api.passionedu.org}
-        NEXT_PUBLIC_TEACHER_APP_URL: https://${TEACHER_HOST:-la-teacher.passionedu.org}
-        NEXT_PUBLIC_STUDENT_APP_URL: https://${STUDENT_HOST:-la-student.passionedu.org}
+        NEXT_PUBLIC_API_URL: https://${API_HOST:-api.littleantsenglish.com}
+        NEXT_PUBLIC_TEACHER_APP_URL: https://${TEACHER_HOST:-teacher.littleantsenglish.com}
+        NEXT_PUBLIC_STUDENT_APP_URL: https://${STUDENT_HOST:-littleantsenglish.com}
         BUILD_ID: ${IMAGE_TAG:-local}
     restart: 'no'
     profiles: [tools]
