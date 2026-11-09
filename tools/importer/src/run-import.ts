@@ -9,6 +9,7 @@ import {
   discoverProgramAudio,
   discoverUnit,
   discoverUnitFolders,
+  importReads,
   unitNumber,
 } from './discover.js';
 import { syncFolder } from './drive.js';
@@ -29,7 +30,7 @@ export interface ImportOptions {
   /** Unit numbers to import, or "all". */
   units: number[] | 'all';
   dryRun: boolean;
-  /** Upload draft layouts and character art. */
+  /** Upload the unit files (pictures, print PDFs, recordings) and character art. */
   assets: boolean;
   /** Overwrite units edited in Admin. */
   force: boolean;
@@ -48,7 +49,7 @@ export interface ImportResult {
 /** Local mirror of the Drive program folder ("LA 3-6"); also the default source of a local import. */
 export const SOURCE_MIRROR = path.join(repoRoot, 'docs', 'Little Ants English', 'LA 3-6');
 
-/** Parse the Master Sheets and Word files, write them to the database and upload their files. */
+/** Parse the Master Sheets, Word lesson plans and content texts, write them to the database and upload their files. */
 export async function runImport(options: ImportOptions): Promise<ImportResult> {
   const log = options.log ?? ((message: string) => console.log(message));
   const startedAt = new Date();
@@ -74,10 +75,11 @@ async function syncFromDrive(
   storage: ObjectStorage | null,
   log: (message: string) => void,
 ): Promise<{ archive: string | null; summary: string[] }> {
-  const { client, program } = await openProgramFolder(process.env);
+  const { client, program } = await openProgramFolder(process.env, repoRoot);
   log(`Syncing "${program.name}" from Google Drive to ${path.relative(repoRoot, SOURCE_MIRROR)}…`);
   let count = 0;
   const result = await syncFolder(client, program.id, SOURCE_MIRROR, {
+    include: importReads,
     onFile: () => {
       count += 1;
       if (count % 100 === 0) log(`Syncing from Google Drive: ${count} files checked`);
@@ -123,7 +125,7 @@ async function importUnits(
     }
 
     for (const folder of folders) {
-      const parsed = await parseUnit(discoverUnit(folder), rulesForLevel);
+      const parsed = await parseUnit(discoverUnit(sourceFolder, folder), rulesForLevel);
       const code = parsed.sheet.overview.code;
       const report: UnitReport = {
         unit: code || path.basename(folder),
@@ -143,14 +145,14 @@ async function importUnits(
       );
       const plan = planUnitMedia({
         unitCode: code,
-        draftDesigns: parsed.files.draftDesigns,
-        finalFiles: parsed.files.finalFiles,
+        pictures: parsed.files.pictures,
+        printFiles: parsed.files.printFiles,
         audio: [...parsed.files.audio, ...programAudio],
         materials: materialRowsFor(parsed.sheet),
         words: parsed.sheet.words,
       });
       if (dryRun) {
-        report.notes.push(...mediaNotes(plannedCounts(plan), plan, folder, 'Files to link'));
+        report.notes.push(...mediaNotes(plannedCounts(plan), plan, sourceFolder, 'Files to link'));
         continue;
       }
       if (errors > 0) {
@@ -166,7 +168,7 @@ async function importUnits(
       report.notes.push('Written to the database.');
       if (storage) {
         const media = await importUnitMedia(prisma, storage, result.unitId, plan);
-        report.notes.push(...mediaNotes(media, plan, folder, 'Files linked'));
+        report.notes.push(...mediaNotes(media, plan, sourceFolder, 'Files linked'));
       }
     }
 
@@ -193,7 +195,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 /** Report lines for a unit's files: what was linked, what was undone, and which files were left out and why. */
-function mediaNotes(media: UnitMediaResult, plan: MediaPlan, unitFolder: string, heading: string): string[] {
+function mediaNotes(media: UnitMediaResult, plan: MediaPlan, sourceFolder: string, heading: string): string[] {
   const linked = Object.entries(media.linked).map(([role, count]) => `${count} ${ROLE_LABELS[role] ?? role}`);
   const notes = [`${heading}: ${linked.length ? linked.join(', ') : 'none'}.`];
   if (media.removed) notes.push(`Files no longer on the source removed: ${media.removed}.`);
@@ -201,7 +203,7 @@ function mediaNotes(media: UnitMediaResult, plan: MediaPlan, unitFolder: string,
   if (lighter) notes.push(`4K copies not used (a lighter copy of the same picture is linked): ${lighter}.`);
   for (const item of plan.ignored.filter((entry) => !/lighter copy/.test(entry.reason))) {
     notes.push(
-      `Not used: ${path.relative(unitFolder, item.file).split(path.sep).join('/')} (${item.reason}).`,
+      `Not used: ${path.relative(sourceFolder, item.file).split(path.sep).join('/')} (${item.reason}).`,
     );
   }
   return notes;

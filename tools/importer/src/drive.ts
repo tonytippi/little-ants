@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { unitNumber } from './discover.js';
+import { SPEC_FOLDER } from './discover.js';
 
 const API = 'https://www.googleapis.com/drive/v3';
 const FOLDER = 'application/vnd.google-apps.folder';
@@ -120,10 +120,13 @@ export function serviceAccountAuth(keyFile: string, fetchImpl: typeof fetch = fe
   };
 }
 
-/** GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE wins over GOOGLE_DRIVE_API_KEY; the key only reads folders shared by link. */
-export function driveAuthFromEnv(env: Record<string, string | undefined>): DriveAuth {
+/**
+ * GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE wins over GOOGLE_DRIVE_API_KEY; the key only reads folders shared by link.
+ * A relative key file path is resolved against `baseDir` (the repo root, where .env lives).
+ */
+export function driveAuthFromEnv(env: Record<string, string | undefined>, baseDir = process.cwd()): DriveAuth {
   const keyFile = env.GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE?.trim();
-  if (keyFile) return serviceAccountAuth(keyFile);
+  if (keyFile) return serviceAccountAuth(path.resolve(baseDir, keyFile));
   const key = env.GOOGLE_DRIVE_API_KEY?.trim();
   if (key) return apiKeyAuth(key);
   throw new Error(
@@ -249,8 +252,8 @@ function safeName(name: string, taken: Set<string>): string {
 }
 
 /**
- * The program folder to import: the folder itself when it holds the unit folders,
- * otherwise its "LA 3-6" child (the shared folder is usually the whole "Little Ants English" tree).
+ * The program folder to import: the folder itself when it holds the unit specs (10_SPEC),
+ * otherwise its "LA 3-6" child (the shared folder may be the whole "Little Ants English" tree).
  */
 export async function findProgramFolder(
   client: DriveClient,
@@ -258,11 +261,17 @@ export async function findProgramFolder(
   programName = 'LA 3-6',
 ): Promise<DriveFile> {
   const children = await client.list(folderId);
-  if (children.some((child) => child.mimeType === FOLDER && unitNumber(child.name) !== null)) {
+  if (children.some((child) => child.mimeType === FOLDER && child.name.trim() === SPEC_FOLDER)) {
     return client.get(folderId);
   }
   const program = children.find((child) => child.mimeType === FOLDER && child.name.trim() === programName);
-  if (!program) throw new Error(`The Drive folder has no unit folders and no "${programName}" folder`);
+  if (!program) {
+    throw new Error(
+      `The Drive folder has no ${SPEC_FOLDER} folder and no "${programName}" folder. It holds: ${
+        children.map((child) => child.name).join(', ') || 'nothing (check the folder ID and its sharing)'
+      }`,
+    );
+  }
   return program;
 }
 
@@ -310,7 +319,8 @@ function pruneEmptyFolders(dir: string, root: string): void {
  * Mirror a Drive folder tree into `target`, a few files at a time. Only files that are new or changed on Drive,
  * or changed or missing locally, are downloaded; files synced before that are gone from Drive are deleted.
  * Local files the sync did not write are left alone. Drive items named ".something" (tool folders) and CLAUDE.md
- * (instructions for AI tools working in the Drive folder) are skipped.
+ * (instructions for AI tools working in the Drive folder) are skipped, and so is anything `include` turns down
+ * (it gets the item's "/"-separated path below the folder).
  */
 export async function syncFolder(
   client: DriveClient,
@@ -318,6 +328,7 @@ export async function syncFolder(
   target: string,
   options: {
     concurrency?: number;
+    include?: (relative: string, isFolder: boolean) => boolean;
     onFile?: (entry: ManifestEntry & { downloaded: boolean }) => void;
   } = {},
 ): Promise<SyncResult> {
@@ -333,8 +344,12 @@ export async function syncFolder(
       if (child.mimeType === SHORTCUT && child.shortcutDetails) {
         item = { ...(await client.get(child.shortcutDetails.targetId)), name: child.name };
       }
+      const included = (name: string): boolean =>
+        options.include?.([...relative.split(path.sep).filter(Boolean), name].join('/'), item.mimeType === FOLDER) ??
+        true;
       if (item.mimeType === FOLDER) {
-        await walk(item.id, path.join(relative, safeName(item.name, taken)));
+        const name = safeName(item.name, taken);
+        if (included(name)) await walk(item.id, path.join(relative, name));
         continue;
       }
       const exported = EXPORTS[item.mimeType];
@@ -346,6 +361,7 @@ export async function syncFolder(
         exported && !item.name.toLowerCase().endsWith(exported.extension)
           ? `${item.name}${exported.extension}`
           : item.name;
+      if (!included(name)) continue;
       pending.push({ file: item, relative: path.join(relative, safeName(name, taken)) });
     }
   };

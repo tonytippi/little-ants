@@ -49,6 +49,20 @@ describe('unit files on re-import', () => {
     await prisma.materialAsset.create({
       data: { materialId: story!.id, assetId: manual.id, role: 'draft-layout' },
     });
+    // Drive no longer has draft layouts: one an earlier import linked is removed.
+    const oldDraft = await prisma.asset.create({
+      data: {
+        kind: 'PDF',
+        storageKey: 'import/old-draft.pdf',
+        fileName: 'U90_ST1_Story_DRAFT.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1,
+        source: 'import',
+      },
+    });
+    await prisma.materialAsset.create({
+      data: { materialId: story!.id, assetId: oldDraft.id, role: 'draft-layout' },
+    });
     const storage = new LocalStorage({
       rootDir: path.join(temp, 'storage'),
       baseUrl: 'http://localhost/storage',
@@ -59,11 +73,11 @@ describe('unit files on re-import', () => {
       writeFileSync(full, body);
       return full;
     };
-    const plan = (sources: Partial<Pick<MediaSources, 'draftDesigns' | 'finalFiles' | 'audio'>>) =>
+    const plan = (sources: Partial<Pick<MediaSources, 'pictures' | 'printFiles' | 'audio'>>) =>
       planUnitMedia({
         unitCode: 'U90',
-        draftDesigns: [],
-        finalFiles: [],
+        pictures: [],
+        printFiles: [],
         audio: [],
         materials,
         words,
@@ -83,11 +97,8 @@ describe('unit files on re-import', () => {
       storage,
       unit.id,
       plan({
-        draftDesigns: [
-          file('U90_ST1_Story_DRAFT.pdf', 'story v1'),
-          file('U90_POSTERS_Songs_DRAFT.pdf', 'posters v1'),
-        ],
-        finalFiles: [
+        printFiles: [file('U90_ST1_Story.pdf', 'story v1'), file('U90_SG1_Song.pdf', 'song v1')],
+        pictures: [
           file('U90-WC-01_apple.png', 'apple'),
           file('U90_SG1_panel2_b.jpg', 'b'),
           file('U90_SG1_panel1_a.jpg', 'a'),
@@ -98,8 +109,8 @@ describe('unit files on re-import', () => {
       }),
     );
     expect(first).toEqual({
-      linked: { 'draft-layout': 2, poster: 2, audio: 1, cover: 1, place: 1, word: 1 },
-      removed: 0,
+      linked: { print: 2, poster: 2, audio: 1, cover: 1, place: 1, word: 1 },
+      removed: 1,
     });
     const pictures = await prisma.unitAsset.findMany({
       where: { unitId: unit.id },
@@ -112,27 +123,27 @@ describe('unit files on re-import', () => {
     ]);
     expect(await links(song!.id)).toEqual([
       'audio:import:U90_SG1_Song_audio_v1.0.mp3',
-      'draft-layout:import:U90_POSTERS_Songs_DRAFT.pdf',
       'poster:import:U90_SG1_panel1_a.jpg',
       'poster:import:U90_SG1_panel2_b.jpg',
+      'print:import:U90_SG1_Song.pdf',
     ]);
     expect(
       (await prisma.word.findUniqueOrThrow({ where: { id: word.id }, include: { imageAsset: true } }))
         .imageAsset?.fileName,
     ).toBe('U90-WC-01_apple.png');
 
-    // On the source: the story layout changed, the posters file, the song pictures and the word picture were removed.
+    // On the source: the story print file changed; the song print file, pictures and recording and the word picture were removed.
     const second = await importUnitMedia(
       prisma,
       storage,
       unit.id,
-      plan({ draftDesigns: [file('U90_ST1_Story_DRAFT.pdf', 'story v2')] }),
+      plan({ printFiles: [file('U90_ST1_Story.pdf', 'story v2')] }),
     );
-    expect(second).toEqual({ linked: { 'draft-layout': 1 }, removed: 8 });
+    expect(second).toEqual({ linked: { print: 1 }, removed: 8 });
     expect(await prisma.unitAsset.count({ where: { unitId: unit.id } })).toBe(0);
     expect((await links(story!.id)).sort()).toEqual([
-      'draft-layout:import:U90_ST1_Story_DRAFT.pdf',
       'draft-layout:upload:layout.pdf',
+      'print:import:U90_ST1_Story.pdf',
     ]);
     expect(await links(song!.id)).toEqual([]);
     expect((await prisma.word.findUniqueOrThrow({ where: { id: word.id } })).imageAssetId).toBeNull();

@@ -28,17 +28,25 @@ pnpm db:migrate          # applies migrations
 pnpm --filter @little-ants/db build && pnpm db:seed   # program, levels, characters, default admin invite
 ```
 
-5. Import the curriculum. The source files live in `docs/Little Ants English/LA 3-6/`, a local mirror of the shared Google Drive folder that is not in git:
+5. Import the curriculum. The source files live in `docs/Little Ants English/LA 3-6/`, a local mirror of the shared Google Drive folder that is not in git. The importer reads, per unit (`UNN`, e.g. `U05`):
+
+| Folder | Used for |
+|---|---|
+| `10_SPEC/UNN_Name/` | `UNN_MASTER-SHEET.xlsx`, `Lesson-Plans/UNN_Lesson-Plans_L01-40.docx`, `UNN_Content-Texts.md` |
+| `20_PICTURES/UNN/` | Word card, song, story page, place and cover pictures (matched by file name) |
+| `40_PDF/UNN/` | Print PDFs directly in the folder (`UNN_SG1_….pdf`; subfolders are left out) |
+| `50_AUDIO/UNN/`, `50_AUDIO/00_Routines/` | Recordings directly in the folder (page and word recordings in subfolders are not used yet) |
+| `01_BRAND/Characters/v<N>_FINAL/` | Character art (`CHAR_*.png`) |
 
 ```bash
 pnpm turbo build --filter=@little-ants/importer...
 pnpm --filter @little-ants/importer run la-import --all --dry-run   # report only
-pnpm --filter @little-ants/importer run la-import --all --assets    # write + upload draft files
+pnpm --filter @little-ants/importer run la-import --all --assets    # write + upload pictures, PDFs and recordings
 ```
 
 Each run backs up the database first and writes a report to `plans/reports/import-*.md`. Units already edited in Admin are skipped unless you pass `--force`.
 
-Add `--drive` to bring the mirror up to date with Drive first (the first run downloads everything; later runs only files changed on Drive, or changed or missing locally, and files removed from Drive are deleted). It needs `GOOGLE_DRIVE_FOLDER_ID` and either `GOOGLE_DRIVE_API_KEY` or `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE`; `.drive-sync.json` in the mirror records what was synced, and Drive folders named `.something` and `CLAUDE.md` are skipped. On a real (not dry) run, a `manifest.json` of the Drive file versions and the report are stored under `sources/<time>/`.
+Add `--drive` to bring the mirror up to date with Drive first. Only the folders above are mirrored (not `30_HTML/`, older versions, voice samples or recording parts); the first run downloads them all, later runs only files changed on Drive, or changed or missing locally, and files removed from Drive (or no longer read) are deleted. It needs `GOOGLE_DRIVE_FOLDER_ID` (the "LA 3-6" folder, or a folder that holds it) and either `GOOGLE_DRIVE_API_KEY` or `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE`; `.drive-sync.json` in the mirror records what was synced, and Drive folders named `.something` and `CLAUDE.md` are skipped. On a real (not dry) run, a `manifest.json` of the Drive file versions and the report are stored under `sources/<time>/`.
 
 To look at the Drive folder without importing, use the read-only browse commands. Paths are relative to the program folder ("LA 3-6"), whose `README.md` describes the layout:
 
@@ -72,9 +80,9 @@ pnpm dev
 |---|---|---|
 | `DATABASE_URL` | api, db, importer | PostgreSQL connection string |
 | `TEST_DATA_AFTER_SYNC` | importer worker | `true` during testing: every Drive sync also runs `seed-test` |
-| `GOOGLE_DRIVE_FOLDER_ID` | importer | Shared Drive folder for `la-import --drive` ("Little Ants English" or its "LA 3-6" folder) |
+| `GOOGLE_DRIVE_FOLDER_ID` | importer | Shared Drive folder for `la-import --drive`: "LA 3-6" (holds `10_SPEC/`) or a folder that holds it |
 | `GOOGLE_DRIVE_API_KEY` | importer | Google API key restricted to the Drive API; reads folders shared by link |
-| `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE` | importer | Path to a service account JSON key; used instead of the API key, for folders shared with that account |
+| `GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE` | importer | Path to a service account JSON key (relative paths start at the repo root); used instead of the API key, for folders shared with that account |
 | `SEED_ADMIN_EMAIL` | db seed | Optional; email the seed invites as admin (default `sonnh273@gmail.com`) |
 | `API_PORT`, `API_PUBLIC_URL` | api | Defaults 3001 / `http://localhost:3001` |
 | `CORS_ORIGINS` | api | Comma-separated app origins |

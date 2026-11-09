@@ -1,37 +1,43 @@
 import { describe, expect, it } from 'vitest';
 import { planUnitMedia, type MediaSources } from '../src/media-plan.js';
 
-const UNIT = '/drive/Unit05_YummyGarden';
-const FINAL = `${UNIT}/04_Design/FINAL`;
+const PICS = '/drive/20_PICTURES/U05';
+const PICS_4K = `${PICS}/4K`;
+const PDF = '/drive/40_PDF/U05';
+const AUDIO = '/drive/50_AUDIO/U05';
 
 const sources: MediaSources = {
   unitCode: 'U05',
-  draftDesigns: [],
-  finalFiles: [
-    `${FINAL}/U05_1_AI-Pictures/03_Word-Cards/U05-WC-02_banana.png`,
-    `${FINAL}/U05_2_AI-Pictures_4K/03_Word-Cards/U05-WC-02_banana.jpg`,
-    `${FINAL}/U05_2_AI-Pictures_4K/03_Word-Cards/U05-WC-23_soup.jpg`,
-    `${FINAL}/U05_1_AI-Pictures/03_Word-Cards/U05-WC-39_here-you-are.png`,
-    `${FINAL}/U05_1_AI-Pictures/03_Word-Cards/U05-WC-03_kiwi.png`,
-    `${FINAL}/U05_1_AI-Pictures/05_Songs/U05_SG1_panel1_pick.jpg`,
-    `${FINAL}/U05_2_AI-Pictures_4K/05_Songs/U05_SG1_panel1_pick.jpg`,
-    `${FINAL}/U05_2_AI-Pictures_4K/05_Songs/U05_SG1_panel4_cut.jpg`,
-    `${FINAL}/U05_1_AI-Pictures/04_Talk-Scene-Cover/U05_TS1_At-the-Market.jpg`,
-    `${FINAL}/U05_1_AI-Pictures/04_Talk-Scene-Cover/U05_UC_Cover.jpg`,
-    `${FINAL}/U05_2_AI-Pictures_4K/02_Places/U05_PLACE_market.jpg`,
-    `${FINAL}/U05_2_AI-Pictures_4K/02_Places/U05_PLACE_fruit-shop.jpg`,
-    `${FINAL}/U05_2_AI-Pictures_4K/04_Talk-Scene-Cover/U05_UC_Cover.jpg`,
-    `${FINAL}/U05_3_Canva-Final/U05-SG-LA (42 x 29.7 cm).pdf`,
-    `${FINAL}/.DS_Store`,
-    `${FINAL}/U05_1_AI-Pictures/05_Songs/U05_SG1_panel2_wash.svg`,
+  pictures: [
+    `${PICS}/03_Word-Cards/U05-WC-02_banana.png`,
+    `${PICS_4K}/03_Word-Cards/U05-WC-02_banana.jpg`,
+    `${PICS_4K}/03_Word-Cards/U05-WC-23_soup.jpg`,
+    `${PICS}/03_Word-Cards/U05-WC-39_here-you-are.png`,
+    `${PICS}/03_Word-Cards/U05-WC-03_kiwi.png`,
+    `${PICS}/05_Songs/U05_SG1_panel1_pick.jpg`,
+    `${PICS_4K}/05_Songs/U05_SG1_panel1_pick.jpg`,
+    `${PICS_4K}/05_Songs/U05_SG1_panel4_cut.jpg`,
+    `${PICS}/04_Talk-Scene-Cover/U05_TS1_At-the-Market.jpg`,
+    `${PICS}/04_Talk-Scene-Cover/U05_UC_Cover.jpg`,
+    `${PICS_4K}/02_Places/U05_PLACE_market.jpg`,
+    `${PICS_4K}/02_Places/U05_PLACE_fruit-shop.jpg`,
+    `${PICS_4K}/04_Talk-Scene-Cover/U05_UC_Cover.jpg`,
+    `${PICS}/.DS_Store`,
+    `${PICS}/05_Songs/U05_SG1_panel2_wash.svg`,
+  ],
+  printFiles: [
+    `${PDF}/U05-SG-LA (42 x 29.7 cm).pdf`,
+    `${PDF}/U05_CH1_Crunch-Munch-Yum.pdf`,
+    `${PDF}/00. U05_Print-Order.xlsx`,
+    `${PDF}/LA_Listening-Time_Guide-Parents.pdf`,
   ],
   audio: [
-    `${UNIT}/05_Audio-Video/U05_SG2_Do-You-Like-Fruits_audio_v1.0.mp3`,
-    `${UNIT}/05_Audio-Video/U05_SG2_Do-You-Like-Fruits_audio_v1.1.mp3`,
-    `${UNIT}/05_Audio-Video/U05_CH1_Crunch-Munch-Yum_audio_v1.0.mp3`,
-    `${UNIT}/05_Audio-Video/U05_ZZ9_Unknown_audio_v1.0.mp3`,
-    '/drive/00_ROUTINES-AUDIO/LA2_RT1_Hello-Little-Ants_audio_v1.0.mp3',
-    '/drive/00_ROUTINES-AUDIO/LA2_RT9_Not-In-This-Unit_audio_v1.0.mp3',
+    `${AUDIO}/U05_SG2_Do-You-Like-Fruits_audio_v1.0.mp3`,
+    `${AUDIO}/U05_SG2_Do-You-Like-Fruits_audio_v1.1.mp3`,
+    `${AUDIO}/U05_CH1_Crunch-Munch-Yum_audio_v1.0.mp3`,
+    `${AUDIO}/U05_ZZ9_Unknown_audio_v1.0.mp3`,
+    '/drive/50_AUDIO/00_Routines/LA2_RT1_Hello-Little-Ants_audio_v1.0.mp3',
+    '/drive/50_AUDIO/00_Routines/LA2_RT9_Not-In-This-Unit_audio_v1.0.mp3',
   ],
   materials: ['SG1', 'SG2', 'SG3', 'CH1', 'TS1', 'RT1'].map((code) => ({
     code,
@@ -63,14 +69,15 @@ describe('planUnitMedia', () => {
       .map((link) => `${link.materialCode} ${link.role} ${link.order} ${name(link.file)}`)
       .sort();
     expect(links).toEqual([
-      'CH1 audio 0 05_Audio-Video/U05_CH1_Crunch-Munch-Yum_audio_v1.0.mp3',
-      'RT1 audio 0 00_ROUTINES-AUDIO/LA2_RT1_Hello-Little-Ants_audio_v1.0.mp3',
+      'CH1 audio 0 U05/U05_CH1_Crunch-Munch-Yum_audio_v1.0.mp3',
+      'CH1 print 0 U05/U05_CH1_Crunch-Munch-Yum.pdf',
+      'RT1 audio 0 00_Routines/LA2_RT1_Hello-Little-Ants_audio_v1.0.mp3',
       'SG1 poster 1 05_Songs/U05_SG1_panel1_pick.jpg',
       'SG1 poster 4 05_Songs/U05_SG1_panel4_cut.jpg',
-      'SG1 print 0 U05_3_Canva-Final/U05-SG-LA (42 x 29.7 cm).pdf',
-      'SG2 audio 0 05_Audio-Video/U05_SG2_Do-You-Like-Fruits_audio_v1.1.mp3',
-      'SG2 print 0 U05_3_Canva-Final/U05-SG-LA (42 x 29.7 cm).pdf',
-      'SG3 print 0 U05_3_Canva-Final/U05-SG-LA (42 x 29.7 cm).pdf',
+      'SG1 print 0 U05/U05-SG-LA (42 x 29.7 cm).pdf',
+      'SG2 audio 0 U05/U05_SG2_Do-You-Like-Fruits_audio_v1.1.mp3',
+      'SG2 print 0 U05/U05-SG-LA (42 x 29.7 cm).pdf',
+      'SG3 print 0 U05/U05-SG-LA (42 x 29.7 cm).pdf',
       'TS1 poster 0 04_Talk-Scene-Cover/U05_TS1_At-the-Market.jpg',
     ]);
     expect(plan.links.find((link) => link.materialCode === 'SG1' && link.order === 1)?.file).not.toContain(
@@ -102,18 +109,18 @@ describe('planUnitMedia', () => {
       '05_Songs/U05_SG1_panel1_pick.jpg': 'a lighter copy is used for SG1',
       '04_Talk-Scene-Cover/U05_UC_Cover.jpg': 'a lighter copy is used for the unit cover',
       '05_Songs/U05_SG1_panel2_wash.svg': 'file type not used (pictures must be PNG or JPEG)',
-      '05_Audio-Video/U05_SG2_Do-You-Like-Fruits_audio_v1.0.mp3': 'a newer version is used for SG2',
-      '05_Audio-Video/U05_ZZ9_Unknown_audio_v1.0.mp3': 'no matching material',
+      'U05/U05_SG2_Do-You-Like-Fruits_audio_v1.0.mp3': 'a newer version is used for SG2',
+      'U05/U05_ZZ9_Unknown_audio_v1.0.mp3': 'no matching material',
+      'U05/LA_Listening-Time_Guide-Parents.pdf': 'no matching material',
     });
   });
 });
 
 describe('planUnitMedia pages and cards', () => {
-  const PICS = `${FINAL}/U05_1_AI-Pictures`;
   const plan = planUnitMedia({
     unitCode: 'U05',
-    draftDesigns: [],
-    finalFiles: [
+    printFiles: [],
+    pictures: [
       `${PICS}/07_Stories/U05_ST1_p0-cover.png`,
       `${PICS}/07_Stories/U05_ST1_p1.png`,
       `${PICS}/07_Stories/U05_ST1_p2.png`,

@@ -1,6 +1,7 @@
+import { readFile } from 'node:fs/promises';
 import { checkUnitRules, type LevelRules } from '@little-ants/shared';
+import { parseContentTexts } from './content-texts.js';
 import type { UnitFiles } from './discover.js';
-import { parseContentTexts } from './docx-content-texts.js';
 import { parseLessonPlans } from './docx-lesson-plans.js';
 import { materialCodesIn } from './mapping.js';
 import { docxToHtml } from './docx.js';
@@ -35,12 +36,12 @@ export async function parseUnit(
     });
 
   let contentTexts = new Map<string, ContentTextEntry>();
-  if (files.contentTexts) contentTexts = parseContentTexts(await docxToHtml(files.contentTexts));
+  if (files.contentTexts) contentTexts = parseContentTexts(await readFile(files.contentTexts, 'utf8'));
   else
     issues.push({
       level: 'warning',
       where: 'files',
-      message: 'Content texts file (UNN_Content-Texts.docx) not found',
+      message: 'Content texts file (UNN_Content-Texts.md) not found',
     });
 
   // Steps such as "Talk Scene: Ant Hill School" name the material by title, not code.

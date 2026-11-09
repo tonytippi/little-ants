@@ -4,7 +4,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPrismaClient, editContent, seedBaseData, type PrismaClient } from '@little-ants/db';
 import { resetTestDatabase } from '@little-ants/db/testing';
 import type { LevelRules } from '@little-ants/shared';
-import { materialsForDesignFile } from '../src/media-plan.js';
 import { discoverUnit, discoverUnitFolders, unitNumber } from '../src/discover.js';
 import { parseUnit, type ParsedUnit } from '../src/parse-unit.js';
 import { hasManualEdits, writeUnit } from '../src/write-unit.js';
@@ -16,30 +15,6 @@ const unitFolder = existsSync(programFolder)
   : undefined;
 const hasSource = unitFolder !== undefined;
 
-describe('materialsForDesignFile', () => {
-  const materials = [
-    { code: 'SG1', type: 'SONG' },
-    { code: 'RH1', type: 'RHYME' },
-    { code: 'MD1', type: 'MOVE_AND_DO' },
-    { code: 'MD2', type: 'MOVE_AND_DO' },
-    { code: 'ST1', type: 'STORY' },
-  ];
-
-  it('links single, family and poster files', () => {
-    expect(materialsForDesignFile('U01_ST1_Who-Is-This_DRAFT (1).pdf', materials).map((m) => m.code)).toEqual(
-      ['ST1'],
-    );
-    expect(
-      materialsForDesignFile('U01_MD_Move-and-Do-Cards_DRAFT.pdf', materials).map((m) => m.code),
-    ).toEqual(['MD1', 'MD2']);
-    expect(materialsForDesignFile('U01_POSTERS_Songs_DRAFT.pdf', materials).map((m) => m.code)).toEqual([
-      'SG1',
-      'RH1',
-    ]);
-    expect(materialsForDesignFile('U01_XX_Unknown.pdf', materials)).toEqual([]);
-  });
-});
-
 describe.skipIf(!hasSource)('Unit 1 import', () => {
   let prisma: PrismaClient;
   let parsed: ParsedUnit;
@@ -50,7 +25,7 @@ describe.skipIf(!hasSource)('Unit 1 import', () => {
     const levels = await prisma.level.findMany();
     const rulesFor = (n: number): LevelRules =>
       (levels.find((level) => level.number === n)?.rules ?? {}) as LevelRules;
-    parsed = await parseUnit(discoverUnit(unitFolder!), rulesFor);
+    parsed = await parseUnit(discoverUnit(programFolder, unitFolder!), rulesFor);
   });
 
   afterAll(async () => {
@@ -131,7 +106,7 @@ describe.skipIf(!hasSource)('re-importing after review', () => {
     await seedBaseData(prisma);
     const levels = await prisma.level.findMany();
     parsed = await parseUnit(
-      discoverUnit(unitFolder!),
+      discoverUnit(programFolder, unitFolder!),
       (n) => (levels.find((level) => level.number === n)?.rules ?? {}) as LevelRules,
     );
     await writeUnit(prisma, parsed);

@@ -1,6 +1,9 @@
 import path from 'node:path';
 
-/** Material file roles the importer owns: on every import they are set to exactly what the source folder holds. */
+/**
+ * Material file roles the importer owns: on every import they are set to exactly what the source folder holds.
+ * Drive no longer has draft layouts, so "draft-layout" links made by earlier imports are removed.
+ */
 export const IMPORTED_ROLES = ['draft-layout', 'poster', 'audio', 'print'] as const;
 export type ImportedRole = (typeof IMPORTED_ROLES)[number];
 
@@ -43,35 +46,17 @@ export interface MediaPlan {
 export interface MediaSources {
   /** Unit code, e.g. "U05". */
   unitCode: string;
-  /** 04_Design/DRAFT PDFs. */
-  draftDesigns: string[];
-  /** Everything under 04_Design/FINAL. */
-  finalFiles: string[];
-  /** Unit audio (05_Audio-Video) and program-wide audio (00_ROUTINES-AUDIO). */
+  /** Finished pictures (20_PICTURES/UNN). */
+  pictures: string[];
+  /** Print PDFs (40_PDF/UNN). */
+  printFiles: string[];
+  /** Unit audio (50_AUDIO/UNN) and program-wide audio (50_AUDIO/00_Routines). */
   audio: string[];
   materials: { code: string; type: string }[];
   words: { cardId: string; text: string }[];
 }
 
-/** Draft layout PDFs are named like "U01_ST1_Who-Is-This_DRAFT.pdf"; the second part is the material code. */
-export function materialCodeFromDesignFile(file: string): string | null {
-  const parts = path.basename(file).split('_');
-  return parts.length > 2 ? (parts[1] ?? null) : null;
-}
-
 const POSTER_TYPES = new Set(['SONG', 'CHANT', 'RHYME', 'ROUTINE']);
-
-/**
- * Materials a draft file belongs to: one material ("U01_ST1_…"), every material of a family
- * ("U01_MD_Move-and-Do-Cards" → MD1, MD2, MD3) or every poster ("U01_POSTERS_…" → songs, chants, rhymes, routines).
- */
-export function materialsForDesignFile<T extends { code: string; type: string }>(
-  file: string,
-  materials: T[],
-): T[] {
-  const code = materialCodeFromDesignFile(file);
-  return code ? materialsForCode(code, materials) : [];
-}
 
 /** Materials a code in a file name stands for: "ST1" → ST1, "MD" → MD1, MD2, …, "POSTERS" → songs, chants, rhymes, routines. */
 export function materialsForCode<T extends { code: string; type: string }>(
@@ -108,7 +93,7 @@ function audioVersion(file: string): number {
  * - `U05_ST1_p3.png` → picture of page 3 of ST1; `U05_ST1_p0-cover.png` → its cover (picture 0); `…_p2_alt.png` is left out
  * - `U05_UC_Cover.jpg` → unit cover; `U05_PLACE_kitchen.jpg` → place picture "kitchen"
  * - `U05_SG1_…_audio_v1.0.mp3`, `LA2_RT1_…mp3` → audio of SG1 / RT1 (highest version wins)
- * - a PDF in FINAL (`U05-SG-LA….pdf`) → print file of SG1, SG2, …; a DRAFT PDF → draft layout
+ * - a print PDF (`U05_SG1_In-Our-Yummy-Garden.pdf`, `U05-SG-LA….pdf` → SG1, SG2, …) → print file
  */
 export function planUnitMedia(sources: MediaSources): MediaPlan {
   const ignored: MediaPlan['ignored'] = [];
@@ -129,24 +114,18 @@ export function planUnitMedia(sources: MediaSources): MediaPlan {
   };
 
   const links: MaterialLink[] = [];
-  sources.draftDesigns.forEach((file) => {
-    const targets = materialsForDesignFile(file, sources.materials);
+  for (const file of sources.printFiles) {
+    const name = path.basename(file);
+    if (!/\.pdf$/i.test(name)) continue;
+    const code = /^U\d+[-_]([A-Za-z]+\d*)[-_]/.exec(name)?.[1];
+    const targets = code ? materialsForCode(code, sources.materials) : [];
     if (targets.length === 0) ignored.push({ file, reason: 'no matching material' });
-    for (const material of targets)
-      links.push({ materialCode: material.code, role: 'draft-layout', order: 0, file });
-  });
+    for (const material of targets) links.push({ materialCode: material.code, role: 'print', order: 0, file });
+  }
 
-  for (const file of sources.finalFiles) {
+  for (const file of sources.pictures) {
     const name = path.basename(file);
     if (name.startsWith('.')) continue;
-    if (/\.pdf$/i.test(name)) {
-      const code = /^U\d+[-_]([A-Za-z]+\d*)[-_]/.exec(name)?.[1];
-      const targets = code ? materialsForCode(code, sources.materials) : [];
-      if (targets.length === 0) ignored.push({ file, reason: 'no matching material' });
-      for (const material of targets)
-        links.push({ materialCode: material.code, role: 'print', order: 0, file });
-      continue;
-    }
     if (!IMAGE.test(name)) {
       ignored.push({ file, reason: 'file type not used (pictures must be PNG or JPEG)' });
       continue;

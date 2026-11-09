@@ -63,7 +63,7 @@ const TREE: Node[] = [
   { id: 'root', name: 'Little Ants English', mimeType: FOLDER, parent: null },
   { id: 'tn', name: 'TN 0-3', mimeType: FOLDER, parent: 'root' },
   { id: 'la', name: 'LA 3-6', mimeType: FOLDER, parent: 'root' },
-  { id: 'u1', name: 'Unit01_Hello', mimeType: FOLDER, parent: 'la' },
+  { id: 'u1', name: '10_SPEC', mimeType: FOLDER, parent: 'la' },
   {
     id: 'sheet',
     name: 'U01_MASTER-SHEET',
@@ -113,7 +113,7 @@ afterEach(() => {
 });
 
 describe('Google Drive download', () => {
-  it('finds the LA 3-6 folder inside the shared tree, or uses a folder that holds units', async () => {
+  it('finds the LA 3-6 folder inside the shared tree, or uses a folder that holds the unit specs', async () => {
     const { fetchImpl } = fakeDrive(TREE);
     const client = new DriveClient(apiKeyAuth('test-key'), fetchImpl, 0);
     expect((await findProgramFolder(client, 'root')).id).toBe('la');
@@ -132,16 +132,16 @@ describe('Google Drive download', () => {
     const result = await syncFolder(new DriveClient(apiKeyAuth('test-key'), fetchImpl, 0), 'la', target);
 
     expect(result.files.map((file) => file.path)).toEqual([
-      'Unit01_Hello/Shared poster.png',
-      'Unit01_Hello/U01_MASTER-SHEET.xlsx',
-      'Unit01_Hello/U01_ST1_DRAFT (1).pdf',
-      'Unit01_Hello/U01_ST1_DRAFT.pdf',
+      '10_SPEC/Shared poster.png',
+      '10_SPEC/U01_MASTER-SHEET.xlsx',
+      '10_SPEC/U01_ST1_DRAFT (1).pdf',
+      '10_SPEC/U01_ST1_DRAFT.pdf',
     ]);
     expect(result).toMatchObject({ downloaded: 4, removed: [] });
-    expect(result.skipped).toEqual([path.join('Unit01_Hello', 'Feedback')]);
+    expect(result.skipped).toEqual([path.join('10_SPEC', 'Feedback')]);
     expect(existsSync(path.join(target, '.claude'))).toBe(false);
     expect(existsSync(path.join(target, 'CLAUDE.md'))).toBe(false);
-    const unit = path.join(target, 'Unit01_Hello');
+    const unit = path.join(target, '10_SPEC');
     expect(readFileSync(path.join(unit, 'U01_MASTER-SHEET.xlsx'), 'utf8')).toContain('spreadsheetml.sheet');
     expect(readFileSync(path.join(unit, 'U01_ST1_DRAFT.pdf'), 'utf8')).toBe('pdf-1');
     expect(readFileSync(path.join(unit, 'Shared poster.png'), 'utf8')).toBe('png');
@@ -159,7 +159,7 @@ describe('Google Drive download', () => {
     await syncFolder(new DriveClient(apiKeyAuth('test-key'), first.fetchImpl, 0), 'la', target);
     expect(downloads(first.requests)).toBe(4);
 
-    const unit = path.join(target, 'Unit01_Hello');
+    const unit = path.join(target, '10_SPEC');
     writeFileSync(path.join(unit, 'my-notes.txt'), 'kept');
     writeFileSync(path.join(unit, 'Shared poster.png'), 'edited locally');
     const edited = TREE.filter((node) => node.id !== 'pdf2').map((node) =>
@@ -180,8 +180,8 @@ describe('Google Drive download', () => {
       },
     );
 
-    expect(fetched.sort()).toEqual(['Unit01_Hello/Shared poster.png', 'Unit01_Hello/U01_ST1_DRAFT.pdf']);
-    expect(result).toMatchObject({ downloaded: 2, removed: ['Unit01_Hello/U01_ST1_DRAFT (1).pdf'] });
+    expect(fetched.sort()).toEqual(['10_SPEC/Shared poster.png', '10_SPEC/U01_ST1_DRAFT.pdf']);
+    expect(result).toMatchObject({ downloaded: 2, removed: ['10_SPEC/U01_ST1_DRAFT (1).pdf'] });
     expect(readFileSync(path.join(unit, 'U01_ST1_DRAFT.pdf'), 'utf8')).toBe('pdf-new');
     expect(readFileSync(path.join(unit, 'Shared poster.png'), 'utf8')).toBe('png');
     expect(existsSync(path.join(unit, 'U01_ST1_DRAFT (1).pdf'))).toBe(false);
@@ -211,7 +211,32 @@ describe('Google Drive download', () => {
       unknown
     >;
     expect(Object.keys(state)).toHaveLength(4);
-    expect(existsSync(path.join(target, 'Unit01_Hello', 'U01_ST1_DRAFT (1).pdf'))).toBe(true);
+    expect(existsSync(path.join(target, '10_SPEC', 'U01_ST1_DRAFT (1).pdf'))).toBe(true);
+  });
+
+  it('mirrors only what `include` accepts and removes files it turns down later', async () => {
+    const target = tempDir();
+    const drive = fakeDrive([
+      ...TREE,
+      { id: 'html', name: '30_HTML', mimeType: FOLDER, parent: 'la' },
+      { id: 'page', name: 'index.html', mimeType: 'text/html', parent: 'html', body: '<p>' },
+    ]);
+    const client = new DriveClient(apiKeyAuth('test-key'), drive.fetchImpl, 0);
+    const seen: string[] = [];
+    await syncFolder(client, 'la', target, {
+      include: (relative, isFolder) => {
+        seen.push(`${relative}${isFolder ? '/' : ''}`);
+        return relative !== '30_HTML' && !relative.endsWith('.pdf');
+      },
+    });
+    expect(seen).toContain('10_SPEC/U01_MASTER-SHEET.xlsx');
+    expect(seen).not.toContain('30_HTML/index.html');
+    expect(existsSync(path.join(target, '30_HTML'))).toBe(false);
+    expect(existsSync(path.join(target, '10_SPEC', 'U01_ST1_DRAFT.pdf'))).toBe(false);
+    expect(existsSync(path.join(target, '10_SPEC', 'U01_MASTER-SHEET.xlsx'))).toBe(true);
+
+    const narrower = await syncFolder(client, 'la', target, { include: (relative) => relative === '10_SPEC' });
+    expect(narrower.removed).toEqual(['10_SPEC/Shared poster.png', '10_SPEC/U01_MASTER-SHEET.xlsx']);
   });
 
   it('retries rate limits, and reports failures without the API key', async () => {
@@ -371,7 +396,7 @@ describe('Google Drive browsing', () => {
   });
 
   it('needs the shared folder id', async () => {
-    await expect(openProgramFolder({ GOOGLE_DRIVE_API_KEY: 'key' })).rejects.toThrow(
+    await expect(openProgramFolder({ GOOGLE_DRIVE_API_KEY: 'key' }, process.cwd())).rejects.toThrow(
       'GOOGLE_DRIVE_FOLDER_ID',
     );
   });

@@ -19,7 +19,7 @@ const USAGE = `Usage: la-import [--unit U01 ...] [--all] [--dry-run] [--assets] 
   --unit U01   Import one unit (repeatable). Matches the unit folder number.
   --all        Import all 12 units.
   --dry-run    Parse and check only; write the report but not the database.
-  --assets     Also upload draft layout PDFs and character art to storage.
+  --assets     Also upload the unit pictures, print PDFs and recordings and the character art to storage.
   --force      Overwrite units that were edited in Admin after the last import.
   --source     Program folder (default: docs/Little Ants English/LA 3-6).
   --drive      First sync the local mirror (docs/Little Ants English/LA 3-6) with Google Drive (GOOGLE_DRIVE_FOLDER_ID):
@@ -103,7 +103,7 @@ async function worker(): Promise<void> {
 
 async function driveList(drivePath: string, depth: number): Promise<void> {
   if (!Number.isInteger(depth) || depth < 0) throw new Error('--depth must be a whole number, 0 or more');
-  const { client, program } = await openProgramFolder(process.env);
+  const { client, program } = await openProgramFolder(process.env, repoRoot);
   const folder = await resolveDrivePath(client, program, drivePath);
   if (folder.mimeType !== 'application/vnd.google-apps.folder')
     throw new Error(`"${drivePath}" is a file; use --drive-cat`);
@@ -112,7 +112,7 @@ async function driveList(drivePath: string, depth: number): Promise<void> {
 }
 
 async function driveCat(drivePath: string): Promise<void> {
-  const { client, program } = await openProgramFolder(process.env);
+  const { client, program } = await openProgramFolder(process.env, repoRoot);
   const file = await resolveDrivePath(client, program, drivePath);
   if (file.mimeType === 'application/vnd.google-apps.folder')
     throw new Error(`"${drivePath}" is a folder; use --drive-list`);

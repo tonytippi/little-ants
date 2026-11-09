@@ -2,14 +2,18 @@ import { DriveClient, driveAuthFromEnv, findProgramFolder, type DriveFile } from
 
 const FOLDER = 'application/vnd.google-apps.folder';
 
-/** The Drive client and program folder ("LA 3-6") named by GOOGLE_DRIVE_FOLDER_ID and the Drive credentials. */
+/**
+ * The Drive client and program folder ("LA 3-6") named by GOOGLE_DRIVE_FOLDER_ID and the Drive credentials;
+ * relative paths in the settings are resolved against `baseDir`.
+ */
 export async function openProgramFolder(
   env: Record<string, string | undefined>,
+  baseDir: string,
 ): Promise<{ client: DriveClient; program: DriveFile }> {
   const folderId = env.GOOGLE_DRIVE_FOLDER_ID?.trim();
   if (!folderId) throw new Error('Set GOOGLE_DRIVE_FOLDER_ID to the shared Drive folder');
-  const client = new DriveClient(driveAuthFromEnv(env));
-  return { client, program: await findProgramFolder(client, folderId) };
+  const client = new DriveClient(driveAuthFromEnv(env, baseDir));
+  return { client, program: await findProgramFolder(client, folderId).catch(() => client.get(folderId)) };
 }
 
 function isFolder(file: DriveFile): boolean {
