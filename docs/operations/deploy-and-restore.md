@@ -39,7 +39,7 @@ COMPOSE="docker compose -f infra/docker-compose.prod.yml --env-file .env.product
 $COMPOSE --profile tools run --rm migrate pnpm --filter @little-ants/db run seed
 ```
 
-The seed invites `sonnh273@gmail.com` with every HQ role (pass `-e SEED_ADMIN_EMAIL=...` to the seed run for another email). Create schools in Admin → **Schools**; school admins then add their teachers in **School staff**. From the command line: `$COMPOSE exec api node apps/api/dist/cli/invite-staff.js --email someone@example.com --school "School name" --school-role TEACHER` (or `--roles AUTHOR` for HQ staff).
+The seed invites `sonnh273@gmail.com` with every HQ role (pass `-e SEED_ADMIN_EMAIL=...` to the seed run for another email). Create schools in Admin → **Schools**; school admins then add their teachers in **Teachers** (same menu group). From the command line: `$COMPOSE exec api node apps/api/dist/cli/invite-staff.js --email someone@example.com --school "School name" --school-role TEACHER` (or `--roles AUTHOR` for HQ staff).
 
 8. **Import the curriculum** from the shared Google Drive folder. First set up [Google Drive access](#google-drive-access), then in Admin open **Drive sync** and press **Sync from Google Drive**. The `import-worker` service carries out the request; the page shows its progress and report.
 

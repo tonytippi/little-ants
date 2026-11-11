@@ -93,6 +93,8 @@ export const studentUpdate = studentBase.partial();
 export const moveStudentInput = z.object({ classId: id });
 
 export const teacherAssignmentInput = z.object({ userIds: z.array(id).max(50) });
+/** The active classes of the school one teacher teaches; the others' assignments there end. */
+export const staffClassesInput = z.object({ classIds: z.array(id).max(200) });
 
 export const staffInviteInput = z.object({
   email,

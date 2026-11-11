@@ -176,6 +176,44 @@ describe('schools, campuses, classes and children', () => {
       .expect(404);
   });
 
+  it("sets a teacher's classes at the school from the teacher's side", async () => {
+    const url = `/api/schools/${schoolId}/staff/${otherTeacher.id}/classes`;
+    const teachersOf = async () =>
+      (await ctx.prisma.teacherAssignment.findMany({ where: { classId } })).map((row) => row.userId).sort();
+
+    await request(server())
+      .put(url)
+      .set(as(schoolAdmin))
+      .send({ classIds: [classId] })
+      .expect(200);
+    expect(await teachersOf()).toEqual([teacher.id, otherTeacher.id].sort());
+
+    await request(server()).put(url).set(as(schoolAdmin)).send({ classIds: [] }).expect(200);
+    expect(await teachersOf()).toEqual([teacher.id]);
+
+    // Only active classes of this school, only people who work there, only school admins.
+    const foreignCampus = await ctx.prisma.campus.create({ data: { schoolId: otherSchoolId, name: 'Far' } });
+    const level = await ctx.prisma.level.findFirstOrThrow({ where: { number: 2 } });
+    const foreign = await ctx.prisma.class.create({
+      data: { campusId: foreignCampus.id, levelId: level.id, name: 'Far class', schoolYear: '2026-2027' },
+    });
+    await request(server())
+      .put(url)
+      .set(as(schoolAdmin))
+      .send({ classIds: [foreign.id] })
+      .expect(400);
+    await request(server())
+      .put(`/api/schools/${schoolId}/staff/${otherSchoolAdmin.id}/classes`)
+      .set(as(schoolAdmin))
+      .send({ classIds: [classId] })
+      .expect(404);
+    await request(server())
+      .put(url)
+      .set(as(teacher))
+      .send({ classIds: [classId] })
+      .expect(403);
+  });
+
   it('changes only the fields a PATCH sends', async () => {
     await ctx.prisma.class.update({ where: { id: classId }, data: { lessonDays: [2, 4] } });
     await request(server())

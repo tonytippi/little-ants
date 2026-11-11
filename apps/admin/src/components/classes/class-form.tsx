@@ -5,7 +5,7 @@ import { schoolYearOf } from '@little-ants/shared';
 import { Button } from '@little-ants/ui/button';
 import { Field, Select, TextInput } from '@little-ants/ui/field';
 import { fieldErrors } from '../../lib/hooks';
-import type { Campus, ClassDetail, LevelOption } from '../../lib/types';
+import type { Campus, LevelOption } from '../../lib/types';
 import { FormError } from '../form-error';
 
 /** Fields a class keeps changing: unit changes, merges and stops have their own actions. */
@@ -39,7 +39,7 @@ type ClassFormProps = CommonProps &
         levels: LevelOption[];
         onSubmit: (values: ClassCreateValues) => void;
       }
-    | { mode: 'edit'; initial: ClassDetail; onSubmit: (values: ClassEditValues) => void }
+    | { mode: 'edit'; initial: ClassEditValues; onSubmit: (values: ClassEditValues) => void }
   );
 
 export function ClassForm(props: ClassFormProps) {

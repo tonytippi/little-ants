@@ -173,7 +173,7 @@ function SchoolSection({ name, data }: { name: string; data: SchoolPart }) {
           icon="parents"
           href="/parents"
         />
-        <StatTile label="Staff" value={totals.staff} icon="schoolStaff" href="/school-staff" />
+        <StatTile label="Staff" value={totals.staff} icon="schoolStaff" href="/teachers" />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[2fr_1fr]">
@@ -219,7 +219,11 @@ function AttentionCard({ attention }: { attention: SchoolPart['attention'] }) {
   const items = [
     { count: attention.noConsent, text: 'children without a consent date', href: '/students' },
     { count: attention.noParent, text: 'children without a parent email', href: '/students' },
-    { count: attention.classesWithoutTeacher, text: 'classes without a teacher', href: '/classes' },
+    {
+      count: attention.classesWithoutTeacher,
+      text: 'classes without a teacher',
+      href: '/classes?teacher=none',
+    },
     { count: attention.classesWithoutUnit, text: 'classes without a unit started', href: '/classes' },
   ].filter((item) => item.count > 0);
 

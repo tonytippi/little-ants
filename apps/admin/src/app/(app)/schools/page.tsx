@@ -6,10 +6,10 @@ import { useState } from 'react';
 import { Badge } from '@little-ants/ui/badge';
 import { Button } from '@little-ants/ui/button';
 import { EmptyState, ErrorNotice, Spinner } from '@little-ants/ui/feedback';
-import { Field, TextInput } from '@little-ants/ui/field';
+import { Field, Select, TextInput } from '@little-ants/ui/field';
 import { AdminOnly } from '../../../components/admin-only';
 import { ConfirmDialog } from '../../../components/confirm-dialog';
-import { DataTable, type Column } from '../../../components/data-table';
+import { DataTable, ListCount, Toolbar, type Column } from '../../../components/data-table';
 import { FormDialog } from '../../../components/form-dialog';
 import { PageHeader } from '../../../components/page-header';
 import { RowMenu } from '../../../components/row-menu';
@@ -29,7 +29,7 @@ export default function SchoolsPage() {
 const COLUMNS: Column<School>[] = [
   { header: 'School', cell: (school) => <span className="font-semibold text-bark-900">{school.name}</span> },
   { header: 'Campuses', cell: (school) => school._count.campuses },
-  { header: 'Staff', cell: (school) => school._count.staff },
+  { header: 'Teachers & admins', cell: (school) => school._count.staff },
   {
     header: 'Status',
     cell: (school) =>
@@ -38,28 +38,68 @@ const COLUMNS: Column<School>[] = [
   { header: 'Added', cell: (school) => <span className="text-xs">{formatDate(school.createdAt)}</span> },
 ];
 
+type Status = 'active' | 'inactive' | 'all';
+
 function Schools() {
   const query = useQuery({ queryKey: SCHOOLS_KEY, queryFn: () => api.get<School[]>('/schools') });
   const [adding, setAdding] = useState(false);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<Status>('active');
+  const all = query.data ?? [];
+  const term = search.trim().toLowerCase();
+  const shown = all.filter(
+    (school) =>
+      (!term || school.name.toLowerCase().includes(term)) &&
+      (status === 'all' || (status === 'active') === school.active),
+  );
+
   return (
     <div>
       <PageHeader title="Schools" actions={<Button onClick={() => setAdding(true)}>+ Add school</Button>}>
-        Partner schools using Little Ants. Each school runs its own campuses, classes and staff.
+        Partner schools using Little Ants. Each school runs its own campuses, classes and teachers; open them
+        from a school&apos;s ⋯ menu.
       </PageHeader>
       {query.isPending ? <Spinner label="Loading schools" /> : null}
       {query.error ? <ErrorNotice error={query.error} /> : null}
       {query.data ? (
-        <DataTable
-          label="Schools"
-          columns={COLUMNS}
-          rows={query.data}
-          rowKey={(school) => school.id}
-          muted={(school) => !school.active}
-          empty={
-            <EmptyState title="No schools yet">Add the first partner school with “+ Add school”.</EmptyState>
-          }
-          actions={(school) => <SchoolActions school={school} />}
-        />
+        <>
+          <Toolbar>
+            <TextInput
+              type="search"
+              aria-label="Search schools"
+              placeholder="Search by name"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <Select
+              aria-label="Status"
+              value={status}
+              onChange={(event) => setStatus(event.target.value as Status)}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="all">All schools</option>
+            </Select>
+          </Toolbar>
+          <ListCount shown={shown.length} total={all.length} noun="schools" />
+          <DataTable
+            label="Schools"
+            columns={COLUMNS}
+            rows={shown}
+            rowKey={(school) => school.id}
+            muted={(school) => !school.active}
+            empty={
+              all.length === 0 ? (
+                <EmptyState title="No schools yet">
+                  Add the first partner school with “+ Add school”.
+                </EmptyState>
+              ) : (
+                'No school matches these filters'
+              )
+            }
+            actions={(school) => <SchoolActions school={school} />}
+          />
+        </>
       ) : null}
       {adding ? <SchoolDialog onClose={() => setAdding(false)} /> : null}
     </div>
@@ -86,8 +126,9 @@ function SchoolActions({ school }: { school: School }) {
         label={`Actions for ${school.name}`}
         actions={[
           { label: 'Edit', onSelect: () => setOpen('edit') },
-          { label: 'Open classes', onSelect: () => openPage('/classes') },
-          { label: 'Open school staff', onSelect: () => openPage('/school-staff') },
+          { label: 'Campuses', onSelect: () => openPage('/campuses') },
+          { label: 'Classes', onSelect: () => openPage('/classes') },
+          { label: 'Teachers', onSelect: () => openPage('/teachers') },
           { label: 'Activate', onSelect: () => toggle.mutate(true), hidden: school.active },
           {
             label: 'Deactivate',
@@ -139,7 +180,7 @@ function SchoolDialog({ school, onClose }: { school?: School; onClose: () => voi
     >
       <Field
         label="School name"
-        hint={school ? undefined : 'Next, add its campuses and its school admin on the School staff page.'}
+        hint={school ? undefined : 'Next, add its campuses, and its school admin on the Teachers page.'}
         error={errors.name}
       >
         {(id, describedBy) => (

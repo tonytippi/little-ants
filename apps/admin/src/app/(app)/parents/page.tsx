@@ -15,6 +15,7 @@ import { NavIcon } from '../../../components/nav-icons';
 import { PageHeader } from '../../../components/page-header';
 import { RowMenu } from '../../../components/row-menu';
 import { SchoolPage } from '../../../components/school-only';
+import { SchoolSelect } from '../../../components/school-select';
 import { api } from '../../../lib/api';
 import { fieldErrors, formatDate, formatDay, useApiMutation } from '../../../lib/hooks';
 import { orgKeys, useSchoolStudents } from '../../../lib/org';
@@ -155,6 +156,7 @@ function ParentFilters({
 
   return (
     <Toolbar>
+      <SchoolSelect />
       <TextInput
         type="search"
         aria-label="Search parents"

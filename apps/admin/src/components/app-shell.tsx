@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePermissions } from '../lib/hooks';
-import { useCurrentSchool } from '../lib/school';
 import { useMe, useSignOut } from '../lib/session';
 import { NavIcon, type NavIconName } from './nav-icons';
 
@@ -17,7 +16,7 @@ interface NavItem {
   access: Access;
 }
 
-/** The menu in three groups: lesson content, schools with their campuses, classes, children and parents, and staff. */
+/** The menu in three groups: lesson content, schools with everything a school runs, and HQ. */
 const NAV: { label: string; items: NavItem[] }[] = [
   // The home page, above the groups and without a heading.
   { label: '', items: [{ href: '/', label: 'Dashboard', icon: 'dashboard', access: 'any' }] },
@@ -35,16 +34,14 @@ const NAV: { label: string; items: NavItem[] }[] = [
       { href: '/schools', label: 'Schools', icon: 'schools', access: 'hqAdmin' },
       { href: '/campuses', label: 'Campuses', icon: 'campuses', access: 'school' },
       { href: '/classes', label: 'Classes', icon: 'classes', access: 'school' },
+      { href: '/teachers', label: 'Teachers', icon: 'schoolStaff', access: 'school' },
       { href: '/students', label: 'Students', icon: 'students', access: 'school' },
       { href: '/parents', label: 'Parents', icon: 'parents', access: 'school' },
     ],
   },
   {
-    label: 'Staff',
-    items: [
-      { href: '/school-staff', label: 'School staff', icon: 'schoolStaff', access: 'school' },
-      { href: '/staff', label: 'HQ staff', icon: 'hqStaff', access: 'hqAdmin' },
-    ],
+    label: 'HQ',
+    items: [{ href: '/staff', label: 'HQ staff', icon: 'hqStaff', access: 'hqAdmin' }],
   },
 ];
 
@@ -81,42 +78,6 @@ function Brand() {
         <span className="block text-lg font-extrabold text-leaf-700">Admin</span>
       </span>
     </Link>
-  );
-}
-
-/** The school the school pages (classes, parents, school staff) work on. */
-function SchoolSwitcher() {
-  const { schools, school, setSchoolId } = useCurrentSchool();
-  if (!school) return null;
-  return (
-    <div className="mx-3 rounded-xl border border-cream-200 bg-cream-50 px-3 py-2">
-      <label
-        htmlFor="current-school"
-        className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-bark-500"
-      >
-        <NavIcon name="schools" className="size-3.5" />
-        Current school
-      </label>
-      {schools.length > 1 ? (
-        <select
-          id="current-school"
-          value={school.id}
-          onChange={(event) => setSchoolId(event.target.value)}
-          className="mt-1 w-full cursor-pointer rounded-md bg-transparent py-0.5 text-sm font-bold text-bark-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-leaf-100"
-        >
-          {schools.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-              {item.active ? '' : ' (inactive)'}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <p id="current-school" className="mt-1 truncate text-sm font-bold text-bark-900">
-          {school.name}
-        </p>
-      )}
-    </div>
   );
 }
 
@@ -227,14 +188,12 @@ function UserCard() {
 
 /** Brand, school, menu and the signed-in person: the desktop sidebar and the mobile drawer. */
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { runsSchools } = usePermissions();
   return (
     <div className="flex h-full flex-col">
       <div className="px-5 pt-5 pb-4">
         <Brand />
       </div>
-      {runsSchools ? <SchoolSwitcher /> : null}
-      <div className="mt-4 min-h-0 flex-1 overflow-y-auto pb-4">
+      <div className="mt-2 min-h-0 flex-1 overflow-y-auto pb-4">
         <NavLinks onNavigate={onNavigate} />
       </div>
       <UserCard />

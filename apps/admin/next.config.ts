@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   // Standalone output keeps the monorepo layout (apps/<app>/server.js) so workspace packages are traced.
   outputFileTracingRoot: path.join(import.meta.dirname, '../..'),
   transpilePackages: ['@little-ants/ui'],
+  // School staff became the Teachers page.
+  async redirects() {
+    return [{ source: '/school-staff', destination: '/teachers', permanent: true }];
+  },
 };
 
 export default nextConfig;

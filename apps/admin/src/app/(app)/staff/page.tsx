@@ -98,7 +98,7 @@ function Staff() {
     <div>
       <PageHeader title="HQ staff" actions={<Button onClick={() => setInviting(true)}>+ Invite</Button>}>
         Little Ants HQ staff sign in with Google. Invite their email first; their roles come from the invite.
-        Teachers and school admins are added per school on the School staff page.
+        Teachers and school admins are added per school on the Teachers page.
       </PageHeader>
       {query.isPending ? <Spinner label="Loading staff" /> : null}
       {query.error ? <ErrorNotice error={query.error} /> : null}

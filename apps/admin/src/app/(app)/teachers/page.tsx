@@ -6,16 +6,17 @@ import { SCHOOL_ROLES } from '@little-ants/shared';
 import { Badge } from '@little-ants/ui/badge';
 import { Button } from '@little-ants/ui/button';
 import { EmptyState, ErrorNotice, Spinner } from '@little-ants/ui/feedback';
-import { Field, TextInput } from '@little-ants/ui/field';
+import { Field, Select, TextInput } from '@little-ants/ui/field';
 import { ConfirmDialog } from '../../../components/confirm-dialog';
-import { DataTable, type Column } from '../../../components/data-table';
+import { DataTable, ListCount, Toolbar, type Column } from '../../../components/data-table';
 import { FormDialog } from '../../../components/form-dialog';
 import { PageHeader } from '../../../components/page-header';
 import { RowMenu } from '../../../components/row-menu';
 import { SchoolPage } from '../../../components/school-only';
+import { SchoolSelect } from '../../../components/school-select';
 import { api } from '../../../lib/api';
 import { fieldErrors, formatDate, useApiMutation } from '../../../lib/hooks';
-import { orgKeys, useSchoolStaff } from '../../../lib/org';
+import { orgKeys, useSchoolClasses, useSchoolStaff } from '../../../lib/org';
 import { SCHOOLS_KEY } from '../../../lib/school';
 import { useMe } from '../../../lib/session';
 import type { School, SchoolInvite, SchoolRole, SchoolStaffMember } from '../../../lib/types';
@@ -34,14 +35,37 @@ function staffKeys(schoolId: string) {
   return [orgKeys.schoolStaff(schoolId), orgKeys.allClasses, orgKeys.allClassDetails, SCHOOLS_KEY];
 }
 
-export default function SchoolStaffPage() {
-  return <SchoolPage>{(school) => <SchoolStaffView key={school.id} school={school} />}</SchoolPage>;
+export default function TeachersPage() {
+  return <SchoolPage>{(school) => <TeachersView key={school.id} school={school} />}</SchoolPage>;
 }
 
-function SchoolStaffView({ school }: { school: School }) {
+/** "Teaches no class" in the class filter. */
+const NO_CLASS = 'none';
+
+function TeachersView({ school }: { school: School }) {
   const staff = useSchoolStaff(school.id);
   const me = useMe();
   const [adding, setAdding] = useState(false);
+  const [search, setSearch] = useState('');
+  const [role, setRole] = useState<SchoolRole | ''>('');
+  const [classId, setClassId] = useState('');
+
+  const all = staff.data?.members ?? [];
+  const classes = [
+    ...new Map(
+      all.flatMap(({ user }) => user.assignments.map((item) => [item.class.id, item.class])),
+    ).values(),
+  ].sort((a, b) => a.name.localeCompare(b.name));
+  const term = search.trim().toLowerCase();
+  const shown = all.filter(
+    ({ user, ...member }) =>
+      (!term || `${user.name} ${user.email}`.toLowerCase().includes(term)) &&
+      (!role || member.role === role) &&
+      (!classId ||
+        (classId === NO_CLASS
+          ? user.assignments.length === 0
+          : user.assignments.some((item) => item.class.id === classId))),
+  );
 
   const memberColumns: Column<SchoolStaffMember>[] = [
     {
@@ -95,37 +119,79 @@ function SchoolStaffView({ school }: { school: School }) {
     <div>
       <PageHeader
         eyebrow={school.name}
-        title="School staff"
-        actions={<Button onClick={() => setAdding(true)}>+ Add staff</Button>}
+        title="Teachers"
+        actions={<Button onClick={() => setAdding(true)}>+ Add teacher</Button>}
       >
         Teachers and school admins of this school sign in with Google. Add their email; someone without an
-        account gets an invite.
+        account gets an invite. Choose the classes each one teaches from their ⋯ menu.
       </PageHeader>
-      {staff.isPending ? <Spinner label="Loading school staff" /> : null}
+      {staff.isPending ? <Spinner label="Loading teachers" /> : null}
       {staff.error ? <ErrorNotice error={staff.error} /> : null}
       {staff.data ? (
         <div className="flex flex-col gap-8">
-          <DataTable
-            label="School staff"
-            columns={memberColumns}
-            rows={staff.data.members}
-            rowKey={(member) => member.user.id}
-            muted={(member) => !member.user.active}
-            empty={<EmptyState title="No staff yet">Add the first teacher with “+ Add staff”.</EmptyState>}
-            actions={(member) => <MemberActions schoolId={school.id} member={member} />}
-          />
-          <section>
-            <h2 className="mb-3 font-bold">Waiting for first sign-in</h2>
+          <div>
+            <Toolbar>
+              <SchoolSelect />
+              <TextInput
+                type="search"
+                aria-label="Search teachers"
+                placeholder="Search name or email"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <Select
+                aria-label="Role"
+                value={role}
+                onChange={(event) => setRole(event.target.value as SchoolRole | '')}
+              >
+                <option value="">Any role</option>
+                {SCHOOL_ROLES.map((item) => (
+                  <option key={item} value={item}>
+                    {ROLE_LABEL[item]}
+                  </option>
+                ))}
+              </Select>
+              <Select aria-label="Class" value={classId} onChange={(event) => setClassId(event.target.value)}>
+                <option value="">Any class</option>
+                <option value={NO_CLASS}>Teaches no class</option>
+                {classes.map((klass) => (
+                  <option key={klass.id} value={klass.id}>
+                    {klass.name}
+                  </option>
+                ))}
+              </Select>
+            </Toolbar>
+            <ListCount shown={shown.length} total={all.length} noun="people" />
             <DataTable
-              label="Open invites"
-              columns={inviteColumns}
-              rows={staff.data.invites}
-              rowKey={(invite) => invite.id}
-              minWidth="32rem"
-              empty="No open invites"
-              actions={(invite) => <InviteActions schoolId={school.id} invite={invite} />}
+              label="Teachers"
+              columns={memberColumns}
+              rows={shown}
+              rowKey={(member) => member.user.id}
+              muted={(member) => !member.user.active}
+              empty={
+                all.length === 0 ? (
+                  <EmptyState title="No teachers yet">Add the first teacher with “+ Add teacher”.</EmptyState>
+                ) : (
+                  'Nobody matches these filters'
+                )
+              }
+              actions={(member) => <MemberActions schoolId={school.id} member={member} />}
             />
-          </section>
+          </div>
+          {staff.data.invites.length ? (
+            <section>
+              <h2 className="mb-3 font-bold">Waiting for first sign-in</h2>
+              <DataTable
+                label="Open invites"
+                columns={inviteColumns}
+                rows={staff.data.invites}
+                rowKey={(invite) => invite.id}
+                minWidth="32rem"
+                empty="No open invites"
+                actions={(invite) => <InviteActions schoolId={school.id} invite={invite} />}
+              />
+            </section>
+          ) : null}
         </div>
       ) : null}
       {adding ? <AddStaffDialog schoolId={school.id} onClose={() => setAdding(false)} /> : null}
@@ -158,7 +224,7 @@ function RoleChoice({ value, onChange }: { value: SchoolRole; onChange: (role: S
 
 function MemberActions({ schoolId, member }: { schoolId: string; member: SchoolStaffMember }) {
   const { user } = member;
-  const [open, setOpen] = useState<'role' | 'remove' | null>(null);
+  const [open, setOpen] = useState<'role' | 'classes' | 'remove' | null>(null);
   const [role, setRole] = useState(member.role);
   const update = useApiMutation(
     () => api.patch(`/schools/${schoolId}/staff/${user.id}`, { role }),
@@ -179,9 +245,11 @@ function MemberActions({ schoolId, member }: { schoolId: string; member: SchoolS
               setOpen('role');
             },
           },
+          { label: 'Classes they teach', onSelect: () => setOpen('classes') },
           { label: 'Remove from school', onSelect: () => setOpen('remove'), danger: true },
         ]}
       />
+      {open === 'classes' ? <ClassesDialog schoolId={schoolId} member={member} onClose={close} /> : null}
       <FormDialog
         open={open === 'role'}
         title={`Role of ${user.name}`}
@@ -207,6 +275,72 @@ function MemberActions({ schoolId, member }: { schoolId: string; member: SchoolS
         <p>They stop teaching this school&apos;s classes and lose access to it. Their account stays.</p>
       </ConfirmDialog>
     </>
+  );
+}
+
+/** The active classes of the school this person teaches, ticked in one list. */
+function ClassesDialog({
+  schoolId,
+  member,
+  onClose,
+}: {
+  schoolId: string;
+  member: SchoolStaffMember;
+  onClose: () => void;
+}) {
+  const { user } = member;
+  const assigned = user.assignments.map((item) => item.class.id);
+  const classes = useSchoolClasses(schoolId, 'ACTIVE');
+  const [chosen, setChosen] = useState(assigned);
+  const save = useApiMutation(
+    () => api.put(`/schools/${schoolId}/staff/${user.id}/classes`, { classIds: chosen }),
+    staffKeys(schoolId),
+  );
+  const unchanged = chosen.slice().sort().join() === assigned.slice().sort().join();
+
+  return (
+    <FormDialog
+      open
+      title={`Classes of ${user.name}`}
+      submitLabel="Save classes"
+      busy={save.isPending}
+      error={save.error}
+      disabled={unchanged}
+      onClose={onClose}
+      onSubmit={() => save.mutate(undefined, { onSuccess: onClose })}
+    >
+      {classes.isPending ? <Spinner label="Loading classes" /> : null}
+      {classes.error ? <ErrorNotice error={classes.error} /> : null}
+      {classes.data && classes.data.length === 0 ? (
+        <EmptyState title="No active classes yet">
+          Create classes on the{' '}
+          <Link href="/classes" className="font-semibold text-leaf-700 hover:underline">
+            Classes
+          </Link>{' '}
+          page first.
+        </EmptyState>
+      ) : null}
+      <fieldset className="flex flex-col gap-2">
+        <legend className="sr-only">Classes {user.name} teaches</legend>
+        {classes.data?.map((klass) => (
+          <label key={klass.id} className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={chosen.includes(klass.id)}
+              onChange={(event) =>
+                setChosen((current) =>
+                  event.target.checked ? [...current, klass.id] : current.filter((item) => item !== klass.id),
+                )
+              }
+            />
+            <span className="font-semibold">{klass.name}</span>
+            <span className="text-xs text-bark-500">
+              {klass.campus.name} · Level {klass.level.number} · {klass.schoolYear}
+            </span>
+          </label>
+        ))}
+      </fieldset>
+    </FormDialog>
   );
 }
 
@@ -254,7 +388,7 @@ function AddStaffDialog({ schoolId, onClose }: { schoolId: string; onClose: () =
   return (
     <FormDialog
       open
-      title="Add staff"
+      title="Add a teacher or school admin"
       submitLabel="Add to school"
       busy={add.isPending}
       error={add.error}

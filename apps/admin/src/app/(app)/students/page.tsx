@@ -10,6 +10,7 @@ import { END_REASON } from '../../../components/classes/children-card';
 import { DataTable, ListCount, Toolbar, type Column } from '../../../components/data-table';
 import { PageHeader } from '../../../components/page-header';
 import { SchoolPage } from '../../../components/school-only';
+import { SchoolSelect } from '../../../components/school-select';
 import { StudentActions } from '../../../components/students/student-actions';
 import { AddChildDialog } from '../../../components/students/student-dialogs';
 import { formatDay } from '../../../lib/hooks';
@@ -105,6 +106,7 @@ function Students({ school }: { school: School }) {
       {students.data ? (
         <>
           <Toolbar>
+            <SchoolSelect />
             <TextInput
               type="search"
               aria-label="Search children"

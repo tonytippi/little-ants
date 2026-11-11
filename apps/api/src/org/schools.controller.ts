@@ -9,8 +9,15 @@ import {
   Param,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
-import { schoolInput, schoolStaffInput, schoolStaffUpdate, schoolUpdate } from '@little-ants/shared';
+import {
+  schoolInput,
+  schoolStaffInput,
+  schoolStaffUpdate,
+  schoolUpdate,
+  staffClassesInput,
+} from '@little-ants/shared';
 import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators.js';
 import { hasRole, schoolRole, type StaffUser } from '../auth/staff-access.js';
@@ -141,6 +148,38 @@ export class SchoolsController {
     });
     await audit(this.db, user.id, 'school-staff-role', userId, { schoolId, role: body.role });
     return member;
+  }
+
+  /** The active classes of this school someone teaches; ended classes keep their teachers. */
+  @Put(':schoolId/staff/:userId/classes')
+  async setStaffClasses(
+    @CurrentUser() user: StaffUser,
+    @Param('schoolId') schoolId: string,
+    @Param('userId') userId: string,
+    @Body(new ZodBody(staffClassesInput)) body: z.infer<typeof staffClassesInput>,
+  ) {
+    requireSchool(user, schoolId, true);
+    const member = await this.db.schoolStaff.findUnique({ where: { userId_schoolId: { userId, schoolId } } });
+    if (!member) throw new NotFoundException('This person does not work at this school');
+    const classIds = [...new Set(body.classIds)];
+    const active = { campus: { schoolId }, status: 'ACTIVE' as const };
+    const found = await this.db.class.count({ where: { id: { in: classIds }, ...active } });
+    if (found !== classIds.length)
+      throw new BadRequestException('Classes must be active classes of this school');
+    await this.db.$transaction([
+      this.db.teacherAssignment.deleteMany({
+        where: { userId, classId: { notIn: classIds }, class: active },
+      }),
+      ...classIds.map((classId) =>
+        this.db.teacherAssignment.upsert({
+          where: { userId_classId: { userId, classId } },
+          update: {},
+          create: { userId, classId },
+        }),
+      ),
+    ]);
+    await audit(this.db, user.id, 'school-staff-classes', userId, { schoolId, classIds });
+    return { classIds };
   }
 
   /** Remove someone from the school, with their class assignments there. */
