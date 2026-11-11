@@ -64,7 +64,7 @@ export class ContentService {
       await this.urls.publish(
         await this.db.asset.findMany({
           where: { id: { in: ids }, status: from },
-          select: { storageKey: true },
+          select: { storageKey: true, mimeType: true },
         }),
       );
     }

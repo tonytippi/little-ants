@@ -6,7 +6,7 @@ set -eu
 : "${S3_ENDPOINT:?S3_ENDPOINT is required}"
 : "${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}"
 : "${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}"
-: "${BACKUP_BUCKET:=${S3_BUCKET:?S3_BUCKET or BACKUP_BUCKET is required}}"
+: "${BACKUP_BUCKET:?BACKUP_BUCKET is required}"
 : "${DATABASE_URL:?DATABASE_URL is required}"
 
 export RCLONE_CONFIG_R2_TYPE=s3

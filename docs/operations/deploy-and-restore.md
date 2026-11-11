@@ -1,6 +1,6 @@
 # Deploy and restore (pilot)
 
-One VPS runs everything with Docker Compose. Cloudflare Tunnel is the only way in; media comes straight from R2.
+One VPS runs everything with Docker Compose. Cloudflare Tunnel is the only way in. Every file, drafts included, is kept on the VPS in `infra/storage/`; only approved files go to R2, which serves them to users.
 
 ```
 Browser ─► Cloudflare ─► Tunnel (cloudflared) ─► 127.0.0.1:9200-9202, 9204 ─► admin · teacher · api · student · postgres · backup
@@ -13,13 +13,14 @@ Files: [`infra/docker-compose.prod.yml`](../../infra/docker-compose.prod.yml), [
 
 1. **VPS**: Docker with the compose plugin (2 vCPU / 4 GB RAM is enough). Clone the repository.
 2. **R2**:
-   - Create three buckets:
-     - a private files bucket (e.g. `little-ants-files`) for every upload, drafts included. It has no public access.
-     - a public media bucket (e.g. `little-ants-media`). Approved files are copied here when a reviewer approves them.
-     - a backups bucket (e.g. `little-ants-backups`).
-   - Connect a custom domain `media.littleantsenglish.com` to the **media** bucket only. Published units store full media URLs, so after changing this domain republish every unit. Never make the files bucket public: drafts must stay private.
-   - Apply `infra/r2-cors.json` to both the files and the media bucket (change the origins to your domains). Admin uploads to the files bucket directly, the Teacher app downloads from both, and the Student app downloads a unit's media for offline listening.
-   - Create an R2 API token with read/write on all three buckets.
+   - Create two buckets:
+     - a public media bucket (e.g. `little-ants-media`). The API uploads a file here when a reviewer approves it; nothing else is ever stored in it.
+     - a private backups bucket (e.g. `little-ants-backups`) for the database dumps.
+   - Connect a custom domain `media.littleantsenglish.com` to the **media** bucket only. Published units store full media URLs, so after changing this domain republish every unit.
+   - Apply `infra/r2-cors.json` to the media bucket (change the origins to your domains). The Admin and Teacher apps show its files, and the Student app downloads a unit's media for offline listening.
+   - Create an R2 API token with read/write on both buckets.
+
+   Drafts and Admin uploads stay on the VPS in `infra/storage/` and are served by the API through signed links (uploads go through the tunnel, hence the 95 MB file limit). That folder is not backed up: imported files come back with the next sync from Drive, and approved files are also in R2. A draft uploaded in Admin is lost if the VPS disk is lost; its database row is in the backups.
 3. **Google sign-in**: create an OAuth web client. Authorised redirect URIs: `https://api.littleantsenglish.com/api/auth/callback/google` (staff) and `https://api.littleantsenglish.com/api/parent/auth/google/callback` (parents in the student app).
 4. **Tunnel**: in Zero Trust → Networks → Tunnels, add public hostnames to the tunnel whose `cloudflared` runs on this server:
    - `admin.littleantsenglish.com` → `http://localhost:9200`
@@ -53,7 +54,7 @@ $COMPOSE exec api node apps/api/dist/cli/seed-test.js
 While the curriculum is being finished, the Excel, Word and PDF files on Drive are the source of truth:
 
 - Edit content in the Drive files. Each sync re-imports **all units with their files** and replaces unit content changed in Admin. Files uploaded in Admin stay; layouts, pictures and recordings that are no longer on Drive are removed from their materials and word cards.
-- Every sync backs up the database to `infra/backup/` first and writes `manifest.json` (every Drive file with its id and version) and the report to the private bucket under `sources/<time>/`. Drive is the source of truth and keeps the file history, so the files themselves are not copied; the manifest ties the data to the exact Drive versions.
+- Every sync backs up the database to `infra/backup/` first and writes `manifest.json` (every Drive file with its id and version) and the report to `infra/storage/sources/<time>/`. Drive is the source of truth and keeps the file history, so the files themselves are not copied; the manifest ties the data to the exact Drive versions.
 - Teachers keep the last published version until a unit is published again in Admin.
 - If a request stays "Waiting", the worker is not running: `$COMPOSE logs import-worker`, then `$COMPOSE up -d import-worker`.
 
@@ -73,7 +74,7 @@ Files are matched by name (the report lists every file it could not place, and w
 
 Pictures must be PNG or JPEG. When a picture exists both as a regular and a 4K copy (a folder name containing "4K"), the lighter regular copy is used.
 
-Every sync first updates the Drive mirror in `docs/Little Ants English/LA 3-6/` on the host (only changed files are downloaded) and imports from it, so the files can be read on the host. The import services run as the host user (`HOST_UID`/`HOST_GID`, default 1000) to keep the mirror, reports and backups editable there. Production media stay in R2 (`STORAGE_DRIVER=s3`); local storage is for development and testing only.
+Every sync first updates the Drive mirror in `docs/Little Ants English/LA 3-6/` on the host (only changed files are downloaded) and imports from it, so the files can be read on the host. The import services run as the host user (`HOST_UID`/`HOST_GID`, default 1000) to keep the mirror, reports and backups editable there. The imported files are stored in `infra/storage/` (a second copy, so the key of a file never changes even when Drive does). Production uses `STORAGE_DRIVER=s3`, which uploads approved files to R2; without it the API would serve approved files itself, which is for development and testing only. If `infra/storage/` is lost, the next sync stores the imported files again.
 
 The same importer can be run by hand (reports go to `infra/import-reports/`):
 
@@ -102,7 +103,7 @@ The script builds images tagged with the commit, uploads a database backup to R2
 
 ## Backups
 
-The `backup` service uploads a `pg_dump` to `<BACKUP_BUCKET>/backups/postgres/` every day at `BACKUP_HOUR_UTC` (default 19:00 UTC = 02:00 in Vietnam) and deletes backups older than `BACKUP_RETENTION_DAYS` (default 30). Media files are already in R2.
+The `backup` service uploads a `pg_dump` to `<BACKUP_BUCKET>/backups/postgres/` every day at `BACKUP_HOUR_UTC` (default 19:00 UTC = 02:00 in Vietnam) and deletes backups older than `BACKUP_RETENTION_DAYS` (default 30). Files are not backed up: imported ones come from Drive and approved ones are in R2.
 
 Manual backup: `$COMPOSE run --rm backup backup.sh manual`.
 

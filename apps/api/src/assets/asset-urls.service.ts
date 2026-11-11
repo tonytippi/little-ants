@@ -8,9 +8,9 @@ import { OBJECT_STORAGE } from '../storage/storage.tokens.js';
 export class AssetUrls {
   constructor(@Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage) {}
 
-  /** Copy approved files to the public media bucket (call before marking them APPROVED). */
-  async publish(assets: { storageKey: string }[]): Promise<void> {
-    for (const asset of assets) await this.storage.publish(asset.storageKey);
+  /** Upload approved files to the public media bucket (call before marking them APPROVED). */
+  async publish(assets: { storageKey: string; mimeType: string }[]): Promise<void> {
+    for (const asset of assets) await this.storage.publish(asset.storageKey, asset.mimeType);
   }
 
   viewUrl(asset: { storageKey: string; status: ContentStatus }): Promise<string> {

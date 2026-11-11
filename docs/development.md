@@ -92,8 +92,9 @@ pnpm dev
 | `STUDENT_APP_URL` | api | Student app origin; parent sign-in returns there (default `http://localhost:3003`) |
 | `SEED_TEST_PARENT_EMAILS` | seed-test | Testing: Google emails linked as parents of the test class's first children |
 | `AUTH_DEV_PASSWORD_LOGIN` | api | `true` enables email + password sign-in for invited staff. Refused in production |
-| `STORAGE_DRIVER` | api, importer | `local` (default for development and testing on this machine, files in `infra/storage/`) or `s3` |
-| `S3_*`, `MEDIA_PUBLIC_BASE_URL` | api, importer | R2 settings when `STORAGE_DRIVER=s3`: `S3_BUCKET` is private (all uploads), `S3_PUBLIC_BUCKET` holds approved copies behind the media domain. Production must use `s3` |
+| `STORAGE_DRIVER` | api, importer | `local` (default for development and testing on this machine) or `s3`. Both keep every file in `STORAGE_LOCAL_DIR` (default `infra/storage/`), served by the API through signed links; `s3` also uploads approved files to R2. Production must use `s3` |
+| `STORAGE_LOCAL_BASE_URL`, `STORAGE_SIGNING_SECRET` | api | The API's storage route (default `http://localhost:3001/api/storage`) and the secret that signs its links (required in production) |
+| `S3_*`, `MEDIA_PUBLIC_BASE_URL` | api, importer | R2 settings when `STORAGE_DRIVER=s3`: `S3_PUBLIC_BUCKET` holds approved files only, behind the media domain |
 | `NEXT_PUBLIC_API_URL` | admin, teacher, student | API URL baked into the browser bundle |
 | `NEXT_PUBLIC_STUDENT_APP_URL` | teacher | Student app link and QR code on the Home listening page |
 | `NEXT_PUBLIC_TEACHER_APP_URL` | admin | Used for "Preview in Teacher app" links |

@@ -40,7 +40,7 @@ export function sourceSummary(info: {
   if (newest) lines.push(`Newest change in the folder: ${newest}.`);
   if (info.archive)
     lines.push(
-      `Manifest: \`${info.archive}/manifest.json\` in the private bucket lists every file and its Drive version.`,
+      `Manifest: \`${info.archive}/manifest.json\` in private storage lists every file and its Drive version.`,
     );
   if (info.skipped.length) lines.push(`Skipped (no file to download): ${info.skipped.join(', ')}.`);
   return lines;

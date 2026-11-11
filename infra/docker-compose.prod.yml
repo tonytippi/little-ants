@@ -34,6 +34,9 @@ x-api-env: &api-env
   CORS_ORIGINS: https://${ADMIN_HOST:-admin.littleantsenglish.com},https://${TEACHER_HOST:-teacher.littleantsenglish.com},https://${STUDENT_HOST:-littleantsenglish.com}
   # Shares the session cookie between the admin, teacher and api hosts.
   AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.littleantsenglish.com}
+  # Every file (drafts included) lives in infra/storage on the host; R2 gets only approved files.
+  STORAGE_LOCAL_DIR: /repo/infra/storage
+  STORAGE_LOCAL_BASE_URL: https://${API_HOST:-api.littleantsenglish.com}/api/storage
 
 services:
   postgres:
@@ -74,13 +77,14 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
 
-  # Curriculum import from Google Drive (GOOGLE_DRIVE_FOLDER_ID): writes the database and uploads to R2.
+  # Curriculum import from Google Drive (GOOGLE_DRIVE_FOLDER_ID): writes the database and stores the files in infra/storage.
   # import-worker carries out "Sync from Google Drive" requests made in Admin (all units, overwriting Admin edits).
   # The import service runs the same importer by hand:
   #   docker compose ... --profile tools run --rm import                      (all units, with files)
   #   docker compose ... --profile tools run --rm import node tools/importer/dist/cli.js --drive --all --dry-run
   # Each sync first updates the Drive mirror in docs/Little Ants English/LA 3-6 (only changed files are downloaded)
-  # and imports from it. Database backups land in infra/backup/ and reports of manual runs in infra/import-reports/.
+  # and imports from it. Database backups land in infra/backup/ and reports of manual runs in infra/import-reports/;
+  # each sync's manifest and report go to infra/storage/sources/.
   # A service account key, if used, goes in infra/secrets/ (GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE=/repo/infra/secrets/<file>.json).
   # Both run as the host user (HOST_UID, default 1000), so the files they write stay editable on the host.
   import-worker:
@@ -101,6 +105,7 @@ services:
       - ./import-reports:/repo/plans/reports
       - '../docs/Little Ants English:/repo/docs/Little Ants English'
       - ./secrets:/repo/infra/secrets:ro
+      - ./storage:/repo/infra/storage
     depends_on:
       postgres: { condition: service_healthy }
     deploy:
@@ -124,6 +129,10 @@ services:
     <<: *app-env
     image: little-ants-api:${IMAGE_TAG:-latest}
     build: { <<: *build, target: api }
+    # Same user as the importer: both write infra/storage.
+    user: '${HOST_UID:-1000}:${HOST_GID:-1000}'
+    volumes:
+      - ./storage:/repo/infra/storage
     environment:
       <<: *api-env
       API_PORT: 3001

@@ -14,14 +14,15 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { MAX_ASSET_BYTES } from '@little-ants/shared';
-import { LocalStorage, type ObjectStorage } from '@little-ants/storage';
+import { LocalStorage, S3Storage, type ObjectStorage } from '@little-ants/storage';
 import { Public } from '../auth/decorators.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { OBJECT_STORAGE } from './storage.tokens.js';
 
 /**
- * Development-only file routes that stand in for R2 when STORAGE_DRIVER=local.
- * Upload and read URLs carry an HMAC signature from the API, like presigned S3 URLs.
+ * Routes for the files on the server's disk: uploads and private (draft) reads, whose URLs carry an HMAC signature
+ * from the API like presigned S3 URLs. With STORAGE_DRIVER=local they also serve approved files, which in
+ * production come from R2 behind the media domain instead.
  */
 @Public()
 @Controller('storage')
@@ -32,8 +33,9 @@ export class LocalStorageController {
   ) {}
 
   private local(): LocalStorage {
-    if (!(this.storage instanceof LocalStorage)) throw new NotFoundException();
-    return this.storage;
+    if (this.storage instanceof LocalStorage) return this.storage;
+    if (this.storage instanceof S3Storage) return this.storage.files;
+    throw new NotFoundException();
   }
 
   @Put('upload/{*key}')
@@ -79,7 +81,8 @@ export class LocalStorageController {
   /** Approved files only, like the public media domain in production. */
   @Get('public/{*key}')
   async publicFile(@Param('key') keyParts: string[], @Res() response: Response): Promise<void> {
-    const storage = this.local();
+    if (!(this.storage instanceof LocalStorage)) throw new NotFoundException();
+    const storage = this.storage;
     const key = keyParts.join('/');
     const asset = await this.prisma.client.asset.findUnique({
       where: { storageKey: key },

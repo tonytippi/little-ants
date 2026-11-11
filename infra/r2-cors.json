@@ -1,11 +1,5 @@
 [
   {
-    "AllowedOrigins": ["https://admin.littleantsenglish.com"],
-    "AllowedMethods": ["PUT"],
-    "AllowedHeaders": ["Content-Type", "Content-Length"],
-    "MaxAgeSeconds": 3600
-  },
-  {
     "AllowedOrigins": [
       "https://admin.littleantsenglish.com",
       "https://teacher.littleantsenglish.com",

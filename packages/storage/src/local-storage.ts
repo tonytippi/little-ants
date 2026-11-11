@@ -15,8 +15,9 @@ export interface LocalStorageOptions {
 export type LocalUrlAction = 'read' | 'upload';
 
 /**
- * Development storage on the local disk. URLs point at the API, which checks the signature
- * before serving or accepting a file, so local URLs behave like presigned S3 URLs.
+ * Files on the server's disk. URLs point at the API, which checks the signature before serving or accepting
+ * a file, so local URLs behave like presigned S3 URLs. In production it holds the private files behind
+ * S3Storage; on its own (development) it also serves approved files.
  */
 export class LocalStorage implements ObjectStorage {
   readonly driver = 'local' as const;
@@ -60,7 +61,7 @@ export class LocalStorage implements ObjectStorage {
   }
 
   /** The API's public route serves only approved assets, so nothing needs copying. */
-  async publish(_key: string): Promise<void> {}
+  async publish(_key: string, _contentType?: string): Promise<void> {}
 
   publicUrl(key: string): string {
     return `${this.options.baseUrl}/public/${encodeKey(key)}`;

@@ -265,7 +265,7 @@ export class AssetsController {
   ) {
     const assets = await this.db.asset.findMany({
       where: { id: { in: body.ids }, uploaded: true },
-      select: { id: true, status: true, storageKey: true },
+      select: { id: true, status: true, storageKey: true, mimeType: true },
     });
     const allowed = assets.filter((asset) => canChangeStatus(asset.status, body.status));
     if (allowed.length) this.assertStatusChange(user, allowed[0]!.status, body.status);

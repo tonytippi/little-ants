@@ -33,11 +33,13 @@ export async function importFileAsAsset(
   const body = await readFile(file);
   const checksum = createHash('sha256').update(body).digest('hex');
   const existing = await prisma.asset.findFirst({ where: { checksum, source: 'import' } });
-  if (existing?.uploaded) return { id: existing.id, created: false };
+  if (existing?.uploaded && (await storage.head(existing.storageKey)))
+    return { id: existing.id, created: false };
   if (existing) {
-    // An earlier run created the row but the upload failed: try the upload again.
+    // An earlier run created the row but the upload failed, or the server lost its copy: store it again.
     await storage.put(existing.storageKey, body, existing.mimeType);
-    await prisma.asset.update({ where: { id: existing.id }, data: { uploaded: true } });
+    if (!existing.uploaded)
+      await prisma.asset.update({ where: { id: existing.id }, data: { uploaded: true } });
     return { id: existing.id, created: false };
   }
 

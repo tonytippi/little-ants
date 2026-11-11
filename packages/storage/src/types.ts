@@ -4,7 +4,8 @@ export interface StoredObjectInfo {
 
 /**
  * Object storage for curriculum assets.
- * Production uses Cloudflare R2 (S3 API); development can use MinIO or a local folder.
+ * Files are kept on the server's disk; in production approved files are also uploaded to Cloudflare R2 (S3 API),
+ * which serves them to users. Development can use MinIO or the local folder alone.
  */
 export interface ObjectStorage {
   readonly driver: 'local' | 's3';
@@ -21,7 +22,7 @@ export interface ObjectStorage {
   /** Short-lived URL for private (not yet approved) files. */
   signedReadUrl(key: string, expiresInSeconds?: number): Promise<string>;
   /** Make an approved file reachable at publicUrl(key). Drafts stay private until then. */
-  publish(key: string): Promise<void>;
+  publish(key: string, contentType: string): Promise<void>;
   /** Cacheable URL for approved files served from the media domain. */
   publicUrl(key: string): string;
 }

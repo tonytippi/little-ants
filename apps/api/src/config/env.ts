@@ -83,7 +83,7 @@ const envSchema = z
         message: 'Google sign-in is required in production',
       });
     }
-    // Local storage serves uploaded files from the API's own origin; production uses R2.
+    // Local storage would serve approved files from the API's own origin; production serves them from R2.
     if (env.STORAGE_DRIVER !== 's3') {
       ctx.addIssue({ code: 'custom', path: ['STORAGE_DRIVER'], message: 'Must be s3 in production' });
     }

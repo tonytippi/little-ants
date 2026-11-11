@@ -205,7 +205,8 @@ export const ASSET_MIME_TYPES: Record<string, 'IMAGE' | 'AUDIO' | 'VIDEO' | 'PDF
   'application/pdf': 'PDF',
 };
 
-export const MAX_ASSET_BYTES = 200 * 1024 * 1024;
+/** Uploads go through Cloudflare Tunnel to the API, which accepts request bodies up to 100 MB. */
+export const MAX_ASSET_BYTES = 95 * 1024 * 1024;
 
 export const uploadRequest = z.object({
   fileName: text(200).min(1),
