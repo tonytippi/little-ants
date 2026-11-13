@@ -10,6 +10,7 @@ import { Field, Select, TextInput } from '@little-ants/ui/field';
 import { ConfirmDialog } from '../../../components/confirm-dialog';
 import { DataTable, ListCount, Toolbar, type Column } from '../../../components/data-table';
 import { FormDialog } from '../../../components/form-dialog';
+import { InviteEmailNotice } from '../../../components/invite-email-notice';
 import { PageHeader } from '../../../components/page-header';
 import { RowMenu } from '../../../components/row-menu';
 import { SchoolPage } from '../../../components/school-only';
@@ -374,11 +375,12 @@ function InviteActions({ schoolId, invite }: { schoolId: string; invite: SchoolI
   );
 }
 
-type AddResult = { member: { userId: string } } | { invite: { email: string } };
+type AddResult = { member: { userId: string } } | { invite: { email: string }; emailSent: boolean };
 
 function AddStaffDialog({ schoolId, onClose }: { schoolId: string; onClose: () => void }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<SchoolRole>('TEACHER');
+  const [emailFailed, setEmailFailed] = useState(false);
   const add = useApiMutation(
     () => api.post<AddResult>(`/schools/${schoolId}/staff`, { email, role }),
     [orgKeys.schoolStaff(schoolId), SCHOOLS_KEY],
@@ -393,11 +395,17 @@ function AddStaffDialog({ schoolId, onClose }: { schoolId: string; onClose: () =
       busy={add.isPending}
       error={add.error}
       onClose={onClose}
-      onSubmit={() => add.mutate(undefined, { onSuccess: onClose })}
+      onSubmit={() =>
+        add.mutate(undefined, {
+          onSuccess: (result) =>
+            'emailSent' in result && !result.emailSent ? setEmailFailed(true) : onClose(),
+        })
+      }
     >
+      {emailFailed ? <InviteEmailNotice /> : null}
       <Field
         label="Google email"
-        hint="Someone with an account joins at once; a new email gets an invite to sign in with Google."
+        hint="Someone with an account joins at once; a new email gets an invite email to sign in with Google."
         error={errors.email}
       >
         {(id, describedBy) => (

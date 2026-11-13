@@ -23,13 +23,19 @@ import { CurrentUser, Roles } from '../auth/decorators.js';
 import { hasRole, schoolRole, type StaffUser } from '../auth/staff-access.js';
 import { audit } from '../common/audit.js';
 import { ZodBody } from '../common/zod-body.js';
+import { loadEnv } from '../config/env.js';
+import { inviteEmail, schoolRoleLabel } from '../mail/invite-email.js';
+import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { requireSchool } from './school-access.js';
 
 /** Schools (HQ admins) and the people who work at each school (its school admins). */
 @Controller('schools')
 export class SchoolsController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+  ) {}
 
   private get db() {
     return this.prisma.client;
@@ -102,7 +108,7 @@ export class SchoolsController {
     return { members, invites };
   }
 
-  /** Add a teacher or school admin by email: an existing account joins at once, a new email is invited. */
+  /** Add a teacher or school admin by email: an existing account joins at once, a new email is invited and emailed. */
   @Post(':schoolId/staff')
   async addStaff(
     @CurrentUser() user: StaffUser,
@@ -129,7 +135,21 @@ export class SchoolsController {
       create: { email: body.email, schoolId, schoolRole: body.role, invitedById: user.id },
     });
     await audit(this.db, user.id, 'invite', body.email, { schoolId, role: body.role });
-    return { invite };
+    const school = await this.db.school.findUniqueOrThrow({
+      where: { id: schoolId },
+      select: { name: true },
+    });
+    const env = loadEnv();
+    const emailSent = await this.mail.send(
+      inviteEmail({
+        to: body.email,
+        invitedBy: user.name,
+        role: schoolRoleLabel(body.role, school.name),
+        // Teachers work in the Teacher app; school admins run the school from the admin app.
+        signInUrl: body.role === 'TEACHER' ? env.TEACHER_APP_URL : env.ADMIN_APP_URL,
+      }),
+    );
+    return { invite, emailSent };
   }
 
   @Patch(':schoolId/staff/:userId')

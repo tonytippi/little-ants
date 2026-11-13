@@ -5,6 +5,7 @@ import { ContentModule } from './content/content.module.js';
 import { PrismaExceptionFilter } from './common/prisma-exception.filter.js';
 import { HealthController } from './health/health.controller.js';
 import { ImportsModule } from './imports/imports.module.js';
+import { MailModule } from './mail/mail.module.js';
 import { OrgModule } from './org/org.module.js';
 import { ParentsModule } from './parents/parents.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -15,6 +16,7 @@ import { StorageModule } from './storage/storage.module.js';
   imports: [
     PrismaModule,
     StorageModule,
+    MailModule,
     AuthModule,
     OrgModule,
     ParentsModule,

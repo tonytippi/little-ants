@@ -31,6 +31,9 @@ x-api-env: &api-env
   <<: *server-env
   API_PUBLIC_URL: https://${API_HOST:-api.littleantsenglish.com}
   STUDENT_APP_URL: https://${STUDENT_HOST:-littleantsenglish.com}
+  # Invite emails link here.
+  ADMIN_APP_URL: https://${ADMIN_HOST:-admin.littleantsenglish.com}
+  TEACHER_APP_URL: https://${TEACHER_HOST:-teacher.littleantsenglish.com}
   CORS_ORIGINS: https://${ADMIN_HOST:-admin.littleantsenglish.com},https://${TEACHER_HOST:-teacher.littleantsenglish.com},https://${STUDENT_HOST:-littleantsenglish.com}
   # Shares the session cookie between the admin, teacher and api hosts.
   AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.littleantsenglish.com}

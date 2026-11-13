@@ -1,6 +1,8 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { StaffUser } from '../src/auth/staff-access.js';
+import { loadEnv } from '../src/config/env.js';
+import { MailService, type MailMessage } from '../src/mail/mail.service.js';
 import { OrgService } from '../src/org/org.service.js';
 import { TEST_USER_HEADER, createStaff, createTestApp, type TestApp } from './test-app.js';
 
@@ -20,9 +22,16 @@ describe('schools, campuses, classes and children', () => {
   const as = (user: StaffUser) => ({ [TEST_USER_HEADER]: user.id });
   const server = () => ctx.app.getHttpServer();
   const access = (id: string) => ctx.app.get(OrgService).studentAccess(id);
+  const sent: MailMessage[] = [];
+  const fakeMail = {
+    send: async (message: MailMessage) => {
+      sent.push(message);
+      return true;
+    },
+  };
 
   beforeAll(async () => {
-    ctx = await createTestApp({ headerAuth: true });
+    ctx = await createTestApp({ headerAuth: true, providers: [[MailService, fakeMail]] });
     admin = await createStaff(ctx.prisma, ['ADMIN'], 'HQ admin');
     const level = await ctx.prisma.level.findFirstOrThrow({ where: { number: 2 } });
     units = await Promise.all(
@@ -84,6 +93,11 @@ describe('schools, campuses, classes and children', () => {
       schoolId,
       schoolRole: 'TEACHER',
     });
+    // Only the new email is emailed, with a link to the Teacher app.
+    expect(invited.body.emailSent).toBe(true);
+    expect(sent.map((message) => message.to)).toEqual(['new.teacher@example.com']);
+    expect(sent[0]!.text).toContain(loadEnv().TEACHER_APP_URL);
+    expect(sent[0]!.html).toContain('Giáo viên trường Hoa Mai');
 
     const staff = await request(server())
       .get(`/api/schools/${schoolId}/staff`)
@@ -404,7 +418,11 @@ describe('schools, campuses, classes and children', () => {
       .post('/api/staff/invites')
       .set(as(admin))
       .send({ email: 'NEW@example.com', roles: ['AUTHOR'] })
-      .expect(201);
+      .expect(201)
+      .expect(({ body }) => expect(body.emailSent).toBe(true));
+    expect(sent.at(-1)).toMatchObject({ to: 'new@example.com' });
+    expect(sent.at(-1)!.text).toContain('Content author');
+    expect(sent.at(-1)!.text).toContain(loadEnv().ADMIN_APP_URL);
     const staff = await request(server()).get('/api/staff').set(as(admin)).expect(200);
     expect(staff.body.invites.map((invite: { email: string }) => invite.email)).toContain('new@example.com');
     await request(server()).get('/api/staff').set(as(schoolAdmin)).expect(403);

@@ -91,6 +91,9 @@ pnpm dev
 | `AUTH_COOKIE_DOMAIN` | api | e.g. `.littleantsenglish.com` so admin., teacher., the root (student) and api. share the staff and parent sessions |
 | `STUDENT_APP_URL` | api | Student app origin; parent sign-in returns there (default `http://localhost:3003`) |
 | `SEED_TEST_PARENT_EMAILS` | seed-test | Testing: Google emails linked as parents of the test class's first children |
+| `SMTP_USER`, `SMTP_PASSWORD` | api | Gmail account and Google app password that send invite emails (staff and school invites). Both empty: invites are saved and the admin app says the email was not sent |
+| `MAIL_FROM_NAME` | api | Sender name of invite emails (default `Little Ants English`) |
+| `ADMIN_APP_URL`, `TEACHER_APP_URL` | api | Sign-in links in invite emails: HQ staff and school admins get the admin app, teachers the Teacher app (defaults `http://localhost:3000` / `http://localhost:3002`) |
 | `AUTH_DEV_PASSWORD_LOGIN` | api | `true` enables email + password sign-in for invited staff. Refused in production |
 | `STORAGE_DRIVER` | api, importer | `local` (default for development and testing on this machine) or `s3`. Both keep every file in `STORAGE_LOCAL_DIR` (default `infra/storage/`), served by the API through signed links; `s3` also uploads approved files to R2. Production must use `s3` |
 | `STORAGE_LOCAL_BASE_URL`, `STORAGE_SIGNING_SECRET` | api | The API's storage route (default `http://localhost:3001/api/storage`) and the secret that signs its links (required in production) |

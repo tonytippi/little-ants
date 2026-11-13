@@ -16,12 +16,18 @@ import { CurrentUser, Roles } from '../auth/decorators.js';
 import type { StaffUser } from '../auth/staff-access.js';
 import { audit } from '../common/audit.js';
 import { ZodBody } from '../common/zod-body.js';
+import { loadEnv } from '../config/env.js';
+import { hqRoleLabel, inviteEmail } from '../mail/invite-email.js';
+import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 @Roles('ADMIN')
 @Controller('staff')
 export class StaffController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+  ) {}
 
   private get db() {
     return this.prisma.client;
@@ -48,6 +54,7 @@ export class StaffController {
     return { users, invites };
   }
 
+  /** Invites someone to HQ and emails them where to sign in; `emailSent` is false when the email did not go out. */
   @Post('invites')
   async invite(
     @CurrentUser() user: StaffUser,
@@ -62,7 +69,15 @@ export class StaffController {
       create: { email: body.email, roles: body.roles, invitedById: user.id },
     });
     await audit(this.db, user.id, 'invite', body.email, { roles: body.roles });
-    return invite;
+    const emailSent = await this.mail.send(
+      inviteEmail({
+        to: body.email,
+        invitedBy: user.name,
+        role: hqRoleLabel(body.roles),
+        signInUrl: loadEnv().ADMIN_APP_URL,
+      }),
+    );
+    return { ...invite, emailSent };
   }
 
   @Delete('invites/:id')

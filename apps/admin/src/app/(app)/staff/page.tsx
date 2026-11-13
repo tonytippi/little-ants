@@ -11,6 +11,7 @@ import { AdminOnly } from '../../../components/admin-only';
 import { ConfirmDialog } from '../../../components/confirm-dialog';
 import { DataTable, type Column } from '../../../components/data-table';
 import { FormDialog } from '../../../components/form-dialog';
+import { InviteEmailNotice } from '../../../components/invite-email-notice';
 import { PageHeader } from '../../../components/page-header';
 import { RowMenu } from '../../../components/row-menu';
 import { api } from '../../../lib/api';
@@ -250,7 +251,11 @@ function InviteActions({ invite }: { invite: StaffInvite }) {
 function InviteDialog({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<Role[]>(['AUTHOR']);
-  const invite = useApiMutation(() => api.post('/staff/invites', { email, roles }), [KEY]);
+  const [emailFailed, setEmailFailed] = useState(false);
+  const invite = useApiMutation(
+    () => api.post<{ emailSent: boolean }>('/staff/invites', { email, roles }),
+    [KEY],
+  );
   const errors = fieldErrors(invite.error);
 
   return (
@@ -262,11 +267,16 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
       error={invite.error}
       disabled={roles.length === 0}
       onClose={onClose}
-      onSubmit={() => invite.mutate(undefined, { onSuccess: onClose })}
+      onSubmit={() =>
+        invite.mutate(undefined, {
+          onSuccess: ({ emailSent }) => (emailSent ? onClose() : setEmailFailed(true)),
+        })
+      }
     >
+      {emailFailed ? <InviteEmailNotice /> : null}
       <Field
         label="Google email"
-        hint="They can sign in with Google as soon as the invite is sent."
+        hint="They get an email and can sign in with Google as soon as the invite is sent."
         error={errors.email}
       >
         {(id, describedBy) => (

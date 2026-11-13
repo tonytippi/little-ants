@@ -16,6 +16,10 @@ const booleanFlag = z
   .default('false')
   .transform((value) => value === 'true' || value === '1');
 
+/** An optional setting where an empty value (e.g. `SMTP_USER=` in .env) means unset. */
+const optionalSetting = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((value) => (value === '' ? undefined : value), schema.optional());
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -42,8 +46,23 @@ const envSchema = z
     /** Development only: allow email + password sign-in for invited staff. */
     AUTH_DEV_PASSWORD_LOGIN: booleanFlag,
     STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+    /** Where invite emails send people to sign in: HQ staff and school admins use admin, teachers use teacher. */
+    ADMIN_APP_URL: z.string().url().default('http://localhost:3000'),
+    TEACHER_APP_URL: z.string().url().default('http://localhost:3002'),
+    /** Gmail account that sends invite emails. Without it invites are saved but no email goes out. */
+    SMTP_USER: optionalSetting(z.string().trim().email()),
+    /** A Google app password (Google shows it in groups of four; spaces are ignored). */
+    SMTP_PASSWORD: optionalSetting(z.string().transform((value) => value.replace(/\s+/g, ''))),
+    MAIL_FROM_NAME: z.string().trim().min(1).default('Little Ants English'),
   })
   .superRefine((env, ctx) => {
+    if (Boolean(env.SMTP_USER) !== Boolean(env.SMTP_PASSWORD)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [env.SMTP_USER ? 'SMTP_PASSWORD' : 'SMTP_USER'],
+        message: 'Set SMTP_USER and SMTP_PASSWORD together',
+      });
+    }
     if (env.NODE_ENV !== 'production') return;
     if (!env.BETTER_AUTH_SECRET) {
       ctx.addIssue({ code: 'custom', path: ['BETTER_AUTH_SECRET'], message: 'Required in production' });
@@ -92,6 +111,7 @@ const envSchema = z
     ...env,
     BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET ?? DEV_AUTH_SECRET,
     googleEnabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
+    mailEnabled: Boolean(env.SMTP_USER && env.SMTP_PASSWORD),
   }));
 
 export type Env = z.infer<typeof envSchema>;

@@ -11,6 +11,10 @@ process.env.DATABASE_URL = testDatabaseUrl('test_api');
 process.env.NODE_ENV = 'test';
 process.env.AUTH_DEV_PASSWORD_LOGIN = 'true';
 process.env.STORAGE_DRIVER = 'local';
+// Tests never send real email, even when .env holds the Gmail account.
+// Empty values count as unset; dotenv does not overwrite them.
+process.env.SMTP_USER = '';
+process.env.SMTP_PASSWORD = '';
 
 // SWC keeps decorator metadata, which Nest dependency injection needs.
 export default defineConfig({
