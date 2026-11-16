@@ -20,6 +20,8 @@ export interface ConvertPicturesResult {
   missing: string[];
   /** Could not be decoded: left as they are. */
   unreadable: string[];
+  /** Reading or uploading failed even after retries: left as they are, so a later run picks them up. */
+  failed: string[];
   releasesUpdated: number;
   /** PNG and JPEG files removed from the public bucket. */
   publicFilesDeleted: number;
@@ -49,6 +51,7 @@ export async function convertPicturesToWebp(
     bytesAfter: 0,
     missing: [],
     unreadable: [],
+    failed: [],
     releasesUpdated: 0,
     publicFilesDeleted: 0,
   };
@@ -57,12 +60,21 @@ export async function convertPicturesToWebp(
     return result;
   }
 
+  const readPicture = async (asset: (typeof assets)[number]): Promise<Buffer | null> =>
+    (await storage.get(asset.storageKey)) ??
+    (storage instanceof S3Storage && asset.status === 'APPROVED'
+      ? await storage.getPublic(asset.storageKey)
+      : null);
+
   for (const [index, asset] of assets.entries()) {
-    const body =
-      (await storage.get(asset.storageKey)) ??
-      (storage instanceof S3Storage && asset.status === 'APPROVED'
-        ? await storage.getPublic(asset.storageKey)
-        : null);
+    if (index > 0 && index % 50 === 0) log(`Checked ${index} of ${assets.length} pictures`);
+    let body: Buffer | null;
+    try {
+      body = await withRetries(() => readPicture(asset));
+    } catch (error) {
+      result.failed.push(`${asset.storageKey}: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
     if (!body) {
       result.missing.push(asset.storageKey);
       continue;
@@ -73,8 +85,13 @@ export async function convertPicturesToWebp(
       continue;
     }
     const storageKey = assetStorageKey(asset.id, asset.version, image.fileName);
-    await storage.put(storageKey, image.body, image.mimeType);
-    if (asset.status === 'APPROVED') await storage.publish(storageKey, image.mimeType);
+    try {
+      await storage.put(storageKey, image.body, image.mimeType);
+      if (asset.status === 'APPROVED') await withRetries(() => storage.publish(storageKey, image.mimeType));
+    } catch (error) {
+      result.failed.push(`${asset.storageKey}: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
     await prisma.asset.update({
       where: { id: asset.id },
       data: { storageKey, fileName: image.fileName, mimeType: image.mimeType, sizeBytes: image.body.length },
@@ -83,7 +100,6 @@ export async function convertPicturesToWebp(
     result.converted += 1;
     result.bytesBefore += body.length;
     result.bytesAfter += image.body.length;
-    if ((index + 1) % 50 === 0) log(`Converted ${index + 1} of ${assets.length} pictures`);
   }
 
   result.releasesUpdated = await pointReleasesAtWebp(prisma, storage);
@@ -101,6 +117,18 @@ export async function convertPicturesToWebp(
     log(`Deleted ${stale.length} old pictures from the public bucket`);
   }
   return result;
+}
+
+/** Network reads and uploads to the bucket sometimes drop; try a few times before giving up on a picture. */
+async function withRetries<T>(run: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await run();
+    } catch (error) {
+      if (attempt >= attempts) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+    }
+  }
 }
 
 interface MediaEntry {

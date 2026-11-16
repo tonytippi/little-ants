@@ -135,6 +135,8 @@ async function convertPictures(apply: boolean): Promise<void> {
     );
     for (const key of result.missing) console.log(`Missing (left as it is): ${key}`);
     for (const key of result.unreadable) console.log(`Not a readable picture (left as it is): ${key}`);
+    for (const line of result.failed) console.log(`Failed, run again to retry: ${line}`);
+    if (result.failed.length) process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
   }
