@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { ASSET_MIME_TYPES } from '@little-ants/shared';
 import { StatusBadge } from '@little-ants/ui/badge';
 import { Button } from '@little-ants/ui/button';
 import { Card, ErrorNotice, Spinner } from '@little-ants/ui/feedback';
@@ -10,6 +11,10 @@ import type { AssetDetail, ContentStatus } from '../../lib/types';
 import { FormError } from '../form-error';
 import { AssetPreview } from './asset-preview';
 import { UploadButton } from './upload-button';
+
+const IMAGE_TYPES = Object.keys(ASSET_MIME_TYPES)
+  .filter((type) => ASSET_MIME_TYPES[type] === 'IMAGE')
+  .join(',');
 
 const NEXT: Record<ContentStatus, { to: ContentStatus; label: string; reviewerOnly?: boolean }[]> = {
   DRAFT: [
@@ -115,7 +120,8 @@ export function AssetDetailPanel({
                 size="sm"
                 label="Upload new version"
                 replacesId={query.data.id}
-                accept={query.data.mimeType}
+                // Pictures are stored as WebP, so a new version may be any picture format.
+                accept={query.data.kind === 'IMAGE' ? IMAGE_TYPES : query.data.mimeType}
                 onUploaded={([newId]) => newId && onOpen(newId)}
               />
             </div>

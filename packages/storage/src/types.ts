@@ -11,6 +11,8 @@ export interface ObjectStorage {
   readonly driver: 'local' | 's3';
   put(key: string, body: Uint8Array, contentType: string): Promise<void>;
   head(key: string): Promise<StoredObjectInfo | null>;
+  /** Contents of a stored file, or null when there is none. */
+  get(key: string): Promise<Buffer | null>;
   delete(key: string): Promise<void>;
   /** URL a browser can PUT the file to directly. With `sizeBytes`, the upload must be exactly that size. */
   signedUploadUrl(

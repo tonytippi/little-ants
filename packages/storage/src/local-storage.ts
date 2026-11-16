@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ObjectStorage, StoredObjectInfo } from './types.js';
 
@@ -45,6 +45,15 @@ export class LocalStorage implements ObjectStorage {
       return { sizeBytes: info.size };
     } catch {
       return null;
+    }
+  }
+
+  async get(key: string): Promise<Buffer | null> {
+    try {
+      return await readFile(this.filePath(key));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw error;
     }
   }
 

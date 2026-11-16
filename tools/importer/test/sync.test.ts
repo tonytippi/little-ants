@@ -1,11 +1,12 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPrismaClient, seedBaseData, type PrismaClient } from '@little-ants/db';
 import { resetTestDatabase } from '@little-ants/db/testing';
 import { LocalStorage } from '@little-ants/storage';
-import { importUnitMedia } from '../src/assets.js';
+import { importFileAsAsset, importUnitMedia } from '../src/assets.js';
 import { planUnitMedia, type MediaSources } from '../src/media-plan.js';
 import { failInterruptedRuns, processNextRun } from '../src/worker.js';
 
@@ -20,6 +21,36 @@ beforeAll(async () => {
 afterAll(async () => {
   await prisma.$disconnect();
   rmSync(temp, { recursive: true, force: true });
+});
+
+describe('imported pictures', () => {
+  it('stores pictures as WebP sized for the teaching screens and reuses them on the next sync', async () => {
+    const storage = new LocalStorage({
+      rootDir: path.join(temp, 'webp-storage'),
+      baseUrl: 'http://localhost/storage',
+      signingSecret: 'secret',
+    });
+    const source = path.join(temp, 'U91-WC-01_pear (1).JPG');
+    writeFileSync(
+      source,
+      await sharp({ create: { width: 1200, height: 3000, channels: 3, background: '#7fb24a' } })
+        .jpeg()
+        .toBuffer(),
+    );
+    const first = await importFileAsAsset(prisma, storage, source);
+    const asset = await prisma.asset.findUniqueOrThrow({ where: { id: first.id } });
+    expect(asset).toMatchObject({ fileName: 'U91-WC-01_pear.webp', mimeType: 'image/webp', kind: 'IMAGE' });
+    expect(asset.storageKey).toMatch(/\/u91-wc-01_pear\.webp$/);
+    const stored = await storage.get(asset.storageKey);
+    expect(stored?.length).toBe(asset.sizeBytes);
+    expect(await sharp(stored!).metadata()).toMatchObject({ format: 'webp', width: 768, height: 1920 });
+
+    expect(await importFileAsAsset(prisma, storage, source)).toEqual({ id: first.id, created: false });
+    // The server lost its copy: the next sync stores the converted picture again under the same key.
+    await storage.delete(asset.storageKey);
+    expect(await importFileAsAsset(prisma, storage, source)).toEqual({ id: first.id, created: false });
+    expect((await storage.get(asset.storageKey))?.length).toBe(asset.sizeBytes);
+  });
 });
 
 describe('unit files on re-import', () => {

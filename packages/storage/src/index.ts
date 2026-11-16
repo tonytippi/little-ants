@@ -9,6 +9,7 @@ import type { ObjectStorage } from './types.js';
 export * from './types.js';
 export { LocalStorage, type LocalUrlAction } from './local-storage.js';
 export { S3Storage } from './s3-storage.js';
+export * from './web-image.js';
 
 /** Files on the server's disk: all of them in development, the private ones (drafts included) in production. */
 const localFields = {

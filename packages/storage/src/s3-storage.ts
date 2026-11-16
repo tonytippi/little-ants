@@ -1,5 +1,12 @@
 import { readFile } from 'node:fs/promises';
-import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectsCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import type { LocalStorage } from './local-storage.js';
 import type { ObjectStorage, StoredObjectInfo } from './types.js';
 
@@ -46,6 +53,10 @@ export class S3Storage implements ObjectStorage {
     return this.files.head(key);
   }
 
+  get(key: string): Promise<Buffer | null> {
+    return this.files.get(key);
+  }
+
   delete(key: string): Promise<void> {
     return this.files.delete(key);
   }
@@ -82,6 +93,45 @@ export class S3Storage implements ObjectStorage {
 
   publicUrl(key: string): string {
     return `${this.options.publicBaseUrl.replace(/\/$/, '')}/${key.split('/').map(encodeURIComponent).join('/')}`;
+  }
+
+  /** Contents of a file in the public bucket, or null when it is not there. */
+  async getPublic(key: string): Promise<Buffer | null> {
+    try {
+      const result = await this.client.send(new GetObjectCommand({ Bucket: this.options.bucket, Key: key }));
+      return result.Body ? Buffer.from(await result.Body.transformToByteArray()) : null;
+    } catch (error) {
+      if ((error as { name?: string }).name === 'NoSuchKey') return null;
+      throw error;
+    }
+  }
+
+  /** Every key in the public bucket under `prefix`. */
+  async listPublic(prefix: string): Promise<string[]> {
+    const keys: string[] = [];
+    let token: string | undefined;
+    do {
+      const page = await this.client.send(
+        new ListObjectsV2Command({ Bucket: this.options.bucket, Prefix: prefix, ContinuationToken: token }),
+      );
+      for (const item of page.Contents ?? []) if (item.Key) keys.push(item.Key);
+      token = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (token);
+    return keys;
+  }
+
+  /** Remove files from the public bucket. Their URLs stop working once the CDN cache expires or is purged. */
+  async deletePublic(keys: string[]): Promise<void> {
+    for (let start = 0; start < keys.length; start += 1000) {
+      const result = await this.client.send(
+        new DeleteObjectsCommand({
+          Bucket: this.options.bucket,
+          Delete: { Objects: keys.slice(start, start + 1000).map((Key) => ({ Key })), Quiet: true },
+        }),
+      );
+      if (result.Errors?.length)
+        throw new Error(`Could not delete ${result.Errors.map((error) => error.Key).join(', ')}`);
+    }
   }
 
   private async isPublic(key: string): Promise<boolean> {

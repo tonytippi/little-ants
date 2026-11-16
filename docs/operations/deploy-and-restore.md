@@ -72,7 +72,7 @@ Files are matched by name (the report lists every file it could not place, and w
 | `05_Audio-Video/U05_SG1_…_v1.1.mp3` | Recording of SG1 (highest version wins) |
 | `00_ROUTINES-AUDIO/LA2_RT1_…mp3` | Recording of RT1 in every unit |
 
-Pictures must be PNG or JPEG. When a picture exists both as a regular and a 4K copy (a folder name containing "4K"), the lighter regular copy is used.
+Pictures must be PNG or JPEG. They are stored and served as WebP of at most 1920 px on the longer side (pictures uploaded in Admin too); the Drive files stay the originals. Pictures stored before this are converted by `$COMPOSE --profile tools run --rm import node tools/importer/dist/cli.js --convert-pictures` (counts only; add `--apply` with `import-worker` stopped). When a picture exists both as a regular and a 4K copy (a folder name containing "4K"), the lighter regular copy is used.
 
 Every sync first updates the Drive mirror in `docs/Little Ants English/LA 3-6/` on the host (only changed files are downloaded) and imports from it, so the files can be read on the host. The import services run as the host user (`HOST_UID`/`HOST_GID`, default 1000) to keep the mirror, reports and backups editable there. The imported files are stored in `infra/storage/` (a second copy, so the key of a file never changes even when Drive does). Production uses `STORAGE_DRIVER=s3`, which uploads approved files to R2; without it the API would serve approved files itself, which is for development and testing only. If `infra/storage/` is lost, the next sync stores the imported files again.
 

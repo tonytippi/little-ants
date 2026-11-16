@@ -1,6 +1,9 @@
+import sharp from 'sharp';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { UnitReleasePayload } from '@little-ants/shared';
+import type { ObjectStorage } from '@little-ants/storage';
+import { OBJECT_STORAGE } from '../src/storage/storage.tokens.js';
 import type { StaffUser } from '../src/auth/staff-access.js';
 import { TEST_USER_HEADER, createSchool, createStaff, createTestApp, type TestApp } from './test-app.js';
 
@@ -231,11 +234,16 @@ describe('content editing, review, publishing and teaching', () => {
       .expect(201);
   });
 
-  it('uploads a file through a signed URL, approves it and replaces it with a new version', async () => {
+  const picture = (width: number, height: number) =>
+    sharp({ create: { width, height, channels: 4, background: '#e8a33d' } })
+      .png()
+      .toBuffer();
+
+  it('rejects an upload that claims to be a picture but is not one', async () => {
     const start = await request(server())
       .post('/api/assets/upload-url')
       .set(as(author))
-      .send({ fileName: 'Hello Poster.png', mimeType: 'image/png', sizeBytes: 4 })
+      .send({ fileName: 'Broken.png', mimeType: 'image/png', sizeBytes: 4 })
       .expect(201);
     const uploadPath = new URL(start.body.uploadUrl).pathname + new URL(start.body.uploadUrl).search;
     await request(server())
@@ -243,12 +251,40 @@ describe('content editing, review, publishing and teaching', () => {
       .set('Content-Type', 'image/png')
       .send(Buffer.from([1, 2, 3, 4]))
       .expect(200);
+    await request(server()).post(`/api/assets/${start.body.assetId}/complete`).set(as(author)).expect(400);
+    expect(await ctx.prisma.asset.findUnique({ where: { id: start.body.assetId } })).toBeNull();
+  });
+
+  it('uploads a file through a signed URL, approves it and replaces it with a new version', async () => {
+    const poster = await picture(4000, 3000);
+    const start = await request(server())
+      .post('/api/assets/upload-url')
+      .set(as(author))
+      .send({ fileName: 'Hello Poster.png', mimeType: 'image/png', sizeBytes: poster.length })
+      .expect(201);
+    const uploadPath = new URL(start.body.uploadUrl).pathname + new URL(start.body.uploadUrl).search;
+    await request(server()).put(uploadPath).set('Content-Type', 'image/png').send(poster).expect(200);
     await request(server()).put(uploadPath).set('Content-Type', 'text/html').send('<b>x</b>').expect(403);
     const completed = await request(server())
       .post(`/api/assets/${start.body.assetId}/complete`)
       .set(as(author))
       .expect(201);
-    expect(completed.body).toMatchObject({ uploaded: true, sizeBytes: 4, status: 'DRAFT' });
+    // Pictures are stored as WebP no larger than the teaching screens need.
+    expect(completed.body).toMatchObject({
+      uploaded: true,
+      status: 'DRAFT',
+      fileName: 'Hello Poster.webp',
+      mimeType: 'image/webp',
+    });
+    expect(completed.body.storageKey).toMatch(/\/hello-poster\.webp$/);
+    const stored = await ctx.app.get<ObjectStorage>(OBJECT_STORAGE).get(completed.body.storageKey);
+    expect(stored?.length).toBe(completed.body.sizeBytes);
+    expect(await sharp(stored!).metadata()).toMatchObject({ format: 'webp', width: 1920, height: 1440 });
+    expect(
+      await ctx.app
+        .get<ObjectStorage>(OBJECT_STORAGE)
+        .head(completed.body.storageKey.replace(/\.webp$/, '.png')),
+    ).toBeNull();
     // A retried "complete" returns the same finished asset.
     const retried = await request(server())
       .post(`/api/assets/${start.body.assetId}/complete`)
@@ -288,22 +324,19 @@ describe('content editing, review, publishing and teaching', () => {
     const file = await request(server()).get(`/api/storage/public/${key}`).expect(200);
     expect(file.headers['cache-control']).toContain('immutable');
 
+    const replacement = await picture(800, 600);
     const replace = await request(server())
       .post('/api/assets/upload-url')
       .set(as(author))
       .send({
         fileName: 'Hello Poster.png',
         mimeType: 'image/png',
-        sizeBytes: 2,
+        sizeBytes: replacement.length,
         replacesId: start.body.assetId,
       })
       .expect(201);
     const replacePath = new URL(replace.body.uploadUrl).pathname + new URL(replace.body.uploadUrl).search;
-    await request(server())
-      .put(replacePath)
-      .set('Content-Type', 'image/png')
-      .send(Buffer.from([9, 9]))
-      .expect(200);
+    await request(server()).put(replacePath).set('Content-Type', 'image/png').send(replacement).expect(200);
     const v2 = await request(server())
       .post(`/api/assets/${replace.body.assetId}/complete`)
       .set(as(author))

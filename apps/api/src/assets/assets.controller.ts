@@ -19,7 +19,7 @@ import {
   type Prisma,
 } from '@little-ants/db';
 import { ASSET_MIME_TYPES, MAX_ASSET_BYTES, statusChange, uploadRequest } from '@little-ants/shared';
-import { assetStorageKey, type ObjectStorage } from '@little-ants/storage';
+import { assetStorageKey, isWebImageSource, toWebImage, type ObjectStorage } from '@little-ants/storage';
 import { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators.js';
 import { hasRole, type StaffUser } from '../auth/staff-access.js';
@@ -189,6 +189,7 @@ export class AssetsController {
         'The uploaded file is not the size that was announced; please upload it again',
       );
     }
+    const file = asset.kind === 'IMAGE' ? await this.toWebImage(asset) : null;
     const replacesId = asset.pendingReplacesId;
     await this.db.$transaction(async (tx) => {
       if (
@@ -199,11 +200,35 @@ export class AssetsController {
       }
       await tx.asset.update({
         where: { id },
-        data: { uploaded: true, pendingReplacesId: null, previousId: replacesId },
+        data: { ...file, uploaded: true, pendingReplacesId: null, previousId: replacesId },
       });
       if (replacesId) await this.moveLinks(tx, replacesId, id, user.id);
     });
+    if (file && file.storageKey !== asset.storageKey) await this.storage.delete(asset.storageKey);
     return this.detail(id);
+  }
+
+  /**
+   * Pictures are kept as WebP sized for the teaching screens, so what reviewers approve is what users download.
+   * The converted file gets its own key; the caller removes the uploaded one once the row points at it.
+   */
+  private async toWebImage(asset: {
+    id: string;
+    version: number;
+    storageKey: string;
+    fileName: string;
+    mimeType: string;
+  }): Promise<{ storageKey: string; fileName: string; mimeType: string; sizeBytes: number }> {
+    const body = isWebImageSource(asset.mimeType) ? await this.storage.get(asset.storageKey) : null;
+    const image = body ? await toWebImage(body, asset.fileName).catch(() => null) : null;
+    if (!image) {
+      await this.storage.delete(asset.storageKey);
+      await this.db.asset.delete({ where: { id: asset.id } });
+      throw new BadRequestException('The uploaded file is not a readable PNG, JPEG or WebP picture');
+    }
+    const storageKey = assetStorageKey(asset.id, asset.version, image.fileName);
+    await this.storage.put(storageKey, image.body, image.mimeType);
+    return { storageKey, fileName: image.fileName, mimeType: image.mimeType, sizeBytes: image.body.length };
   }
 
   private async moveLinks(

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { AssetKind, PrismaClient } from '@little-ants/db';
-import { assetStorageKey, type ObjectStorage } from '@little-ants/storage';
+import { assetStorageKey, toWebImage, type ObjectStorage } from '@little-ants/storage';
 import { IMPORTED_ROLES, type MediaPlan } from './media-plan.js';
 
 const MIME_TYPES: Record<string, { mime: string; kind: AssetKind }> = {
@@ -18,8 +18,23 @@ export interface UploadedAsset {
   created: boolean;
 }
 
+interface StoredFile {
+  body: Uint8Array;
+  mimeType: string;
+  fileName: string;
+}
+
 /**
- * Upload a local file as a draft asset. Files already imported (same checksum) are reused,
+ * Pictures are stored as WebP sized for the teaching screens. A picture that cannot be decoded is kept as it is,
+ * so one broken file does not stop the sync; it shows up broken in Admin instead.
+ */
+async function storedFile(body: Uint8Array, mimeType: string, fileName: string): Promise<StoredFile> {
+  if (!mimeType.startsWith('image/')) return { body, mimeType, fileName };
+  return (await toWebImage(body, fileName).catch(() => null)) ?? { body, mimeType, fileName };
+}
+
+/**
+ * Upload a local file as a draft asset. Files already imported (same checksum of the Drive file) are reused,
  * so running the import again does not create duplicates.
  */
 export async function importFileAsAsset(
@@ -37,28 +52,38 @@ export async function importFileAsAsset(
     return { id: existing.id, created: false };
   if (existing) {
     // An earlier run created the row but the upload failed, or the server lost its copy: store it again.
-    await storage.put(existing.storageKey, body, existing.mimeType);
+    // The row keeps its format: a picture imported before pictures became WebP is stored as it was.
+    const stored = await storedFile(body, type.mime, existing.fileName);
+    await storage.put(
+      existing.storageKey,
+      stored.mimeType === existing.mimeType ? stored.body : body,
+      existing.mimeType,
+    );
     if (!existing.uploaded)
       await prisma.asset.update({ where: { id: existing.id }, data: { uploaded: true } });
     return { id: existing.id, created: false };
   }
 
-  const fileName = displayName.replace(/\s*\(\d+\)(?=\.[^.]+$)/, ''); // "file (1).pdf" → "file.pdf"
+  const stored = await storedFile(
+    body,
+    type.mime,
+    displayName.replace(/\s*\(\d+\)(?=\.[^.]+$)/, ''), // "file (1).pdf" → "file.pdf"
+  );
   const asset = await prisma.asset.create({
     data: {
       kind: type.kind,
       storageKey: `pending/${checksum}`,
-      fileName,
-      mimeType: type.mime,
-      sizeBytes: body.length,
+      fileName: stored.fileName,
+      mimeType: stored.mimeType,
+      sizeBytes: stored.body.length,
       checksum,
       source: 'import',
       uploaded: false,
     },
   });
-  const storageKey = assetStorageKey(asset.id, 1, fileName);
+  const storageKey = assetStorageKey(asset.id, 1, stored.fileName);
   await prisma.asset.update({ where: { id: asset.id }, data: { storageKey } });
-  await storage.put(storageKey, body, type.mime);
+  await storage.put(storageKey, stored.body, stored.mimeType);
   await prisma.asset.update({ where: { id: asset.id }, data: { uploaded: true } });
   return { id: asset.id, created: true };
 }

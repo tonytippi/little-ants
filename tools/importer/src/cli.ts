@@ -4,6 +4,9 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { config } from 'dotenv';
 import { createPrismaClient } from '@little-ants/db';
+import { backupDatabase } from '@little-ants/db/backup';
+import { createStorageFromEnv } from '@little-ants/storage';
+import { convertPicturesToWebp } from './convert-pictures.js';
 import { driveTree, openProgramFolder, resolveDrivePath } from './drive-browse.js';
 import { repoRoot, runImport } from './run-import.js';
 import { runTestDataSeed, testDataAfterSync, testDataReport } from './test-data.js';
@@ -15,6 +18,7 @@ const USAGE = `Usage: la-import [--unit U01 ...] [--all] [--dry-run] [--assets] 
        la-import --worker
        la-import --drive-list <path> [--depth N]
        la-import --drive-cat <path>
+       la-import --convert-pictures [--apply]
 
   --unit U01   Import one unit (repeatable). Matches the unit folder number.
   --all        Import all 12 units.
@@ -30,7 +34,11 @@ const USAGE = `Usage: la-import [--unit U01 ...] [--all] [--dry-run] [--assets] 
                each sync then approves and publishes the units as imported (the API's seed-test).
   --drive-list Show the Drive folders and files below <path>, relative to the program folder ("." for LA 3-6 itself).
   --depth N    How many levels of subfolders --drive-list opens (default 1).
-  --drive-cat  Print a text file from Drive, e.g. README.md (Google Docs as text, Sheets as CSV).`;
+  --drive-cat  Print a text file from Drive, e.g. README.md (Google Docs as text, Sheets as CSV).
+  --convert-pictures
+               Count the PNG and JPEG pictures stored before pictures became WebP. With --apply, back up the
+               database, convert them, point published releases at the WebP files and delete the old pictures
+               from the server and the public bucket. Stop import-worker while it runs.`;
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
@@ -46,10 +54,13 @@ async function main(): Promise<void> {
       'drive-list': { type: 'string' },
       'drive-cat': { type: 'string' },
       depth: { type: 'string', default: '1' },
+      'convert-pictures': { type: 'boolean', default: false },
+      apply: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
   });
   if (values.worker) return worker();
+  if (values['convert-pictures']) return convertPictures(values.apply);
   if (values['drive-list'] !== undefined) return driveList(values['drive-list'], Number(values.depth));
   if (values['drive-cat'] !== undefined) return driveCat(values['drive-cat']);
   if (values.help || (!values.all && !values.unit?.length)) {
@@ -96,6 +107,34 @@ async function worker(): Promise<void> {
       },
       { signal: stop.signal },
     );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+async function convertPictures(apply: boolean): Promise<void> {
+  const prisma = createPrismaClient();
+  const megabytes = (bytes: number): string => `${(bytes / 1e6).toFixed(1)} MB`;
+  try {
+    if (apply) console.log(`Database backup: ${backupDatabase('before-webp-pictures')}`);
+    const result = await convertPicturesToWebp(prisma, createStorageFromEnv(process.env, repoRoot), {
+      apply,
+      log: console.log,
+    });
+    if (!apply) {
+      console.log(
+        `${result.pictures} PNG and JPEG pictures (${megabytes(result.bytesBefore)}) would become WebP. Run again with --apply.`,
+      );
+      return;
+    }
+    console.log(
+      `Converted ${result.converted} of ${result.pictures} pictures: ${megabytes(result.bytesBefore)} → ${megabytes(result.bytesAfter)}.`,
+    );
+    console.log(
+      `Updated ${result.releasesUpdated} releases; deleted ${result.publicFilesDeleted} old public files.`,
+    );
+    for (const key of result.missing) console.log(`Missing (left as it is): ${key}`);
+    for (const key of result.unreadable) console.log(`Not a readable picture (left as it is): ${key}`);
   } finally {
     await prisma.$disconnect();
   }
