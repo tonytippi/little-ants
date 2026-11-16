@@ -22,6 +22,8 @@ docs/**/*.png
 docs/**/*.jpg
 docs/**/*.jpeg
 docs/**/*.svg
+# Brand artwork is ours and small, so it is kept.
+!docs/brand/**
 ~$*
 .DS_Store
 *.DS_Store
